@@ -148,9 +148,10 @@ objectifsmart-ai/
 
 ## 👥 Équipe - Groupe 03
 
+- Lompo Bampalou Ernest
+
 - Chaabi Taha
 - Bajja Ilyas
-- Lompo Bampalou Ernest
 - Taifouri Marwa
 - Jadlaoui Marwen
 - David
