@@ -40,6 +40,7 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ user }) => {
   const [isUploading, setIsUploading] = useState<'strategy' | 'objectives' | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [lastAnalysis, setLastAnalysis] = useState<any>(null);
+  const [analysisProgress, setAnalysisProgress] = useState<{ current: number; total: number; title: string }>({ current: 0, total: 0, title: '' });
 
   // Import Excel pour analyse personnelle
   const [isImportingPersonal, setIsImportingPersonal] = useState(false);
@@ -122,11 +123,17 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ user }) => {
     setIsAnalyzing(true);
     setError(null);
     setLastAnalysis(null);
+    setAnalysisProgress({ current: 0, total: 0, title: '' });
     try {
-      const result = await ApiService.analyzeBatch();
+      const result = await ApiService.analyzeBatch([], (progress) => {
+        if (progress.type === 'start') {
+          setAnalysisProgress({ current: 0, total: progress.total || 0, title: '' });
+        } else if (progress.type === 'progress') {
+          setAnalysisProgress({ current: progress.current || 0, total: progress.total || 0, title: progress.title || '' });
+        }
+      });
       if (result.success) {
         setLastAnalysis(result);
-        alert(`${result.analyzed} objectifs analysés.`);
         await loadData();
       } else {
         throw new Error('L\'analyse groupée a échoué.');
@@ -135,6 +142,7 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ user }) => {
       setError(err.message);
     } finally {
       setIsAnalyzing(false);
+      setAnalysisProgress({ current: 0, total: 0, title: '' });
     }
   };
 
@@ -341,6 +349,21 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ user }) => {
             <button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 text-base shadow-md disabled:opacity-60">
               {isAnalyzing ? <><Loader2 className="animate-spin" size={20}/>Analyse en cours...</> : <><Sparkles size={20}/>Lancer l'analyse groupée</>}
             </button>
+            {isAnalyzing && analysisProgress.total > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between items-center text-sm font-semibold text-amber-800">
+                  <span>Objectif {analysisProgress.current} / {analysisProgress.total}</span>
+                  <span>{Math.round((analysisProgress.current / analysisProgress.total) * 100)}%</span>
+                </div>
+                <div className="w-full bg-amber-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-amber-500 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${(analysisProgress.current / analysisProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-amber-700 truncate">En cours : {analysisProgress.title}</p>
+              </div>
+            )}
             {lastAnalysis && (
               <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-sm flex items-center gap-3 border border-emerald-200">
                 <FileCheck2 size={18}/>

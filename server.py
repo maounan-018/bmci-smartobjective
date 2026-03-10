@@ -2391,7 +2391,7 @@ async def analyze_batch(
     objective_ids: List[str] = Body(default=[]),
     current_user: dict = Depends(get_current_user)
 ):
-    """Analyse batch d'objectifs (SMART + Alignement)"""
+    """Analyse batch d'objectifs (SMART + Alignement) avec streaming SSE"""
     if current_user['role'] != 'HR':
         raise HTTPException(status_code=403, detail="Accès réservé aux RH.")
     
@@ -2418,96 +2418,101 @@ async def analyze_batch(
         
         cursor.execute("SELECT id, title, description FROM company_objectives")
         company_objectives = [dict(row) for row in cursor.fetchall()]
-    
-    results = []
-    analyzed = 0
-    errors = 0
-    
-    for obj in objectives:
-        try:
-            smart_result = None
+
+    total = len(objectives)
+    user_id = current_user['id']
+
+    def generate():
+        results = []
+        analyzed = 0
+        errors = 0
+
+        # Send initial event with total count
+        yield f"data: {json.dumps({'type': 'start', 'total': total})}\n\n"
+
+        for idx, obj in enumerate(objectives):
+            # Send progress before processing
+            yield f"data: {json.dumps({'type': 'progress', 'current': idx + 1, 'total': total, 'title': obj['title'][:80]})}\n\n"
+
             try:
-                # Utiliser la fonction interne au lieu de l'endpoint
-                smart_result = _analyze_smart_internal(obj['title'], obj.get('description', ''))
-            except:
-                smart_result = {"S": False, "M": False, "A": False, "R": False, "T": False, "overall": False, "confidence": 0, "issues": []}
-            
-            alignment_result = None
-            if company_objectives:
+                smart_result = None
                 try:
-                    # Utiliser la fonction interne au lieu de l'endpoint
-                    alignment_result = _analyze_alignment_internal(obj['title'], company_objectives)
+                    smart_result = _analyze_smart_internal(obj['title'], obj.get('description', ''))
                 except:
-                    alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": []}
-            else:
-                alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
-            
-            with db_session() as conn:
-                cursor = conn.cursor()
-                # Marquer comme analysé par HR
-                cursor.execute('''
-                    UPDATE objectives SET 
-                        smart_analysis = ?,
-                        alignment_analysis = ?,
-                        analyzed_by_role = 'HR',
-                        analyzed_by_user_id = ?,
-                        data_scope = 'HR',
-                        status = 'analyzed',
-                        updated_at = ?
-                    WHERE id = ?
-                ''', (json.dumps(smart_result), json.dumps(alignment_result), 
-                      current_user['id'], datetime.now().isoformat(), obj['id']))
+                    smart_result = {"S": False, "M": False, "A": False, "R": False, "T": False, "overall": False, "confidence": 0, "issues": []}
                 
-                smart_score = (
-                    (1 if smart_result.get('S') else 0) +
-                    (1 if smart_result.get('M') else 0) +
-                    (1 if smart_result.get('A') else 0) +
-                    (1 if smart_result.get('R') else 0) +
-                    (1 if smart_result.get('T') else 0)
-                ) / 5 * 100
+                alignment_result = None
+                if company_objectives:
+                    try:
+                        alignment_result = _analyze_alignment_internal(obj['title'], company_objectives)
+                    except:
+                        alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": []}
+                else:
+                    alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
                 
-                top_issue = smart_result.get('issues', [{}])[0].get('problem', '') if smart_result.get('issues') else ''
+                with db_session() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        UPDATE objectives SET 
+                            smart_analysis = ?,
+                            alignment_analysis = ?,
+                            analyzed_by_role = 'HR',
+                            analyzed_by_user_id = ?,
+                            data_scope = 'HR',
+                            status = 'analyzed',
+                            updated_at = ?
+                        WHERE id = ?
+                    ''', (json.dumps(smart_result), json.dumps(alignment_result), 
+                          user_id, datetime.now().isoformat(), obj['id']))
+                    
+                    smart_score = (
+                        (1 if smart_result.get('S') else 0) +
+                        (1 if smart_result.get('M') else 0) +
+                        (1 if smart_result.get('A') else 0) +
+                        (1 if smart_result.get('R') else 0) +
+                        (1 if smart_result.get('T') else 0)
+                    ) / 5 * 100
+                    
+                    top_issue = smart_result.get('issues', [{}])[0].get('problem', '') if smart_result.get('issues') else ''
+                    
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO hr_analysis_results 
+                        (id, objective_id, smart_score, alignment_score, s_score, m_score, a_score, r_score, t_score, issues_count, top_issue, analyzed_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (f"res-{obj['id']}", obj['id'], smart_score, 
+                          alignment_result.get('alignment_score', 0),
+                          1 if smart_result.get('S') else 0,
+                          1 if smart_result.get('M') else 0,
+                          1 if smart_result.get('A') else 0,
+                          1 if smart_result.get('R') else 0,
+                          1 if smart_result.get('T') else 0,
+                          len(smart_result.get('issues', [])),
+                          top_issue,
+                          datetime.now().isoformat()))
                 
-                cursor.execute('''
-                    INSERT OR REPLACE INTO hr_analysis_results 
-                    (id, objective_id, smart_score, alignment_score, s_score, m_score, a_score, r_score, t_score, issues_count, top_issue, analyzed_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (f"res-{obj['id']}", obj['id'], smart_score, 
-                      alignment_result.get('alignment_score', 0),
-                      1 if smart_result.get('S') else 0,
-                      1 if smart_result.get('M') else 0,
-                      1 if smart_result.get('A') else 0,
-                      1 if smart_result.get('R') else 0,
-                      1 if smart_result.get('T') else 0,
-                      len(smart_result.get('issues', [])),
-                      top_issue,
-                      datetime.now().isoformat()))
-            
-            results.append({
-                "id": obj['id'],
-                "title": obj['title'],
-                "smart_score": smart_score,
-                "alignment_score": alignment_result.get('alignment_score', 0),
-                "success": True
-            })
-            analyzed += 1
-            
-        except Exception as e:
-            print(f"[Batch Analysis Error] {obj['id']}: {e}")
-            results.append({
-                "id": obj['id'],
-                "title": obj['title'],
-                "success": False,
-                "error": str(e)
-            })
-            errors += 1
-    
-    return {
-        "success": True,
-        "analyzed": analyzed,
-        "errors": errors,
-        "results": results
-    }
+                results.append({
+                    "id": obj['id'],
+                    "title": obj['title'],
+                    "smart_score": smart_score,
+                    "alignment_score": alignment_result.get('alignment_score', 0),
+                    "success": True
+                })
+                analyzed += 1
+                
+            except Exception as e:
+                print(f"[Batch Analysis Error] {obj['id']}: {e}")
+                results.append({
+                    "id": obj['id'],
+                    "title": obj['title'],
+                    "success": False,
+                    "error": str(e)
+                })
+                errors += 1
+
+        # Send final result
+        yield f"data: {json.dumps({'type': 'done', 'success': True, 'analyzed': analyzed, 'errors': errors, 'results': results})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 @app.get("/api/hr/analytics")
 def get_hr_analytics(

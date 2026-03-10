@@ -341,7 +341,7 @@ export const ApiService = {
       const formData = new FormData();
       formData.append('file', file);
       
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('bmci_auth_token');
       const response = await fetch(`${API_BASE}/hr/import-strategy`, {
         method: 'POST',
         headers: {
@@ -366,7 +366,7 @@ export const ApiService = {
       const formData = new FormData();
       formData.append('file', file);
       
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('bmci_auth_token');
       const response = await fetch(`${API_BASE}/hr/import-objectives`, {
         method: 'POST',
         headers: {
@@ -386,7 +386,10 @@ export const ApiService = {
     }
   },
 
-  async analyzeBatch(objectiveIds: string[] = []): Promise<{ success: boolean; analyzed?: number; errors?: number; results?: BatchAnalysisResult[] }> {
+  async analyzeBatch(
+    objectiveIds: string[] = [],
+    onProgress?: (data: { type: string; current?: number; total?: number; title?: string }) => void
+  ): Promise<{ success: boolean; analyzed?: number; errors?: number; results?: BatchAnalysisResult[] }> {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/hr/analyze-batch`, {
         method: 'POST',
@@ -394,7 +397,35 @@ export const ApiService = {
       });
       
       if (!response.ok) throw new Error('Erreur analyse batch');
-      return await response.json();
+
+      const reader = response.body?.getReader();
+      if (!reader) return await response.json();
+
+      const decoder = new TextDecoder();
+      let finalResult: any = { success: false };
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'done') {
+                finalResult = data;
+              } else if (onProgress) {
+                onProgress(data);
+              }
+            } catch {}
+          }
+        }
+      }
+
+      return finalResult;
     } catch (error) {
       console.error('[ApiService] analyzeBatch error:', error);
       return { success: false };
