@@ -96,6 +96,33 @@ Employé insère la carte
    - Possibilité ou non d'installer des bibliothèques
 ```
 
+### 1.4 Pourquoi les logiciels se configurent automatiquement sur chaque PC — Roaming Profiles
+
+Tu as mentionné que "les logiciels installés sur un PC sont déjà configurés grâce aux identifiants de la carte". Voici l'explication technique de ce mécanisme : ce sont les **Roaming Profiles** (Profils itinérants) d'Active Directory.
+
+**Ce que c'est :** Quand un employé se connecte avec sa carte sur **n'importe quel PC** du réseau BMCI, Windows va chercher sur un serveur central son profil personnel (bureau, paramètres, favoris, configuration des logiciels). Ce profil est stocké dans AD et synchronisé à chaque connexion.
+
+```
+PC de l'employé A (son bureau habituel)
+        │  Carte insérée
+        ▼
+Active Directory
+  └── Profil de Chaimaa ABID :
+        - Paramètres Outlook configurés avec sa boîte mail
+        - Raccourcis sur le bureau
+        - Configuration SAP, outils RH
+        - GPO : droits RH appliqués
+
+PC de l'employé B (salle de réunion, autre bureau)
+        │  Même carte insérée
+        ▼
+Active Directory
+  └── MÊME profil de Chaimaa ABID chargé automatiquement
+        → Mêmes logiciels configurés, mêmes droits, même bureau
+```
+
+**Impact pour ObjectifSMART-AI :** Si on intègre l'authentification AD, l'application se comportera exactement comme ça — l'employé accède à son espace personnalisé (Collaborateur/Manager/RH) depuis n'importe quel PC du réseau BMCI, sans reconfiguration.
+
 ---
 
 ## 2. Comment fonctionne le verrouillage automatique
@@ -110,6 +137,31 @@ Elle peut être configurée sur :
 - `Disconnect if a Remote Desktop Services session`
 
 C'est pourquoi **dès que la carte est retirée, même 1 seconde, le PC se verrouille**. C'est une décision de sécurité délibérée de la BMCI : si l'employé s'éloigne de son poste, personne ne peut accéder à ses données.
+
+### 2.1 Lien entre le verrouillage du PC et la session ObjectifSMART-AI
+
+Point critique à implémenter : quand le PC se verrouille (carte retirée), la session ObjectifSMART-AI devrait également expirer automatiquement pour ne pas laisser un espace de travail ouvert et accessible à d'autres.
+
+**Comment faire :**
+
+```
+Carte retirée → PC verrouillé
+        │
+        ▼
+Session Windows suspendue (token Kerberos inactif)
+        │
+        ▼
+ObjectifSMART-AI : token de session expire côté serveur
+(grâce au TOKEN_EXPIRY_HOURS = 8h + inactivité détectée)
+        │
+        ▼
+Quand l'employé remet sa carte et déverrouille le PC
+→ Le navigateur recharge ObjectifSMART-AI
+→ Le token est expiré → retour à la page de connexion
+→ L'employé se ré-authentifie (avec sa carte/session Windows)
+```
+
+Avec l'intégration Kerberos (Option B), ce processus est encore plus propre : quand le token Windows expire, le token ObjectifSMART-AI expire aussi automatiquement.
 
 ---
 
@@ -172,7 +224,25 @@ Attributs :
   employeeID      : 00847
 ```
 
-### 4.3 Protocoles pour interroger Active Directory
+### 4.3 Le champ `manager` dans AD résout le problème de sélection du manager
+
+Point crucial pour ObjectifSMART-AI : dans notre application actuelle, quand un collaborateur s'inscrit, il doit **manuellement sélectionner son manager** dans une liste déroulante. C'est un point faible UX et un risque d'erreur.
+
+**Avec Active Directory, ce problème disparaît complètement.** L'attribut `manager` dans le profil AD de chaque employé contient directement le DN (identifiant unique) de son manager hiérarchique. Cette information est maintenue à jour par la DSI/RH BMCI à chaque mouvement de personnel.
+
+```python
+# Lors de l'authentification LDAP, le manager est récupéré automatiquement :
+entry.manager  
+# → "CN=Youssef BENCHEIKH,OU=Digital,DC=bmci,DC=co,DC=ma"
+
+# On extrait le sAMAccountName du manager pour le retrouver dans notre base :
+manager_username = extraire_username_depuis_dn(str(entry.manager))
+# → "ybencheikh"
+```
+
+**Résultat :** Le collaborateur n'a plus jamais besoin de choisir son manager. L'application le récupère directement depuis AD et l'associe automatiquement.
+
+### 4.4 Protocoles pour interroger Active Directory
 
 | Protocole | Description | Usage |
 |-----------|-------------|-------|
@@ -464,6 +534,61 @@ Pour implémenter la Phase 1 (LDAP), voici exactement ce dont l'équipe a besoin
 | Noms des groupes AD | `GRP-RH`, `GRP-MANAGERS`, etc. | Pour mapper les rôles |
 | Compte de service | Un compte AD en lecture seule | Pour faire les requêtes LDAP |
 
+### Comment tester sans accès à l'AD réel de la BMCI
+
+En attendant l'accès au serveur AD de la BMCI, l'équipe peut tester l'intégration LDAP avec un **Active Directory local de test** en utilisant Docker :
+
+```bash
+# Lancer un AD de test local en 1 commande
+docker run -d \
+  --name ad-test \
+  -p 389:389 \
+  -p 636:636 \
+  -e SAMBA_DOMAIN=BMCI \
+  -e SAMBA_REALM=BMCI.CO.MA \
+  -e SAMBA_PASSWORD=Admin@1234 \
+  nowsci/samba-domain
+```
+
+Puis créer des utilisateurs de test qui imitent la structure BMCI :
+```python
+# Script de peuplement de l'AD de test
+from ldap3 import Server, Connection, ALL, MODIFY_ADD
+
+conn = Connection(Server("ldap://localhost:389"), 
+                  user="Administrator@BMCI.CO.MA",
+                  password="Admin@1234", auto_bind=True)
+
+# Créer un utilisateur RH de test
+conn.add("CN=Test RH,OU=Users,DC=bmci,DC=co,DC=ma", 
+         attributes={
+             "sAMAccountName": "test-rh",
+             "mail": "test.rh@bmci.co.ma",
+             "department": "Ressources Humaines",
+             "memberOf": ["CN=GRP-BMCI-RH,DC=bmci,DC=co,DC=ma"]
+         })
+```
+
+Cela permet de développer et tester tout le code d'intégration LDAP avant d'avoir accès au vrai AD BMCI.
+
+### Sécurité de l'intégration LDAP — Points d'attention
+
+| Risque | Solution |
+|--------|----------|
+| LDAP en clair (port 389) | Utiliser **LDAPS (port 636)** avec certificat TLS |
+| LDAP injection | Ne jamais construire le filtre LDAP avec des f-strings — utiliser `ldap3` avec échappement automatique |
+| Compte de service trop puissant | Créer un compte AD dédié avec **droits de lecture seule uniquement** |
+| Mot de passe du compte de service | Le stocker dans `.env`, jamais dans le code source |
+| Logs qui exposent les mots de passe | Ne jamais loguer `request.password` ou les identifiants LDAP |
+
+```python
+# CORRECT — ldap3 échappe automatiquement les caractères spéciaux
+search_filter = f"(sAMAccountName={escape_filter_chars(username)})"
+
+# INCORRECT — vulnérable à l'injection LDAP
+search_filter = f"(sAMAccountName={username})"  # ← DANGER
+```
+
 ### Modifications à apporter à ObjectifSMART-AI
 
 **`server.py`** — Remplacer l'authentification par mot de passe local :
@@ -489,6 +614,25 @@ Pour implémenter la Phase 1 (LDAP), voici exactement ce dont l'équipe a besoin
 ```
 ldap3>=2.9.1
 ```
+
+### Impact sur la base de données SQLite actuelle
+
+Avec l'intégration AD, la base de données locale SQLite ne disparaît pas — elle change de rôle :
+
+```
+AVANT (sans AD) :               APRÈS (avec AD) :
+SQLite = source de vérité        AD = source de vérité
+  → Stocke identifiants           → Authentifie les employés
+  → Stocke mots de passe hachés   → Fournit nom, email, rôle, manager
+  → Gère les rôles manuellement
+                                 SQLite = cache et données métier
+                                   → Stocke les objectifs
+                                   → Stocke les analyses SMART
+                                   → Stocke les sessions (tokens)
+                                   → NE stocke plus les mots de passe
+```
+
+Quand un employé se connecte via LDAP pour la première fois, on crée une entrée SQLite légère (sans mot de passe) pour stocker ses données métier (objectifs, analyses). Si son compte AD est désactivé, il ne peut plus s'authentifier, même si son entrée SQLite existe encore.
 
 ### Exemple de flux complet après intégration LDAP
 
