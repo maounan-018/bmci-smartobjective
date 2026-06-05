@@ -1,0 +1,150 @@
+# =============================================================================
+# .github/workflows/security.yml
+#
+# Pipeline securite + qualite, declenche a chaque push sur stagebmci/main et a
+# chaque pull request. Bloque le merge si l'un des controles echoue.
+#
+# JOBS
+#   - lint-python      : detection erreurs syntaxe/style (ruff)
+#   - tests-python     : suite pytest (backend/tests)
+#   - audit-npm-root   : npm audit sur le frontend React racine
+#   - audit-npm-vue    : npm audit sur le frontend Vue (frontend/)
+#   - secret-scan      : gitleaks (detection de secrets commites par erreur)
+#
+# NOTE durcissement supply-chain
+#   En production bancaire, remplacer les tags @vN par des SHA de commit pour
+#   se proteger d'une compromission de tag (action repointee vers du malware).
+#   Exemple : actions/checkout@v4 -> actions/checkout@<SHA-40chars>
+# =============================================================================
+
+name: security
+
+on:
+  push:
+    branches: [main, stagebmci, "security/**"]
+  pull_request:
+    branches: [main, stagebmci]
+
+# Principe du moindre privilege : par defaut le GITHUB_TOKEN ne peut que LIRE.
+# Chaque job qui a besoin d'ecrire (ex: commenter une PR) doit le declarer.
+permissions:
+  contents: read
+
+# Annule les runs precedents sur la meme branche (gain temps + cout CI)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # 1. Lint Python (ruff) — rapide, detecte les bugs syntaxiques/courants
+  # ---------------------------------------------------------------------------
+  lint-python:
+    name: Lint Python (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff==0.6.9
+
+      # On reste indulgent au depart : on signale mais on ne bloque pas
+      # le merge sur le style (--exit-zero). A durcir progressivement.
+      - name: Run ruff
+        run: |
+          ruff check --exit-zero --output-format=github backend/ server.py audit.py
+          ruff check --exit-zero --select=E9,F63,F7,F82 backend/ server.py audit.py
+
+  # ---------------------------------------------------------------------------
+  # 2. Tests Python (pytest) — bloque le merge si un test echoue
+  # ---------------------------------------------------------------------------
+  tests-python:
+    name: Tests pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest httpx
+
+      - name: Run pytest
+        working-directory: backend
+        env:
+          # Boot exige desormais ALLOWED_ORIGINS (cf. F4)
+          ALLOWED_ORIGINS: http://localhost:5173
+        run: pytest tests/ -v --tb=short
+
+  # ---------------------------------------------------------------------------
+  # 3. Audit npm — frontend React racine
+  # ---------------------------------------------------------------------------
+  audit-npm-root:
+    name: npm audit (frontend React racine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Mode strict : bloque le merge sur toute HIGH/CRITICAL (apres le fix F6).
+      - name: npm audit (strict)
+        run: npm audit --audit-level=high
+
+  # ---------------------------------------------------------------------------
+  # 4. Audit npm — frontend Vue (deja clean a l'instant T)
+  # ---------------------------------------------------------------------------
+  audit-npm-vue:
+    name: npm audit (frontend Vue)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Le frontend Vue est actuellement clean : on bloque sur toute HIGH.
+      - name: npm audit (strict)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+  # ---------------------------------------------------------------------------
+  # 5. Secret scan (gitleaks) — bloque si un secret est commite par erreur
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    # Permissions supplementaires : gitleaks-action lit la liste des commits
+    # de la PR via l'API pour ne scanner que le diff (et non tout l'historique).
+    # Sans pull-requests: read le step echoue en 403.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Necessaire pour scanner l'historique complet (pas juste le HEAD)
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

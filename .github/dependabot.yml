@@ -1,0 +1,97 @@
+# =============================================================================
+# .github/dependabot.yml
+#
+# Mises a jour automatiques des dependances : Dependabot ouvre une PR
+# hebdomadaire pour chaque ecosysteme avec les nouvelles versions disponibles
+# (focus securite) et les CVE detectees.
+#
+# ECOSYSTEMES SURVEILLES
+#   - pip          : requirements.txt (backend Python)
+#   - npm root     : package.json racine (frontend React)
+#   - npm frontend : frontend/package.json (frontend Vue)
+#   - github-actions : .github/workflows/*.yml (les actions elles-memes)
+# =============================================================================
+
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # Python (FastAPI + dependances backend)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: "deps(pip)"
+    # Regrouper les patches mineurs en une seule PR pour eviter le bruit
+    groups:
+      python-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---------------------------------------------------------------------------
+  # npm racine (frontend React)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - npm
+      - frontend-react
+    commit-message:
+      prefix: "deps(npm-root)"
+    groups:
+      npm-root-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---------------------------------------------------------------------------
+  # npm frontend Vue.js
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - npm
+      - frontend-vue
+    commit-message:
+      prefix: "deps(npm-vue)"
+    groups:
+      npm-vue-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---------------------------------------------------------------------------
+  # Actions GitHub elles-memes (protege contre supply-chain compromises)
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "deps(actions)"
