@@ -3,61 +3,32 @@
  * Gère login, logout, session et appels API sécurisés
  */
 
-import { User, UserRole } from '../types';
-
 const API_BASE = '/api';
 const TOKEN_KEY = 'bmci_auth_token';
 const USER_KEY = 'bmci_auth_user';
-
-export interface AuthResponse {
-  success: boolean;
-  token: string;
-  user: User;
-}
-
-export interface Manager {
-  id: string;
-  name: string;
-  email: string;
-  team?: string;
-}
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-  manager_id?: string;
-}
-
-export interface RegisterCredentials {
-  email: string;
-  password: string;
-  name: string;
-  role?: string;
-  manager_id?: string;
-}
 
 /**
  * Service d'authentification centralisé
  */
 export const AuthService = {
   // ==================== TOKEN MANAGEMENT ====================
-  
-  getToken(): string | null {
+
+  getToken() {
     return localStorage.getItem(TOKEN_KEY);
   },
 
-  setToken(token: string): void {
+  setToken(token) {
     localStorage.setItem(TOKEN_KEY, token);
   },
 
-  clearToken(): void {
+  clearToken() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   },
 
   // ==================== USER MANAGEMENT ====================
 
-  getStoredUser(): User | null {
+  getStoredUser() {
     try {
       const data = localStorage.getItem(USER_KEY);
       return data ? JSON.parse(data) : null;
@@ -66,11 +37,11 @@ export const AuthService = {
     }
   },
 
-  setStoredUser(user: User): void {
+  setStoredUser(user) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   },
 
-  isAuthenticated(): boolean {
+  isAuthenticated() {
     return !!this.getToken() && !!this.getStoredUser();
   },
 
@@ -79,7 +50,7 @@ export const AuthService = {
   /**
    * Récupère la liste des managers pour le select
    */
-  async getManagers(): Promise<Manager[]> {
+  async getManagers() {
     try {
       const response = await fetch(`${API_BASE}/managers`);
       if (!response.ok) throw new Error('Erreur serveur');
@@ -94,7 +65,7 @@ export const AuthService = {
   /**
    * Inscription d'un nouveau collaborateur
    */
-  async register(credentials: RegisterCredentials): Promise<{ success: boolean; error?: string; user?: User }> {
+  async register(credentials) {
     try {
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -109,11 +80,11 @@ export const AuthService = {
       }
 
       this.setToken(data.token);
-      const user: User = {
+      const user = {
         id: data.user.id,
         name: data.user.name,
         email: data.user.email,
-        role: data.user.role as UserRole,
+        role: data.user.role,
         manager_id: data.user.manager_id,
         team: data.user.team
       };
@@ -129,7 +100,7 @@ export const AuthService = {
   /**
    * Connexion utilisateur
    */
-  async login(credentials: LoginCredentials): Promise<{ success: boolean; error?: string; user?: User }> {
+  async login(credentials) {
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -144,11 +115,11 @@ export const AuthService = {
       }
 
       this.setToken(data.token);
-      const user: User = {
+      const user = {
         id: data.user.id,
         name: data.user.name,
         email: data.user.email,
-        role: data.user.role as UserRole,
+        role: data.user.role,
         manager_id: data.user.manager_id,
         team: data.user.team
       };
@@ -164,7 +135,7 @@ export const AuthService = {
   /**
    * Déconnexion
    */
-  async logout(): Promise<void> {
+  async logout() {
     try {
       const token = this.getToken();
       if (token) {
@@ -183,7 +154,7 @@ export const AuthService = {
   /**
    * Vérifie et rafraîchit la session
    */
-  async validateSession(): Promise<User | null> {
+  async validateSession() {
     const token = this.getToken();
     if (!token) return null;
 
@@ -198,11 +169,11 @@ export const AuthService = {
       }
 
       const data = await response.json();
-      const user: User = {
+      const user = {
         id: data.user.id,
         name: data.user.name,
         email: data.user.email,
-        role: data.user.role as UserRole,
+        role: data.user.role,
         manager_id: data.user.manager_id,
         team: data.user.team
       };
@@ -219,7 +190,7 @@ export const AuthService = {
   /**
    * Headers avec authentification
    */
-  getAuthHeaders(): Record<string, string> {
+  getAuthHeaders() {
     const token = this.getToken();
     return {
       'Content-Type': 'application/json',
@@ -230,7 +201,7 @@ export const AuthService = {
   /**
    * Headers avec authentification sans Content-Type (pour FormData)
    */
-  getAuthHeadersNoContentType(): Record<string, string> {
+  getAuthHeadersNoContentType() {
     const token = this.getToken();
     return {
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -240,7 +211,7 @@ export const AuthService = {
   /**
    * Fetch authentifié
    */
-  async authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  async authFetch(url, options = {}) {
     const response = await fetch(url, {
       ...options,
       headers: {

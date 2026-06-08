@@ -8,7 +8,7 @@ et lecture paginée.
 """
 
 from app.services import audit_service as audit
-from app.models.audit_log_model import AuditEventType
+from app.models.audit_log import AuditEventType
 
 
 def test_log_event_and_fetch():

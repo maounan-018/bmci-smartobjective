@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { User, UserRole } from './types';
+import { UserRole } from './types';
 import Login from './pages/Login';
 import Navbar from './components/Navbar';
 import CollaboratorDashboard from './pages/CollaboratorDashboard';
@@ -10,11 +9,11 @@ import HrDashboard from './pages/HrDashboard';
 import SmartAnalysisPage from './pages/SmartAnalysisPage';
 import { AuthService } from './services/authService';
 
-const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+const App = () => {
+  const [user, setUser] = useState(null);
 
-  const handleLogin = (u: User) => setUser(u);
-  
+  const handleLogin = (u) => setUser(u);
+
   const handleLogout = async () => {
     await AuthService.logout();
     setUser(null);
@@ -28,19 +27,19 @@ const App: React.FC = () => {
     <Router>
       <div className="min-h-screen flex flex-col">
         <Navbar user={user} onLogout={handleLogout} />
-        
+
         <main className="flex-1 bg-slate-50">
           <Routes>
             <Route path="/" element={<Navigate to={getDefaultPath(user.role)} />} />
-            
+
             {user.role === UserRole.COLLAB && (
               <Route path="/dashboard" element={<CollaboratorDashboard user={user} />} />
             )}
-            
+
             {user.role === UserRole.MANAGER && (
               <Route path="/manager" element={<ManagerDashboard user={user} />} />
             )}
-            
+
             {user.role === UserRole.HR && (
               <Route path="/hr" element={<HrDashboard user={user} />} />
             )}
@@ -48,11 +47,11 @@ const App: React.FC = () => {
             {user.role === UserRole.HR && (
               <Route path="/smart-analysis" element={<SmartAnalysisPage user={user} />} />
             )}
-            
+
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
-        
+
         <footer className="bg-white border-t border-slate-200 py-8 px-8 flex flex-col md:flex-row justify-between items-center text-slate-400 text-xs gap-4">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-emerald-600 rounded-sm flex items-center justify-center">
@@ -74,7 +73,7 @@ const App: React.FC = () => {
   );
 };
 
-function getDefaultPath(role: UserRole): string {
+function getDefaultPath(role) {
   switch (role) {
     case UserRole.COLLAB: return '/dashboard';
     case UserRole.MANAGER: return '/manager';

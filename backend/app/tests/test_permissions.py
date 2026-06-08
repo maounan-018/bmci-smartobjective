@@ -45,8 +45,8 @@ def test_check_collab_access():
 
 def test_get_accessible_user_ids_scoping(make_user):
     """Le périmètre de données respecte strictement le rôle."""
-    mgr = make_user(user_id="mgr-1", email="mgr@bmci.test", role="MANAGER")
-    c1 = make_user(user_id="c-1", email="c1@bmci.test", role="COLLAB", manager_id="mgr-1")
+    make_user(user_id="mgr-1", email="mgr@bmci.test", role="MANAGER")
+    make_user(user_id="c-1", email="c1@bmci.test", role="COLLAB", manager_id="mgr-1")
     make_user(user_id="c-2", email="c2@bmci.test", role="COLLAB", manager_id="mgr-1")
     make_user(user_id="c-3", email="c3@bmci.test", role="COLLAB", manager_id="autre-mgr")
 

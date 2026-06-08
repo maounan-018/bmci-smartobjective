@@ -1,12 +1,6 @@
-
-import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
-interface AlignmentChartProps {
-  score: number;
-}
-
-const AlignmentChart: React.FC<AlignmentChartProps> = ({ score }) => {
+const AlignmentChart = ({ score }) => {
   const data = [
     { name: 'Aligned', value: score },
     { name: 'Remaining', value: 100 - score },

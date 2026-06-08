@@ -14,7 +14,7 @@ EMPLACEMENT MVC
 import json
 import secrets
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import HTTPException
 

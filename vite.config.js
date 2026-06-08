@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        // Proxy pour rediriger les appels /api vers le backend Python
+        // Proxy pour rediriger les appels /api vers le backend Python (FastAPI)
         proxy: {
           '/api': {
             target: 'http://localhost:5001',
@@ -23,7 +23,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          // import.meta.dirname (Node >= 20.11) : equivalent ESM de __dirname
+          '@': path.resolve(import.meta.dirname, '.'),
         }
       }
     };

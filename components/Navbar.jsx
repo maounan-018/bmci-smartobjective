@@ -1,43 +1,36 @@
-
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { User, UserRole } from '../types';
-import { LayoutDashboard, Target, Briefcase, Users, LogOut, ClipboardCheck } from 'lucide-react';
+import { UserRole } from '../types';
+import { LayoutDashboard, Briefcase, Users, LogOut, ClipboardCheck } from 'lucide-react';
 
-interface NavbarProps {
-  user: User | null;
-  onLogout: () => void;
-}
-
-const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+const Navbar = ({ user, onLogout }) => {
   const location = useLocation();
 
   if (!user) return null;
 
   const links = [
-    { 
-      to: '/dashboard', 
-      label: 'Mon Espace', 
-      icon: <LayoutDashboard size={20} />, 
-      roles: [UserRole.COLLAB] 
+    {
+      to: '/dashboard',
+      label: 'Mon Espace',
+      icon: <LayoutDashboard size={20} />,
+      roles: [UserRole.COLLAB]
     },
-    { 
-      to: '/manager', 
-      label: 'Mon Dashboard', 
-      icon: <Users size={20} />, 
-      roles: [UserRole.MANAGER] 
+    {
+      to: '/manager',
+      label: 'Mon Dashboard',
+      icon: <Users size={20} />,
+      roles: [UserRole.MANAGER]
     },
-    { 
-      to: '/hr', 
-      label: 'Dashboard RH', 
-      icon: <Briefcase size={20} />, 
-      roles: [UserRole.HR] 
+    {
+      to: '/hr',
+      label: 'Dashboard RH',
+      icon: <Briefcase size={20} />,
+      roles: [UserRole.HR]
     },
-    { 
-      to: '/smart-analysis', 
-      label: 'Mon Analyse', 
-      icon: <ClipboardCheck size={20} />, 
-      roles: [UserRole.HR] 
+    {
+      to: '/smart-analysis',
+      label: 'Mon Analyse',
+      icon: <ClipboardCheck size={20} />,
+      roles: [UserRole.HR]
     }
   ].filter(link => link.roles.includes(user.role));
 
@@ -63,12 +56,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
         <div className="hidden md:flex items-center gap-1">
           {links.map(link => (
-            <Link 
+            <Link
               key={link.to}
               to={link.to}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                location.pathname === link.to 
-                  ? 'bg-emerald-50 text-emerald-700' 
+                location.pathname === link.to
+                  ? 'bg-emerald-50 text-emerald-700'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
@@ -84,7 +77,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
           <span className="text-sm font-semibold text-slate-800">{user.name}</span>
           <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded uppercase font-bold">{user.role}</span>
         </div>
-        <button 
+        <button
           onClick={onLogout}
           className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
           title="Déconnexion"

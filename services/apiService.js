@@ -3,7 +3,6 @@
  * Remplace les appels directs au localStorage par des appels API
  */
 
-import { Objective, CompanyObjective, SmartAnalysis, AlignmentAnalysis, HRAnalytics, HRImport, BatchAnalysisResult } from '../types';
 import { AuthService } from './authService';
 
 const API_BASE = '/api';
@@ -11,13 +10,13 @@ const API_BASE = '/api';
 export const ApiService = {
   // ==================== OBJECTIVES ====================
 
-  async getObjectives(): Promise<Objective[]> {
+  async getObjectives() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/objectives`);
       if (!response.ok) throw new Error('Erreur serveur');
       const data = await response.json();
-      
-      return (data.objectives || []).map((o: any) => ({
+
+      return (data.objectives || []).map((o) => ({
         id: o.id,
         user_id: o.user_id,
         user_name: o.user_name,
@@ -36,16 +35,16 @@ export const ApiService = {
     }
   },
 
-  async createObjective(title: string, description: string): Promise<Objective | null> {
+  async createObjective(title, description) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/objectives`, {
         method: 'POST',
         body: JSON.stringify({ title, description })
       });
-      
+
       if (!response.ok) throw new Error('Erreur création');
       const data = await response.json();
-      
+
       return {
         id: data.objective.id,
         user_id: data.objective.user_id,
@@ -61,14 +60,7 @@ export const ApiService = {
     }
   },
 
-  async updateObjective(id: string, updates: Partial<{
-    title: string;
-    description: string;
-    status: string;
-    progress: string;
-    smart_analysis: SmartAnalysis;
-    alignment_analysis: AlignmentAnalysis;
-  }>): Promise<boolean> {
+  async updateObjective(id, updates) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/objectives/${id}`, {
         method: 'PUT',
@@ -81,7 +73,7 @@ export const ApiService = {
     }
   },
 
-  async deleteObjective(id: string): Promise<boolean> {
+  async deleteObjective(id) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/objectives/${id}`, {
         method: 'DELETE'
@@ -95,7 +87,7 @@ export const ApiService = {
 
   // ==================== COMPANY OBJECTIVES ====================
 
-  async getCompanyObjectives(): Promise<CompanyObjective[]> {
+  async getCompanyObjectives() {
     try {
       const response = await fetch(`${API_BASE}/company-objectives`);
       if (!response.ok) throw new Error('Erreur serveur');
@@ -107,7 +99,7 @@ export const ApiService = {
     }
   },
 
-  async createCompanyObjective(objective: CompanyObjective): Promise<boolean> {
+  async createCompanyObjective(objective) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/company-objectives`, {
         method: 'POST',
@@ -120,7 +112,7 @@ export const ApiService = {
     }
   },
 
-  async batchCreateCompanyObjectives(objectives: CompanyObjective[]): Promise<number> {
+  async batchCreateCompanyObjectives(objectives) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/company-objectives/batch`, {
         method: 'POST',
@@ -137,7 +129,7 @@ export const ApiService = {
 
   // ==================== TEAM (MANAGER/HR) ====================
 
-  async getTeamMembers(): Promise<any[]> {
+  async getTeamMembers() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/team/members`);
       if (!response.ok) return [];
@@ -149,7 +141,7 @@ export const ApiService = {
     }
   },
 
-  async getTeamStats(): Promise<any> {
+  async getTeamStats() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/team/stats`);
       if (!response.ok) return null;
@@ -163,13 +155,13 @@ export const ApiService = {
   // ==================== MANAGER MODULE - STRICTLY SEPARATED ====================
   // Ces endpoints sont EXCLUSIFS aux managers et ne doivent JAMAIS être utilisés par le RH
 
-  async getManagerObjectives(): Promise<Objective[]> {
+  async getManagerObjectives() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/manager/objectives`);
       if (!response.ok) throw new Error('Erreur serveur');
       const data = await response.json();
-      
-      return (data.objectives || []).map((o: any) => ({
+
+      return (data.objectives || []).map((o) => ({
         id: o.id,
         user_id: o.user_id,
         user_name: o.user_name,
@@ -191,7 +183,7 @@ export const ApiService = {
     }
   },
 
-  async getManagerTeamStats(): Promise<any> {
+  async getManagerTeamStats() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/manager/team-stats`);
       if (!response.ok) return null;
@@ -202,7 +194,7 @@ export const ApiService = {
     }
   },
 
-  async getManagerTeam(): Promise<any[]> {
+  async getManagerTeam() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/manager/team`);
       if (!response.ok) return [];
@@ -214,7 +206,7 @@ export const ApiService = {
     }
   },
 
-  async analyzeManagerObjective(objectiveId: string): Promise<{ success: boolean; smart_analysis?: SmartAnalysis; alignment_analysis?: AlignmentAnalysis; error?: string }> {
+  async analyzeManagerObjective(objectiveId) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/manager/analyze-objective/${objectiveId}`, {
         method: 'POST'
@@ -224,14 +216,14 @@ export const ApiService = {
         return { success: false, error: err.detail || 'Erreur analyse' };
       }
       return await response.json();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ApiService] analyzeManagerObjective error:', error);
       return { success: false, error: error.message };
     }
   },
 
   // ==================== MANAGER: Analyse SMART personnelle ====================
-  async analyzeManagerPersonalObjective(title: string, description: string): Promise<any> {
+  async analyzeManagerPersonalObjective(title, description) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/manager/analyze-personal`, {
         method: 'POST',
@@ -242,14 +234,14 @@ export const ApiService = {
         throw new Error(err.detail || 'Erreur analyse');
       }
       return await response.json();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ApiService] analyzeManagerPersonalObjective error:', error);
       throw error;
     }
   },
 
   // ==================== MANAGER: Résultats d'analyse privés ====================
-  async getManagerAnalysisResults(): Promise<{ results: any[]; stats: any; scope: string; manager_id: string } | null> {
+  async getManagerAnalysisResults() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/manager/analysis-results`);
       if (!response.ok) return null;
@@ -261,7 +253,7 @@ export const ApiService = {
   },
 
   // ==================== HR: Analyse SMART personnelle ====================
-  async analyzeHRPersonalObjective(title: string, description: string): Promise<any> {
+  async analyzeHRPersonalObjective(title, description) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/hr/analyze-personal`, {
         method: 'POST',
@@ -272,14 +264,14 @@ export const ApiService = {
         throw new Error(err.detail || 'Erreur analyse');
       }
       return await response.json();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ApiService] analyzeHRPersonalObjective error:', error);
       throw error;
     }
   },
 
   // ==================== HR: Résultats d'analyse privés ====================
-  async getHRAnalysisResults(): Promise<{ results: any[]; stats: any; scope: string } | null> {
+  async getHRAnalysisResults() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/hr/analysis-results`);
       if (!response.ok) return null;
@@ -291,7 +283,7 @@ export const ApiService = {
   },
 
   // ==================== COLLABORATEUR: Résultats d'analyse privés ====================
-  async getCollabAnalysisResults(): Promise<{ results: any[]; stats: any; scope: string; user_id: string } | null> {
+  async getCollabAnalysisResults() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/collab/analysis-results`);
       if (!response.ok) return null;
@@ -304,13 +296,13 @@ export const ApiService = {
 
   // ==================== AI ANALYSIS ====================
 
-  async analyzeSmartObjective(title: string, description: string): Promise<SmartAnalysis | null> {
+  async analyzeSmartObjective(title, description) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/analyze-smart`, {
         method: 'POST',
         body: JSON.stringify({ title, description })
       });
-      
+
       if (!response.ok) throw new Error('Erreur analyse');
       return await response.json();
     } catch (error) {
@@ -319,13 +311,13 @@ export const ApiService = {
     }
   },
 
-  async analyzeAlignment(objectiveTitle: string, companyObjectives: CompanyObjective[]): Promise<AlignmentAnalysis | null> {
+  async analyzeAlignment(objectiveTitle, companyObjectives) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/analyze-alignment`, {
         method: 'POST',
         body: JSON.stringify({ objectiveTitle, companyObjectives })
       });
-      
+
       if (!response.ok) throw new Error('Erreur alignement');
       return await response.json();
     } catch (error) {
@@ -336,11 +328,11 @@ export const ApiService = {
 
   // ==================== HR MODULE ====================
 
-  async importStrategyExcel(file: File): Promise<{ success: boolean; batch_id?: string; imported?: number; error?: string }> {
+  async importStrategyExcel(file) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const token = localStorage.getItem('bmci_auth_token');
       const response = await fetch(`${API_BASE}/hr/import-strategy`, {
         method: 'POST',
@@ -349,23 +341,23 @@ export const ApiService = {
         },
         body: formData
       });
-      
+
       if (!response.ok) {
         const err = await response.json();
         return { success: false, error: err.detail || 'Erreur import' };
       }
       return await response.json();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ApiService] importStrategyExcel error:', error);
       return { success: false, error: error.message };
     }
   },
 
-  async importObjectivesExcel(file: File): Promise<{ success: boolean; batch_id?: string; imported?: number; users_created?: number; error?: string }> {
+  async importObjectivesExcel(file) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const token = localStorage.getItem('bmci_auth_token');
       const response = await fetch(`${API_BASE}/hr/import-objectives`, {
         method: 'POST',
@@ -374,35 +366,32 @@ export const ApiService = {
         },
         body: formData
       });
-      
+
       if (!response.ok) {
         const err = await response.json();
         return { success: false, error: err.detail || 'Erreur import' };
       }
       return await response.json();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ApiService] importObjectivesExcel error:', error);
       return { success: false, error: error.message };
     }
   },
 
-  async analyzeBatch(
-    objectiveIds: string[] = [],
-    onProgress?: (data: { type: string; current?: number; total?: number; title?: string }) => void
-  ): Promise<{ success: boolean; analyzed?: number; errors?: number; results?: BatchAnalysisResult[] }> {
+  async analyzeBatch(objectiveIds = [], onProgress) {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/hr/analyze-batch`, {
         method: 'POST',
         body: JSON.stringify(objectiveIds)
       });
-      
+
       if (!response.ok) throw new Error('Erreur analyse batch');
 
       const reader = response.body?.getReader();
       if (!reader) return await response.json();
 
       const decoder = new TextDecoder();
-      let finalResult: any = { success: false };
+      let finalResult = { success: false };
       let buffer = '';
 
       while (true) {
@@ -432,16 +421,16 @@ export const ApiService = {
     }
   },
 
-  async getHRAnalytics(filters?: { entity?: string; manager?: string; period?: string }): Promise<HRAnalytics | null> {
+  async getHRAnalytics(filters) {
     try {
       const params = new URLSearchParams();
       if (filters?.entity) params.append('entity_filter', filters.entity);
       if (filters?.manager) params.append('manager_filter', filters.manager);
       if (filters?.period) params.append('period_filter', filters.period);
-      
+
       const url = `${API_BASE}/hr/analytics${params.toString() ? '?' + params.toString() : ''}`;
       const response = await AuthService.authFetch(url);
-      
+
       if (!response.ok) throw new Error('Erreur analytics');
       return await response.json();
     } catch (error) {
@@ -450,13 +439,7 @@ export const ApiService = {
     }
   },
 
-  async getHRObjectivesDetails(filters?: { 
-    entity?: string; 
-    manager?: string; 
-    period?: string; 
-    smart?: string; 
-    alignment?: string 
-  }): Promise<{ objectives: Objective[]; total: number }> {
+  async getHRObjectivesDetails(filters) {
     try {
       const params = new URLSearchParams();
       if (filters?.entity) params.append('entity_filter', filters.entity);
@@ -464,10 +447,10 @@ export const ApiService = {
       if (filters?.period) params.append('period_filter', filters.period);
       if (filters?.smart) params.append('smart_filter', filters.smart);
       if (filters?.alignment) params.append('alignment_filter', filters.alignment);
-      
+
       const url = `${API_BASE}/hr/objectives-details${params.toString() ? '?' + params.toString() : ''}`;
       const response = await AuthService.authFetch(url);
-      
+
       if (!response.ok) throw new Error('Erreur détails');
       return await response.json();
     } catch (error) {
@@ -476,16 +459,16 @@ export const ApiService = {
     }
   },
 
-  async exportHRExcel(filters?: { entity?: string; manager?: string; period?: string }): Promise<Blob | null> {
+  async exportHRExcel(filters) {
     try {
       const params = new URLSearchParams();
       if (filters?.entity) params.append('entity_filter', filters.entity);
       if (filters?.manager) params.append('manager_filter', filters.manager);
       if (filters?.period) params.append('period_filter', filters.period);
-      
+
       const url = `${API_BASE}/hr/export-excel${params.toString() ? '?' + params.toString() : ''}`;
       const response = await AuthService.authFetch(url);
-      
+
       if (!response.ok) throw new Error('Erreur export');
       return await response.blob();
     } catch (error) {
@@ -494,16 +477,16 @@ export const ApiService = {
     }
   },
 
-  async exportHRPdf(filters?: { entity?: string; manager?: string; period?: string }): Promise<Blob | null> {
+  async exportHRPdf(filters) {
     try {
       const params = new URLSearchParams();
       if (filters?.entity) params.append('entity_filter', filters.entity);
       if (filters?.manager) params.append('manager_filter', filters.manager);
       if (filters?.period) params.append('period_filter', filters.period);
-      
+
       const url = `${API_BASE}/hr/export-pdf${params.toString() ? '?' + params.toString() : ''}`;
       const response = await AuthService.authFetch(url);
-      
+
       if (!response.ok) throw new Error('Erreur export PDF');
       return await response.blob();
     } catch (error) {
@@ -512,11 +495,11 @@ export const ApiService = {
     }
   },
 
-  async exportManagerExcel(): Promise<Blob | null> {
+  async exportManagerExcel() {
     try {
       const url = `${API_BASE}/manager/export?format=excel`;
       const response = await AuthService.authFetch(url);
-      
+
       if (!response.ok) throw new Error('Erreur export Excel');
       return await response.blob();
     } catch (error) {
@@ -525,11 +508,11 @@ export const ApiService = {
     }
   },
 
-  async exportManagerPdf(): Promise<Blob | null> {
+  async exportManagerPdf() {
     try {
       const url = `${API_BASE}/manager/export?format=pdf`;
       const response = await AuthService.authFetch(url);
-      
+
       if (!response.ok) throw new Error('Erreur export PDF');
       return await response.blob();
     } catch (error) {
@@ -540,43 +523,25 @@ export const ApiService = {
 
   /**
    * Import d'un fichier Excel contenant des objectifs à analyser en lot
-   * @param file Fichier Excel (.xlsx, .xls)
+   * @param {File} file Fichier Excel (.xlsx, .xls)
    * @returns Résultats d'analyse SMART pour chaque objectif
    */
-  async importExcelForAnalysis(file: File): Promise<{
-    success: boolean;
-    scan_info?: {
-      total_sheets: number;
-      selected_sheet: string;
-      detected_objective_column: any;
-      detected_description_column: any;
-    };
-    extraction_info?: {
-      total_extracted: number;
-      total_analyzed: number;
-      total_errors: number;
-    };
-    total_processed?: number;
-    total_errors?: number;
-    results: any[];
-    errors?: any[];
-    message: string;
-  } | null> {
+  async importExcelForAnalysis(file) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch(`${API_BASE}/import-excel-analyze`, {
         method: 'POST',
         body: formData,
         headers: AuthService.getAuthHeadersNoContentType()
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Erreur import');
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('[ApiService] importExcelForAnalysis error:', error);
@@ -587,32 +552,22 @@ export const ApiService = {
   /**
    * Scanne un fichier Excel et retourne sa structure détectée
    */
-  async scanExcelFile(file: File): Promise<{
-    success: boolean;
-    filename: string;
-    scan: {
-      sheets: any[];
-      total_sheets: number;
-      best_sheet: string;
-      best_objective_column: any;
-      best_description_column: any;
-    };
-  } | null> {
+  async scanExcelFile(file) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch(`${API_BASE}/scan-excel`, {
         method: 'POST',
         body: formData,
         headers: AuthService.getAuthHeadersNoContentType()
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Erreur scan');
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('[ApiService] scanExcelFile error:', error);
@@ -623,22 +578,22 @@ export const ApiService = {
   /**
    * Importe et exporte un fichier Excel avec les analyses ajoutées
    */
-  async importExcelAndExport(file: File): Promise<Blob | null> {
+  async importExcelAndExport(file) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const response = await fetch(`${API_BASE}/import-excel-export`, {
         method: 'POST',
         body: formData,
         headers: AuthService.getAuthHeadersNoContentType()
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Erreur export');
       }
-      
+
       return await response.blob();
     } catch (error) {
       console.error('[ApiService] importExcelAndExport error:', error);
@@ -646,7 +601,7 @@ export const ApiService = {
     }
   },
 
-  async getHRImports(): Promise<HRImport[]> {
+  async getHRImports() {
     try {
       const response = await AuthService.authFetch(`${API_BASE}/hr/imports`);
       if (!response.ok) throw new Error('Erreur imports');

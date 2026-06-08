@@ -43,7 +43,7 @@ backend/app/
 ├── auth/                   # contrat d'identité + providers/ (local → LDAP/SSO demain)
 ├── middlewares/            # protections transverses (taille de requête)
 ├── utils/                  # helpers purs (calculs SMART, métadonnées requête)
-└── tests/ (→ backend/tests/) # tests sécurité/traçabilité/RBAC/import (pytest)
+└── tests/                  # tests sécurité/traçabilité/RBAC/import (pytest)
 ```
 
 > **Couches** : `controllers` (routes) → `services` (logique métier) → `repositories`
@@ -141,7 +141,7 @@ npm run dev
 
 ```bash
 cd backend
-python -m pytest tests/ -v
+python -m pytest -v   # tests sous app/tests/ (cf. pytest.ini)
 ```
 
 La suite couvre :
