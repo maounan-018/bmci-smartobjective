@@ -107,7 +107,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("1. Concepts fondamentaux")
+pb()
+h1("1. Concepts fondamentaux")
 
 h2("1.1 Backend, requete, reponse")
 p("Le <b>backend</b> est le programme serveur. Le navigateur (frontend Vue.js) envoie une "
@@ -154,7 +155,8 @@ nt("<b>Regle d'or :</b> controller -> service -> repository -> model. Jamais de 
    "controller, jamais de logique metier dans un repository.")
 
 # =====================================================================
-pb(); h1("2. Le voyage d'une requete")
+pb()
+h1("2. Le voyage d'une requete")
 p("Deux cas selon que la requete a un CORPS ou non. Une requete <b>GET</b> n'a pas de corps -> "
   "rien a valider. Une requete <b>POST/PUT</b> a un corps JSON -> il est valide par un "
   "<b>schema</b> Pydantic AVANT d'entrer dans le controller.")
@@ -195,7 +197,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("3. Couche core")
+pb()
+h1("3. Couche core")
 
 h2("3.1 core/config.py")
 cd('import os\n\n'
@@ -286,7 +289,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("4. Couche database")
+pb()
+h1("4. Couche database")
 
 h2("4.1 database/base.py")
 cd("from sqlalchemy.orm import DeclarativeBase\n\nclass Base(DeclarativeBase):\n    pass")
@@ -341,7 +345,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("5. Couche models (les 7 tables)")
+pb()
+h1("5. Couche models (les 7 tables)")
 p("Chaque modele = une table. Schema reel : identifiants en <b>texte</b> (ex. user-ab12), dates "
   "en <b>texte</b> (ISO), analyses stockees en <b>JSON serialise</b>.")
 
@@ -469,7 +474,8 @@ cd('class HRImport(Base):\n'
 p("Journalise chaque import Excel RH (alimente l'historique /api/hr/imports).")
 
 # =====================================================================
-pb(); h1("6. Couche repositories (toutes les requetes)")
+pb()
+h1("6. Couche repositories (toutes les requetes)")
 p("Chaque fonction reçoit <code>db</code> (la session, ouverte par le service) et ne committe "
   "jamais. C'est le SEUL endroit ou l'on parle a la base.")
 
@@ -583,7 +589,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("7. Couche services (la logique metier)")
+pb()
+h1("7. Couche services (la logique metier)")
 
 h2("7.1 auth_service.py")
 cd('def resolve_session_user(token):\n'
@@ -748,7 +755,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("8. Couche controllers (routes fines)")
+pb()
+h1("8. Couche controllers (routes fines)")
 
 h2("8.1 auth_controller.py")
 cd('router = APIRouter(prefix="/api", tags=["Authentification"])\n\n'
@@ -822,7 +830,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("9. Couches transverses")
+pb()
+h1("9. Couches transverses")
 
 h2("9.1 auth/ - abstraction d'identite")
 cd('class IdentityProvider(ABC):\n'
@@ -878,7 +887,8 @@ bul([
 ])
 
 # =====================================================================
-pb(); h1("10. Tutoriel : ajoute un endpoint de A a Z")
+pb()
+h1("10. Tutoriel : ajoute un endpoint de A a Z")
 p("But : <code>GET /api/objectives/count</code> = nombre d'objectifs de l'utilisateur connecte. "
   "La demarche est TOUJOURS la meme, couche par couche.")
 h3("Etape 1 - Repository (la requete)")
@@ -909,7 +919,8 @@ nt("<b>Methode universelle :</b> requete -> <b>repository</b> ; regle -> <b>serv
    "jamais de logique dans le repository.")
 
 # =====================================================================
-pb(); h1("11. Glossaire")
+pb()
+h1("11. Glossaire")
 bul([
     "<b>Endpoint/route</b> : une URL geree par le backend.",
     "<b>JSON</b> : format texte d'echange (dictionnaires/listes).",
