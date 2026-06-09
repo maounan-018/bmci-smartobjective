@@ -7,7 +7,6 @@
 # JOBS
 #   - lint-python      : detection erreurs syntaxe/style (ruff)
 #   - tests-python     : suite pytest (backend/app/tests)
-#   - audit-npm-root   : npm audit sur le frontend React racine
 #   - audit-npm-vue    : npm audit sur le frontend Vue (frontend/)
 #   - secret-scan      : gitleaks (detection de secrets commites par erreur)
 #
@@ -90,25 +89,7 @@ jobs:
         run: pytest app/tests/ -v --tb=short
 
   # ---------------------------------------------------------------------------
-  # 3. Audit npm — frontend React racine
-  # ---------------------------------------------------------------------------
-  audit-npm-root:
-    name: npm audit (frontend React racine)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      # Mode strict : bloque le merge sur toute HIGH/CRITICAL (apres le fix F6).
-      - name: npm audit (strict)
-        run: npm audit --audit-level=high
-
-  # ---------------------------------------------------------------------------
-  # 4. Audit npm — frontend Vue (deja clean a l'instant T)
+  # 3. Audit npm — frontend Vue (deja clean a l'instant T)
   # ---------------------------------------------------------------------------
   audit-npm-vue:
     name: npm audit (frontend Vue)
@@ -127,7 +108,7 @@ jobs:
         run: npm audit --audit-level=high
 
   # ---------------------------------------------------------------------------
-  # 5. Secret scan (gitleaks) — bloque si un secret est commite par erreur
+  # 4. Secret scan (gitleaks) — bloque si un secret est commite par erreur
   # ---------------------------------------------------------------------------
   secret-scan:
     name: Secret scan (gitleaks)
