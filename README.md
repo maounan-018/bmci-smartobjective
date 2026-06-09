@@ -497,146 +497,44 @@ npm run build       # validation : ~1600 modules transformés
 **Encadrement :** Mme Annoukoubi Maha (ECC)
 **Entreprise :** BMCI — ABID Chaimaa, ESSAEGH Keltoum
 
----
-═══════════════════════════════════════════════════════
-   DIAGNOSTIC COMPLET — ObjectifSMART-AI BMCI
-   Racine détectée : C:\bmci_objective\BMCI
-═══════════════════════════════════════════════════════
-
-──────────────────────────────────────────────────
-  1. DOSSIERS OBLIGATOIRES
-──────────────────────────────────────────────────
-  [OK]  backend/app/
-  [OK]  backend/app/controllers/
-  [OK]  backend/app/services/
-  [OK]  backend/app/models/
-  [OK]  backend/app/schemas/
-  [OK]  backend/app/core/
-  [OK]  backend/app/database/
-  [OK]  backend/app/middlewares/
-  [OK]  backend/app/repositories/
-  [OK]  backend/app/auth/
-  [OK]  backend/app/utils/
-  [OK]  frontend/src/
-  [OK]  frontend/src/views/
-  [OK]  frontend/src/stores/
-  [OK]  frontend/src/services/
-  [OK]  frontend/src/router/
-  [OK]  frontend/src/components/
-
-──────────────────────────────────────────────────
-  2. BACKEND — Fichiers principaux
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  backend/app/main.py
-  [TRONQUE 0 lignes]  backend/app/core/config.py
-  [TRONQUE 0 lignes]  backend/app/core/security.py
-  [TRONQUE 0 lignes]  backend/app/database/init_db.py
-  [TRONQUE 0 lignes]  requirements.txt
-
-──────────────────────────────────────────────────
-  3. BACKEND — Contrôleurs
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  backend/app/controllers/auth_controller.py
-  [TRONQUE 0 lignes]  backend/app/controllers/hr_controller.py
-  [TRONQUE 0 lignes]  backend/app/controllers/manager_controller.py
-  [TRONQUE 0 lignes]  backend/app/controllers/objective_controller.py
-  [TRONQUE 0 lignes]  backend/app/controllers/ai_controller.py
-  [TRONQUE 0 lignes]  backend/app/controllers/admin_controller.py
-
-──────────────────────────────────────────────────
-  4. BACKEND — Services
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  backend/app/services/auth_service.py
-  [TRONQUE 0 lignes]  backend/app/services/hr_service.py
-  [TRONQUE 0 lignes]  backend/app/services/objective_service.py
-  [TRONQUE 0 lignes]  backend/app/services/manager_service.py
-  [TRONQUE 0 lignes]  backend/app/services/ai_service.py
-  [TRONQUE 0 lignes]  backend/app/services/user_service.py
-  [TRONQUE 0 lignes]  backend/app/services/audit_service.py
-  [TRONQUE 0 lignes]  backend/app/services/export_service.py
-  [TRONQUE 0 lignes]  backend/app/services/permission_service.py
-  [TRONQUE 0 lignes]  backend/app/services/excel_import_service.py
-
-──────────────────────────────────────────────────
-  5. BACKEND — Modèles SQLAlchemy
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  backend/app/models/user.py
-  [TRONQUE 0 lignes]  backend/app/models/objective.py
-  [TRONQUE 0 lignes]  backend/app/models/session.py
-  [TRONQUE 0 lignes]  backend/app/models/audit_log.py
-  [TRONQUE 0 lignes]  backend/app/models/company_objective.py
-  [TRONQUE 0 lignes]  backend/app/models/hr_import.py
-  [TRONQUE 0 lignes]  backend/app/models/analysis_result.py
-
-──────────────────────────────────────────────────
-  6. BACKEND — Schémas Pydantic
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  backend/app/schemas/auth_schema.py
-  [TRONQUE 0 lignes]  backend/app/schemas/hr_schema.py
-  [TRONQUE 0 lignes]  backend/app/schemas/objective_schema.py
-  [TRONQUE 0 lignes]  backend/app/schemas/user_schema.py
-  [TRONQUE 0 lignes]  backend/app/schemas/analysis_schema.py
-
-──────────────────────────────────────────────────
-  7. FICHIER .ENV (obligatoire)
-──────────────────────────────────────────────────
-  [INCOMPLET]  backend/.env — clés manquantes : ALLOWED_ORIGINS, SECRET_KEY, DATABASE_PATH, OLLAMA_MODEL
-
-──────────────────────────────────────────────────
-  8. FRONTEND — Fichiers Vue.js
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  frontend/index.html
-  [OK 24 lignes]  frontend/package.json
-  [OK 25 lignes]  frontend/vite.config.js
-  [TRONQUE 0 lignes]  frontend/src/main.js
-  [TRONQUE 0 lignes]  frontend/src/views/LoginView.vue
-  [TRONQUE 0 lignes]  frontend/src/views/HrDashboard.vue
-  [TRONQUE 0 lignes]  frontend/src/views/ManagerDashboard.vue
-  [TRONQUE 0 lignes]  frontend/src/views/CollaboratorDashboard.vue
-  [TRONQUE 0 lignes]  frontend/src/stores/authStore.js
-  [MANQUANT]  frontend/src/services/api.js
-  [TRONQUE 0 lignes]  frontend/src/router/index.js
-
-──────────────────────────────────────────────────
-  9. FRONTEND — node_modules (npm install)
-──────────────────────────────────────────────────
-  [OK]  node_modules (32 paquets installés)
-
-──────────────────────────────────────────────────
-  10. FICHIERS RACINE
-──────────────────────────────────────────────────
-  [TRONQUE 0 lignes]  Modelfile
-  [TRONQUE 0 lignes]  requirements.txt
-  [TRONQUE 0 lignes]  start_app.bat
-
-──────────────────────────────────────────────────
-  11. ENVIRONNEMENT SYSTEME
-──────────────────────────────────────────────────
-  [OK]  Python : Python 3.10.8
-  [OK]  pip : pip 26.1.2 from C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\pip (python 3.10)
-  [OK]  Node.js : v18.13.0
-  [OK]  npm : 8.19.3
-  [OK]  Ollama : 'ollama' n'est pas reconnu en tant que commande interne
-
-──────────────────────────────────────────────────
-  12. TEST DES PORTS (services démarrés ?)
-──────────────────────────────────────────────────
-  [ETEINT]    port 5001 — Backend FastAPI (pas encore démarré)
-  [EN LIGNE]  port 3000 — Frontend Vue OK
-  [EN LIGNE]  port 11434 — Ollama OK
-
-═══════════════════════════════════════════════════════
-   RESULTAT FINAL
-═══════════════════════════════════════════════════════
-  OK        : 27
-  INCOMPLET : 46
-  MANQUANT  : 1
-
-  Completude : [███████░░░░░░░░░░░░░] 36%
-
-  FICHIERS MANQUANTS detectes !
-  -> Envoie une capture de ce resultat.
-Write-Host "`n=========================" -f Cyan
-Write-Host "  OK=$ok  INCOMPLET=$warn  MANQUANT=$err" -f White
-if($err -gt 0){Write-Host "  FICHIERS MANQUANTS - envoie le resultat!" -f Red}elseif($warn -gt 0){Write-Host "  FICHIERS INCOMPLETS - envoie le resultat!" -f Yellow}else{Write-Host "  TOUT EST OK!" -f Green}
+INFO:     Will watch for changes in these directories: ['C:\\bmci_objective\\BMCI\\backend']
+Traceback (most recent call last):
+  File "C:\Program Files\Python310\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "C:\Program Files\Python310\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\__main__.py", line 4, in <module>
+    uvicorn.main()
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 1524, in __call__
+    return self.main(*args, **kwargs)
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 1445, in main
+    rv = self.invoke(ctx)
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 1308, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 877, in invoke
+    return callback(*args, **kwargs)
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\main.py", line 441, in main
+    run(
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\main.py", line 609, in run
+    config.load_app()
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\config.py", line 415, in load_app
+    return import_from_string(self.app)
+  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "C:\Program Files\Python310\lib\importlib\__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked  
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module      
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed 
+  File "C:\bmci_objective\BMCI\backend\app\main.py", line 26, in <module>      
+    from app.core.config import settings
+  File "C:\bmci_objective\BMCI\backend\app\core\config.py", line 87, in <module>
+    settings = Settings()
+  File "C:\bmci_objective\BMCI\backend\app\core\config.py", line 68, in __init__
+    raise RuntimeError(
+RuntimeError: ALLOWED_ORIGINS doit etre defini explicitement dans .env (ex: ALLOWED_ORIGINS=http://localhost:5173,https://example.com). Le wildcard "*" est interdit car combine a allow_credentials.
+PS C:\bmci_objective\BMCI\backend>  resultat!" -f Yellow}else{Write-Host "  TOUT EST OK!" -f Green}
 *École Centrale Casablanca — Année académique 2024-2025*
