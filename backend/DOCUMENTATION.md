@@ -654,7 +654,6 @@ python -m pytest -v   # tests sous app/tests/ (cf. pytest.ini)
 
 | Variable | Rôle |
 |---|---|
-| `SECRET_KEY` | Clé secrète de l'application |
 | `SESSION_DURATION_HOURS` | Durée de validité d'une session |
 | `PBKDF2_ITERATIONS` | Coût du hachage des mots de passe |
 | `MAX_LOGIN_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | Anti brute-force |
@@ -664,7 +663,6 @@ python -m pytest -v   # tests sous app/tests/ (cf. pytest.ini)
 | `OLLAMA_URL` / `OLLAMA_MODEL` | Configuration de l'IA locale |
 | `AUTH_PROVIDER` | `local` (défaut) ou `ldap` |
 | `LDAP_*` / `SSO_*` | Réservé à l'intégration IAM future |
-| `SEED_*_PASSWORD` | Comptes de démonstration (dev uniquement) |
 
 ---
 
@@ -675,8 +673,7 @@ python -m pytest -v   # tests sous app/tests/ (cf. pytest.ini)
 pip install -r requirements.txt
 
 # 2. Configuration
-cp .env.example .env
-python -c "import secrets; print(secrets.token_hex(32))"   # → SECRET_KEY
+cp .env.example .env   # renseigner ALLOWED_ORIGINS (obligatoire au demarrage)
 
 # 3. (IA) modèle Ollama
 ollama create smart-qwen8 -f Modelfile && ollama serve
