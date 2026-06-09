@@ -102,7 +102,8 @@ bmci-smartobjective/
 ├── .gitignore                      # Ignore .env.local, *.db, node_modules (backend/.env est versionné)
 ├── Modelfile                       # Définition du modèle Ollama smart-qwen8
 ├── requirements.txt                # Dépendances Python (backend)
-├── start_app.bat / start_app.sh    # Démarrage tout-en-un (Windows / Unix)
+├── LANCER_APP.bat                  # Démarrage tout-en-un (Windows)
+├── start_app.sh                    # Démarrage tout-en-un (Linux / macOS)
 └── README.md
 ```
 
@@ -344,7 +345,7 @@ local et sur GitHub).
 ### Option A — Démarrage tout-en-un
 ```bash
 # Windows
-start_app.bat
+LANCER_APP.bat
 
 # Linux / macOS
 ./start_app.sh
