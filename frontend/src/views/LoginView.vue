@@ -331,6 +331,7 @@ function handleBack() {
           </form>
 
           <div class="mt-6 text-center">
+            <!-- Inscription publique autorisee pour COLLAB, MANAGER et HR. -->
             <p v-if="mode === 'login'" class="text-sm text-slate-500">
               Pas encore de compte ?
               <button

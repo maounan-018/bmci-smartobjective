@@ -118,6 +118,17 @@ async function handleAnalyzeMyObjective() {
 }
 
 // ============ IMPORT EXCEL POUR ANALYSE ============
+// Drag & drop : permet de glisser un fichier depuis l'Explorateur,
+// sans passer par la popup "mobile" d'Edge.
+const dragExcel = ref(false);
+function onExcelDrop(e) {
+  dragExcel.value = false;
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  // Reutilise le handler existant via un event synthetique.
+  handleImportExcel({ target: { files: [file] } });
+}
+
 async function handleImportExcel(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -673,16 +684,26 @@ function historyIssueFor(item, key) {
             Importez un fichier Excel contenant plusieurs objectifs à analyser en lot.
             Le fichier doit contenir une colonne <strong>"Titre"</strong> (obligatoire) et optionnellement une colonne <strong>"Description"</strong>.
           </p>
-          <div class="flex items-center gap-4">
-            <input ref="fileInput" type="file" accept=".xlsx,.xls" @change="handleImportExcel" class="hidden" id="excel-import" />
-            <label for="excel-import" :class="['flex items-center gap-2 px-6 py-3 rounded-lg font-bold cursor-pointer transition-all', isImporting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700']">
-              <template v-if="isImporting"><Loader2 :size="20" class="animate-spin" />Import en cours...</template>
-              <template v-else><Upload :size="20" />Choisir un fichier Excel</template>
-            </label>
-            <a href="#" @click.prevent="downloadTemplate" class="text-sm text-blue-600 hover:underline flex items-center gap-1">
-              <Download :size="16" />
-              Télécharger un modèle
-            </a>
+          <div
+            class="flex flex-col items-stretch gap-3 p-4 rounded-xl border-2 border-dashed transition-colors"
+            :class="dragExcel ? 'bg-blue-50 border-blue-500' : 'bg-slate-50 border-slate-200'"
+            @drop.prevent="onExcelDrop"
+            @dragover.prevent="dragExcel = true"
+            @dragenter.prevent="dragExcel = true"
+            @dragleave.prevent="dragExcel = false"
+          >
+            <p class="text-xs text-blue-700 text-center">Glissez-déposez un fichier Excel ici, ou cliquez ci-dessous.</p>
+            <div class="flex items-center gap-4 flex-wrap">
+              <input ref="fileInput" type="file" accept=".xlsx,.xls" @change="handleImportExcel" class="hidden" id="excel-import" />
+              <label for="excel-import" :class="['flex items-center gap-2 px-6 py-3 rounded-lg font-bold cursor-pointer transition-all', isImporting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700']">
+                <template v-if="isImporting"><Loader2 :size="20" class="animate-spin" />Import en cours...</template>
+                <template v-else><Upload :size="20" />Choisir un fichier Excel</template>
+              </label>
+              <a href="#" @click.prevent="downloadTemplate" class="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                <Download :size="16" />
+                Télécharger un modèle
+              </a>
+            </div>
           </div>
         </div>
 

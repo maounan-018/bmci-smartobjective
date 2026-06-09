@@ -239,6 +239,33 @@ function resetFilters() {
 function onStratFileChange(e) { stratFile.value = e.target.files?.[0] || null; }
 function onObjFileChange(e) { objFile.value = e.target.files?.[0] || null; }
 
+// Glisser-deposer (drag & drop) depuis l'Explorateur du systeme.
+// Permet de contourner la popup "Charger depuis mobile" d'Edge :
+// l'utilisateur fait glisser le fichier directement sur la zone.
+const dragStrat = ref(false);
+const dragObj = ref(false);
+
+function _validateExcel(file) {
+  if (!file) return null;
+  const name = (file.name || '').toLowerCase();
+  if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+    alert('Format non supporté. Veuillez utiliser un fichier Excel (.xlsx ou .xls).');
+    return null;
+  }
+  return file;
+}
+
+function onStratDrop(e) {
+  dragStrat.value = false;
+  const f = _validateExcel(e.dataTransfer?.files?.[0]);
+  if (f) stratFile.value = f;
+}
+function onObjDrop(e) {
+  dragObj.value = false;
+  const f = _validateExcel(e.dataTransfer?.files?.[0]);
+  if (f) objFile.value = f;
+}
+
 function downloadPersonalTemplate() {
   const csvContent = "Titre,Description\nAméliorer les performances RH,Objectif stratégique pour Q2\nOptimiser le recrutement,Réduire le délai de recrutement de 20%";
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -598,9 +625,19 @@ function noDetailedAnalysis(analysisObj) {
         <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
           <h2 class="font-bold text-xl text-slate-800">1. Import des Données</h2>
           <div class="grid md:grid-cols-2 gap-6">
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div
+              class="p-4 rounded-xl border-2 border-dashed transition-colors"
+              :class="dragStrat ? 'bg-emerald-50 border-emerald-500' : 'bg-slate-50 border-slate-200'"
+              @drop.prevent="onStratDrop"
+              @dragover.prevent="dragStrat = true"
+              @dragenter.prevent="dragStrat = true"
+              @dragleave.prevent="dragStrat = false"
+            >
               <h3 class="font-semibold text-emerald-800 flex items-center gap-2"><Target :size="18" />Objectifs Stratégiques</h3>
-              <p class="text-xs text-slate-500 mt-1 mb-3">Importer le fichier Excel des axes directeurs de l'entreprise.</p>
+              <p class="text-xs text-slate-500 mt-1 mb-3">
+                Importer le fichier Excel des axes directeurs.
+                <span class="block mt-1 text-emerald-700">Glissez-déposez le fichier ici, ou cliquez ci-dessous.</span>
+              </p>
               <input type="file" ref="stratFileInput" @change="onStratFileChange" class="hidden" accept=".xlsx, .xls" />
               <div class="flex items-center gap-2">
                 <button @click="stratFileInput?.click()" class="flex-1 text-center text-xs font-bold bg-white border border-slate-300 rounded-md px-3 py-2 truncate hover:bg-slate-100">{{ stratFile ? stratFile.name : 'Choisir un fichier...' }}</button>
@@ -610,9 +647,19 @@ function noDetailedAnalysis(analysisObj) {
                 </button>
               </div>
             </div>
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div
+              class="p-4 rounded-xl border-2 border-dashed transition-colors"
+              :class="dragObj ? 'bg-emerald-50 border-emerald-500' : 'bg-slate-50 border-slate-200'"
+              @drop.prevent="onObjDrop"
+              @dragover.prevent="dragObj = true"
+              @dragenter.prevent="dragObj = true"
+              @dragleave.prevent="dragObj = false"
+            >
               <h3 class="font-semibold text-emerald-800 flex items-center gap-2"><Users :size="18" />Objectifs Collaborateurs</h3>
-              <p class="text-xs text-slate-500 mt-1 mb-3">Importer le fichier Excel des objectifs individuels ou d'équipe.</p>
+              <p class="text-xs text-slate-500 mt-1 mb-3">
+                Importer le fichier Excel des objectifs individuels.
+                <span class="block mt-1 text-emerald-700">Glissez-déposez le fichier ici, ou cliquez ci-dessous.</span>
+              </p>
               <input type="file" ref="objFileInput" @change="onObjFileChange" class="hidden" accept=".xlsx, .xls" />
               <div class="flex items-center gap-2">
                 <button @click="objFileInput?.click()" class="flex-1 text-center text-xs font-bold bg-white border border-slate-300 rounded-md px-3 py-2 truncate hover:bg-slate-100">{{ objFile ? objFile.name : 'Choisir un fichier...' }}</button>

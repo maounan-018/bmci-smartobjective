@@ -22,14 +22,17 @@ class RegisterRequest(BaseModel):
     """
     Corps de la requête d'inscription publique.
 
-    SÉCURITÉ : le rôle n'est PAS accepté côté client. L'inscription publique
-    crée systématiquement un compte COLLAB (cf. auth_controller.register).
-    La création de comptes MANAGER/HR/ADMIN passe par un endpoint administratif
-    dédié, jamais par /api/auth/register.
+    SÉCURITÉ : les rôles autorisés à l'inscription publique sont COLLAB,
+    MANAGER et HR. Toute autre valeur (ex. ADMIN) est ignorée et ramenée
+    à COLLAB côté service (anti-escalade).
+
+    - Un COLLAB DOIT fournir manager_id (son responsable hiérarchique).
+    - Un MANAGER ou un HR s'inscrit sans manager_id.
     """
     email: str
     password: str
     name: str
+    role: Optional[str] = None         # 'COLLAB' (defaut), 'MANAGER' ou 'HR'
     manager_id: Optional[str] = None
 
 

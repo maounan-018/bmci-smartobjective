@@ -79,24 +79,38 @@ def test_register_success(client, make_user):
     assert resp.json()["token"]
 
 
-def test_register_cannot_escalate_to_HR(client, make_user):
-    """L'inscription publique ne peut PAS créer un compte HR, même si le client le demande."""
-    make_user(user_id="mgr-10", email="mgr10@bmci.test", role="MANAGER")
+def test_register_hr_is_allowed(client):
+    """L'inscription publique d'un HR est autorisée (sans manager_id)."""
     resp = client.post("/api/auth/register", json={
-        "email": "evil-hr@bmci.test", "password": "Pass1234!",
-        "name": "Evil", "role": "HR", "manager_id": "mgr-10",
+        "email": "new-hr@bmci.test", "password": "Pass1234!",
+        "name": "Nouveau RH", "role": "HR",
     })
-    assert resp.status_code == 200
-    # Le rôle envoyé par le client doit être ignoré : compte créé en COLLAB
-    assert resp.json()["user"]["role"] == "COLLAB"
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["user"]["role"] == "HR"
+    assert body["user"]["manager_id"] is None
+    assert body["token"]
 
 
-def test_register_cannot_escalate_to_MANAGER(client, make_user):
-    """L'inscription publique ne peut PAS créer un compte MANAGER, même si le client le demande."""
-    make_user(user_id="mgr-11", email="mgr11@bmci.test", role="MANAGER")
+def test_register_manager_is_allowed(client):
+    """L'inscription publique d'un MANAGER est autorisée (sans manager_id)."""
     resp = client.post("/api/auth/register", json={
-        "email": "evil-mgr@bmci.test", "password": "Pass1234!",
-        "name": "Evil2", "role": "MANAGER", "manager_id": "mgr-11",
+        "email": "new-mgr@bmci.test", "password": "Pass1234!",
+        "name": "Nouveau Manager", "role": "MANAGER",
+    })
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["user"]["role"] == "MANAGER"
+    assert body["user"]["manager_id"] is None
+    assert body["token"]
+
+
+def test_register_unknown_role_falls_back_to_collab(client, make_user):
+    """Toute valeur de rôle inconnue (ADMIN, ROOT...) est ramenée à COLLAB."""
+    make_user(user_id="mgr-12", email="mgr12@bmci.test", role="MANAGER")
+    resp = client.post("/api/auth/register", json={
+        "email": "evil-admin@bmci.test", "password": "Pass1234!",
+        "name": "Evil3", "role": "ADMIN", "manager_id": "mgr-12",
     })
     assert resp.status_code == 200
     assert resp.json()["user"]["role"] == "COLLAB"

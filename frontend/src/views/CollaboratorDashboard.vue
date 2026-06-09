@@ -155,6 +155,16 @@ async function handleFileUpload(event) {
   }
 }
 
+// Drag & drop : permet de glisser un fichier depuis l'Explorateur
+// (contourne la popup "mobile" d'Edge).
+const dragExcel = ref(false);
+function onExcelDrop(e) {
+  dragExcel.value = false;
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  handleExcelImport({ target: { files: [file] } });
+}
+
 async function handleExcelImport(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -496,7 +506,16 @@ function smartScoreClass(score) {
             colonne <strong>"Description"</strong>.
           </p>
 
-          <div class="flex items-center gap-4 flex-wrap">
+          <div
+            class="flex flex-col gap-3 p-4 rounded-xl border-2 border-dashed transition-colors"
+            :class="dragExcel ? 'bg-amber-50 border-amber-500' : 'bg-transparent border-amber-200'"
+            @drop.prevent="onExcelDrop"
+            @dragover.prevent="dragExcel = true"
+            @dragenter.prevent="dragExcel = true"
+            @dragleave.prevent="dragExcel = false"
+          >
+            <p class="text-xs text-amber-700 text-center">Glissez-déposez un fichier Excel ici, ou cliquez ci-dessous.</p>
+            <div class="flex items-center gap-4 flex-wrap">
             <input
               ref="excelFileInput"
               type="file"
@@ -526,6 +545,7 @@ function smartScoreClass(score) {
               <Download :size="16" />
               Télécharger un modèle
             </a>
+            </div>
           </div>
         </div>
 
