@@ -498,5 +498,65 @@ npm run build       # validation : ~1600 modules transformés
 **Entreprise :** BMCI — ABID Chaimaa, ESSAEGH Keltoum
 
 ---
-
+$root = "C:\bmci_objective\BMCI"; $ok = 0; $warn = 0; $err = 0
+function Ck { param($p,$kw,$ml=3); $r=$p.Replace($root,"").TrimStart("\"); if(-not(Test-Path $p)){Write-Host "  [MANQUANT] $r" -f Red; $script:err++; return}; $l=Get-Content $p -EA SilentlyContinue; $c=if($l){$l.Count}else{0}; if($c -lt $ml){Write-Host "  [TRONQUE $c lignes] $r" -f Yellow; $script:warn++; return}; if($kw){$f=$false; foreach($k in $kw){if($l|Select-String $k -Quiet){$f=$true;break}}; if(-not $f){Write-Host "  [INCOMPLET] $r ($c lignes)" -f Yellow; $script:warn++; return}}; Write-Host "  [OK $c lignes] $r" -f Green; $script:ok++ }
+Write-Host "`n=== DIAGNOSTIC BMCI ===" -f Cyan
+Write-Host "`n-- DOSSIERS --" -f White
+@("backend\app","backend\app\controllers","backend\app\services","backend\app\models","backend\app\schemas","backend\app\core","backend\app\database","backend\app\middlewares","frontend\src","frontend\src\views","frontend\src\stores","frontend\src\services","frontend\src\router") | % { $d="$root\$_"; $r=$_.TrimStart("\"); if(Test-Path $d){Write-Host "  [OK] $r" -f Green;$ok++}else{Write-Host "  [MANQUANT] $r" -f Red;$err++} }
+Write-Host "`n-- BACKEND PRINCIPAL --" -f White
+Ck "$root\backend\app\main.py" @("create_app","app = create_app") 20
+Ck "$root\backend\app\core\config.py" @("ALLOWED_ORIGINS","Settings") 30
+Ck "$root\backend\app\core\security.py" @("hash_password","verify_password") 10
+Ck "$root\backend\app\database\init_db.py" @("init_db","Base.metadata") 10
+Ck "$root\requirements.txt" @("fastapi","uvicorn") 5
+Write-Host "`n-- CONTROLEURS --" -f White
+Ck "$root\backend\app\controllers\auth_controller.py" @("router","APIRouter") 10
+Ck "$root\backend\app\controllers\hr_controller.py" @("router","APIRouter") 10
+Ck "$root\backend\app\controllers\manager_controller.py" @("router","APIRouter") 10
+Ck "$root\backend\app\controllers\objective_controller.py" @("router","APIRouter") 10
+Ck "$root\backend\app\controllers\ai_controller.py" @("router","APIRouter") 10
+Ck "$root\backend\app\controllers\admin_controller.py" @("router","APIRouter") 10
+Write-Host "`n-- SERVICES --" -f White
+Ck "$root\backend\app\services\auth_service.py" @("def login","def register") 20
+Ck "$root\backend\app\services\hr_service.py" @("def ") 20
+Ck "$root\backend\app\services\objective_service.py" @("def ") 20
+Ck "$root\backend\app\services\manager_service.py" @("def ") 20
+Ck "$root\backend\app\services\ai_service.py" @("def ","ollama") 20
+Ck "$root\backend\app\services\user_service.py" @("def ") 10
+Ck "$root\backend\app\services\audit_service.py" @("def ") 10
+Ck "$root\backend\app\services\export_service.py" @("def ") 10
+Ck "$root\backend\app\services\permission_service.py" @("def ") 10
+Ck "$root\backend\app\services\excel_import_service.py" @("def ") 10
+Write-Host "`n-- MODELES --" -f White
+Ck "$root\backend\app\models\user.py" @("class User","Column") 10
+Ck "$root\backend\app\models\objective.py" @("class","Column") 10
+Ck "$root\backend\app\models\session.py" @("class","Column") 10
+Ck "$root\backend\app\models\audit_log.py" @("class","Column") 10
+Ck "$root\backend\app\models\company_objective.py" @("class","Column") 10
+Ck "$root\backend\app\models\hr_import.py" @("class","Column") 10
+Ck "$root\backend\app\models\analysis_result.py" @("class","Column") 10
+Write-Host "`n-- SCHEMAS --" -f White
+Ck "$root\backend\app\schemas\auth_schema.py" @("class","BaseModel") 10
+Ck "$root\backend\app\schemas\hr_schema.py" @("class","BaseModel") 10
+Ck "$root\backend\app\schemas\objective_schema.py" @("class","BaseModel") 10
+Ck "$root\backend\app\schemas\user_schema.py" @("class","BaseModel") 10
+Write-Host "`n-- ENV --" -f White
+$ep="$root\backend\.env"; if(Test-Path $ep){$ec=Get-Content $ep -Raw; if($ec -match "ALLOWED_ORIGINS"){Write-Host "  [OK] backend\.env" -f Green;$ok++}else{Write-Host "  [INCOMPLET] backend\.env - ALLOWED_ORIGINS manquant!" -f Yellow;$warn++}}else{Write-Host "  [MANQUANT] backend\.env - BACKEND NE PEUT PAS DEMARRER!" -f Red;$err++}
+Write-Host "`n-- FRONTEND --" -f White
+Ck "$root\frontend\index.html" @("div","app") 5
+Ck "$root\frontend\package.json" @("vue","vite") 5
+Ck "$root\frontend\vite.config.js" @("defineConfig","vue") 5
+Ck "$root\frontend\src\main.js" @("createApp","App") 5
+Ck "$root\frontend\src\views\LoginView.vue" @("login","password") 20
+Ck "$root\frontend\src\views\HrDashboard.vue" @("template","script") 30
+Ck "$root\frontend\src\views\ManagerDashboard.vue" @("template","script") 30
+Ck "$root\frontend\src\views\CollaboratorDashboard.vue" @("template","script") 30
+Ck "$root\frontend\src\stores\authStore.js" @("defineStore","user") 10
+Ck "$root\frontend\src\services\api.js" @("fetch","localhost") 10
+Ck "$root\frontend\src\router\index.js" @("createRouter","routes") 10
+$nm="$root\frontend\node_modules"; if(Test-Path $nm){$nc=(Get-ChildItem $nm -Directory -EA SilentlyContinue|Measure-Object).Count; Write-Host "  [OK] node_modules ($nc paquets)" -f Green;$ok++}else{Write-Host "  [MANQUANT] node_modules - fais: cd frontend && npm install" -f Red;$err++}
+Ck "$root\Modelfile" @("FROM qwen","SYSTEM") 5
+Write-Host "`n=========================" -f Cyan
+Write-Host "  OK=$ok  INCOMPLET=$warn  MANQUANT=$err" -f White
+if($err -gt 0){Write-Host "  FICHIERS MANQUANTS - envoie le resultat!" -f Red}elseif($warn -gt 0){Write-Host "  FICHIERS INCOMPLETS - envoie le resultat!" -f Yellow}else{Write-Host "  TOUT EST OK!" -f Green}
 *École Centrale Casablanca — Année académique 2024-2025*
