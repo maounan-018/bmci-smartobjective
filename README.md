@@ -62,6 +62,7 @@ faire sortir les données de l'infrastructure de la banque**.
 ```
 bmci-smartobjective/
 ├── backend/                        # Backend FastAPI (MVC + SQLAlchemy)
+│   ├── .env                        # Configuration committée (dev local, sans secret réel)
 │   ├── pytest.ini
 │   ├── DOCUMENTATION.md            # Documentation technique du backend
 │   ├── COURS_BACKEND_LIGNE_PAR_LIGNE.pdf   # Cours pédagogique (PDF)
@@ -98,11 +99,11 @@ bmci-smartobjective/
 │       ├── layouts/                # DashboardLayout
 │       └── utils/                  # permissions (UserRole, getDefaultPath), formatters
 │
-├── .env.example                    # Modèle de configuration
-├── .gitignore                      # Ignore .env, *.db, node_modules, __pycache__
+├── .gitignore                      # Ignore .env.local, *.db, node_modules (backend/.env est versionné)
 ├── Modelfile                       # Définition du modèle Ollama smart-qwen8
 ├── requirements.txt                # Dépendances Python (backend)
-├── start_app.bat / start_app.sh    # Démarrage tout-en-un (Windows / Unix)
+├── LANCER_APP.bat                  # Démarrage tout-en-un (Windows)
+├── start_app.sh                    # Démarrage tout-en-un (Linux / macOS)
 └── README.md
 ```
 
@@ -328,16 +329,14 @@ ollama create smart-qwen8 -f Modelfile
 ```
 
 ### 5) Configuration
-```bash
-cp .env.example .env
-# Renseigner les valeurs : ALLOWED_ORIGINS est OBLIGATOIRE (le boot echoue sinon).
-```
 
-> Le `.env` doit aussi être présent (ou symlinké) **à la racine** et **dans
-> `backend/`** (car `load_dotenv` lit depuis le CWD courant). Le plus simple :
-> `cp .env backend/.env`.
+Rien à faire : le fichier **`backend/.env` est déjà versionné** dans le dépôt.
+L'application démarre directement après le clone (un seul env, identique en
+local et sur GitHub).
 
-> ⚠️ Ne jamais committer `.env` (déjà dans `.gitignore`).
+> ⚠️ `backend/.env` ne contient **aucun secret réel** — uniquement de la config
+> de développement local. Pour de vrais secrets (clé API, identifiants LDAP/SSO),
+> utiliser un fichier `.env.local` (ignoré par git), **jamais** ce fichier versionné.
 
 ---
 
@@ -346,7 +345,7 @@ cp .env.example .env
 ### Option A — Démarrage tout-en-un
 ```bash
 # Windows
-start_app.bat
+LANCER_APP.bat
 
 # Linux / macOS
 ./start_app.sh
@@ -454,7 +453,7 @@ npm run build       # validation : ~1600 modules transformés
 
 | Symptôme | Cause probable | Solution |
 |---|---|---|
-| Backend refuse de démarrer (`ALLOWED_ORIGINS doit être défini`) | `.env` manquant ou `ALLOWED_ORIGINS` vide / `*` | Créer `.env` (et le copier dans `backend/`) avec `ALLOWED_ORIGINS=http://localhost:3000` |
+| Backend refuse de démarrer (`ALLOWED_ORIGINS doit être défini`) | `backend/.env` supprimé localement | Restaurer le fichier versionné : `git checkout -- backend/.env` |
 | « Ollama n'est pas démarré » | Service Ollama hors ligne | `ollama serve` |
 | « Modèle smart-qwen8 non trouvé » | Modèle non créé | `ollama create smart-qwen8 -f Modelfile` |
 | Frontend voit 404 sur `/api/*` | Backend pas sur :5001 ou proxy KO | Vérifier `frontend/vite.config.js` (target = `http://localhost:5001`) et que le backend tourne |

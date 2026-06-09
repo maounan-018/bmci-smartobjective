@@ -3,8 +3,12 @@ node_modules
 __pycache__/
 *.pyc
 
-# Secrets et environnement — NE JAMAIS committer
+# Environnement
+# backend/.env est COMMITTE volontairement (repo privé, config de dev SANS secret
+# réel) → un seul env, identique en local et sur GitHub. On continue d'ignorer
+# tout autre .env et les .env.local (réservés aux VRAIS secrets, jamais committés).
 .env
+!backend/.env
 .env.local
 
 # Base de données locale

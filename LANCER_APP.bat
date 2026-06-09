@@ -7,24 +7,16 @@ echo   ObjectifSMART-AI BMCI - Demarrage complet
 echo ================================================
 echo.
 
-REM === ETAPE 1 : Creer le .env avec toutes les variables ===
-echo [1/4] Creation du fichier .env...
-(
-echo APP_NAME=ObjectifSMART-AI
-echo OLLAMA_URL=http://localhost:11434/api/generate
-echo OLLAMA_MODEL=qwen3:4b
-echo DATABASE_PATH=objectifsmart.db
-echo SECRET_KEY=bmci-secret-key-32-caracteres-minimum-2026
-echo SESSION_DURATION_HOURS=24
-echo PBKDF2_ITERATIONS=200000
-echo MAX_LOGIN_ATTEMPTS=5
-echo LOGIN_LOCKOUT_MINUTES=15
-echo ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:5173
-echo SEED_MANAGER_PASSWORD=REDACTED_DEMO_PWD
-echo SEED_HR_PASSWORD=REDACTED_DEMO_PWD
-echo SEED_COLLAB_PASSWORD=REDACTED_DEMO_PWD
-) > "%~dp0backend\.env"
-echo     .env cree OK
+REM === ETAPE 1 : Le .env est deja committe dans backend\.env ===
+REM Un seul env, identique en local et sur GitHub. Plus de generation ici :
+REM le fichier backend\.env est versionne dans le depot.
+echo [1/4] Verification du backend\.env committe...
+if not exist "%~dp0backend\.env" (
+    echo     [ERREUR] backend\.env introuvable. Il devrait etre versionne dans le depot.
+    pause
+    exit /b 1
+)
+echo     .env present OK
 
 REM === ETAPE 2 : Demarrer Ollama ===
 echo [2/4] Demarrage Ollama...

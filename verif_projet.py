@@ -193,7 +193,7 @@ else:
 section("10. FICHIERS RACINE")
 check_file("Modelfile",        ["FROM qwen", "SYSTEM"], 5)
 check_file("requirements.txt", ["fastapi", "uvicorn"],  5)
-check_file("start_app.bat",    ["uvicorn", "npm"],      5)
+check_file("LANCER_APP.bat",   ["uvicorn", "npm"],      5)
 
 # ── 11. VERIF PYTHON & NODE ───────────────────────────────────────────────────
 section("11. ENVIRONNEMENT SYSTEME")
