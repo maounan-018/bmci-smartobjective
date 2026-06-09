@@ -143,20 +143,17 @@ if not os.path.exists(env_path):
   OLLAMA_URL=http://localhost:11434/api/generate
   OLLAMA_MODEL=smart-qwen8
   DATABASE_PATH=objectifsmart.db
-  SECRET_KEY=change-moi-32-caracteres-minimum
   SESSION_DURATION_HOURS=24
   PBKDF2_ITERATIONS=200000
   MAX_LOGIN_ATTEMPTS=5
   LOGIN_LOCKOUT_MINUTES=15
+  MAX_REQUEST_SIZE_MB=20
   ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-  SEED_MANAGER_PASSWORD=REDACTED_DEMO_PWD
-  SEED_HR_PASSWORD=REDACTED_DEMO_PWD
-  SEED_COLLAB_PASSWORD=REDACTED_DEMO_PWD
 """))
 else:
     content = open(env_path, encoding="utf-8", errors="ignore").read()
     missing_keys = []
-    for k in ["ALLOWED_ORIGINS", "SECRET_KEY", "DATABASE_PATH", "OLLAMA_MODEL"]:
+    for k in ["ALLOWED_ORIGINS", "DATABASE_PATH", "OLLAMA_MODEL"]:
         if k not in content:
             missing_keys.append(k)
     if missing_keys:

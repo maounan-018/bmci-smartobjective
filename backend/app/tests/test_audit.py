@@ -56,4 +56,4 @@ def test_fetch_logs_filter_by_event_type():
     audit.log_event(AuditEventType.LOGIN_FAILED, "échec", user_id="u-2")
     audit.log_event(AuditEventType.LOGIN_SUCCESS, "ok", user_id="u-2")
     failed = audit.fetch_logs(event_type=AuditEventType.LOGIN_FAILED.value)
-    assert all(l["event_type"] == AuditEventType.LOGIN_FAILED.value for l in failed)
+    assert all(entry["event_type"] == AuditEventType.LOGIN_FAILED.value for entry in failed)

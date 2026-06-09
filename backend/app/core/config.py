@@ -56,7 +56,6 @@ class Settings:
         self.PBKDF2_ITERATIONS = int(os.getenv("PBKDF2_ITERATIONS", "200000"))
         self.MAX_LOGIN_ATTEMPTS = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
         self.LOGIN_LOCKOUT_MINUTES = int(os.getenv("LOGIN_LOCKOUT_MINUTES", "15"))
-        self.SECRET_KEY = os.getenv("SECRET_KEY", "")
 
         # CORS — JAMAIS "*" en environnement bancaire.
         # Combine a allow_credentials=True (cf. main.py), un wildcard permet
@@ -71,11 +70,6 @@ class Settings:
                 "Le wildcard \"*\" est interdit car combine a allow_credentials."
             )
         self.ALLOWED_ORIGINS = [o.strip() for o in _origins_raw.split(",") if o.strip()]
-
-        # Comptes de démonstration (seed uniquement)
-        self.SEED_MANAGER_PASSWORD = os.getenv("SEED_MANAGER_PASSWORD", "REDACTED_DEMO_PWD")
-        self.SEED_HR_PASSWORD = os.getenv("SEED_HR_PASSWORD", "REDACTED_DEMO_PWD")
-        self.SEED_COLLAB_PASSWORD = os.getenv("SEED_COLLAB_PASSWORD", "REDACTED_DEMO_PWD")
 
         # Limite globale de taille de requete (octets). Protege contre les DoS
         # par upload massif. Valeur en Mo via MAX_REQUEST_SIZE_MB (defaut 20 Mo).

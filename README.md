@@ -106,10 +106,8 @@ bmci-smartobjective/
 └── README.md
 ```
 
-> Le dossier `frontend/` est le **frontend officiel** (Vue.js, JavaScript pur).
-> L'arborescence à la racine (`App.jsx`, `pages/`, `components/`, `services/`)
-> est une **app React de référence** historique, également en JavaScript pur
-> (migration TypeScript → JavaScript effectuée).
+> Le frontend **Vue.js** (`frontend/`, JavaScript pur, Composition API) est
+> l'unique frontend officiel de l'application.
 
 ---
 
@@ -332,9 +330,7 @@ ollama create smart-qwen8 -f Modelfile
 ### 5) Configuration
 ```bash
 cp .env.example .env
-# Générer une SECRET_KEY robuste :
-python -c "import secrets; print(secrets.token_hex(32))"
-# → coller le résultat dans SECRET_KEY du fichier .env
+# Renseigner les valeurs : ALLOWED_ORIGINS est OBLIGATOIRE (le boot echoue sinon).
 ```
 
 > Le `.env` doit aussi être présent (ou symlinké) **à la racine** et **dans
@@ -414,7 +410,6 @@ npm run build       # validation : ~1600 modules transformés
 
 | Variable | Rôle |
 |---|---|
-| `SECRET_KEY` | Clé secrète de l'application (64 hex aléatoires) |
 | `SESSION_DURATION_HOURS` | Durée de validité d'une session (défaut 24) |
 | `PBKDF2_ITERATIONS` | Coût du hachage (défaut 200 000) |
 | `MAX_LOGIN_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | Anti brute-force (défaut 5 / 15) |
@@ -424,7 +419,6 @@ npm run build       # validation : ~1600 modules transformés
 | `OLLAMA_URL` / `OLLAMA_MODEL` | Configuration de l'IA locale |
 | `AUTH_PROVIDER` | `local` (défaut) ou `ldap` (à activer après intégration IAM) |
 | `LDAP_*` / `SSO_*` | Réservé à la future intégration IAM bancaire |
-| `SEED_*_PASSWORD` | Comptes de démonstration (dev uniquement) |
 
 ---
 
@@ -489,52 +483,13 @@ npm run build       # validation : ~1600 modules transformés
 **Groupe 03**
 - Lompo Bampalou Ernest
 - Chaabi Taha
-- Bajja Ilyas
-- Taifouri Marwa
 - Jadlaoui Marwen
-- David
+- Assia Hantoum
+- David Danhouegnon
 
 **Encadrement :** Mme Annoukoubi Maha (ECC)
 **Entreprise :** BMCI — ABID Chaimaa, ESSAEGH Keltoum
 
-INFO:     Will watch for changes in these directories: ['C:\\bmci_objective\\BMCI\\backend']
-Traceback (most recent call last):
-  File "C:\Program Files\Python310\lib\runpy.py", line 196, in _run_module_as_main
-    return _run_code(code, main_globals, None,
-  File "C:\Program Files\Python310\lib\runpy.py", line 86, in _run_code
-    exec(code, run_globals)
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\__main__.py", line 4, in <module>
-    uvicorn.main()
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 1524, in __call__
-    return self.main(*args, **kwargs)
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 1445, in main
-    rv = self.invoke(ctx)
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 1308, in invoke
-    return ctx.invoke(self.callback, **ctx.params)
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\click\core.py", line 877, in invoke
-    return callback(*args, **kwargs)
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\main.py", line 441, in main
-    run(
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\main.py", line 609, in run
-    config.load_app()
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\config.py", line 415, in load_app
-    return import_from_string(self.app)
-  File "C:\Users\j33413\AppData\Roaming\Python\Python310\site-packages\uvicorn\importer.py", line 19, in import_from_string
-    module = importlib.import_module(module_str)
-  File "C:\Program Files\Python310\lib\importlib\__init__.py", line 126, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked  
-  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 883, in exec_module      
-  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed 
-  File "C:\bmci_objective\BMCI\backend\app\main.py", line 26, in <module>      
-    from app.core.config import settings
-  File "C:\bmci_objective\BMCI\backend\app\core\config.py", line 87, in <module>
-    settings = Settings()
-  File "C:\bmci_objective\BMCI\backend\app\core\config.py", line 68, in __init__
-    raise RuntimeError(
-RuntimeError: ALLOWED_ORIGINS doit etre defini explicitement dans .env (ex: ALLOWED_ORIGINS=http://localhost:5173,https://example.com). Le wildcard "*" est interdit car combine a allow_credentials.
-PS C:\bmci_objective\BMCI\backend>  resultat!" -f Yellow}else{Write-Host "  TOUT EST OK!" -f Green}
+---
+
 *École Centrale Casablanca — Année académique 2024-2025*

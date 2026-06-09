@@ -6,8 +6,7 @@
 #
 # JOBS
 #   - lint-python      : detection erreurs syntaxe/style (ruff)
-#   - tests-python     : suite pytest (backend/tests)
-#   - audit-npm-root   : npm audit sur le frontend React racine
+#   - tests-python     : suite pytest (backend/app/tests)
 #   - audit-npm-vue    : npm audit sur le frontend Vue (frontend/)
 #   - secret-scan      : gitleaks (detection de secrets commites par erreur)
 #
@@ -21,9 +20,9 @@ name: security
 
 on:
   push:
-    branches: [main, stagebmci, "security/**"]
+    branches: [main, stagebmci, mvc-sqlalchemy-refactor, "security/**"]
   pull_request:
-    branches: [main, stagebmci]
+    branches: [main, stagebmci, mvc-sqlalchemy-refactor]
 
 # Principe du moindre privilege : par defaut le GITHUB_TOKEN ne peut que LIRE.
 # Chaque job qui a besoin d'ecrire (ex: commenter une PR) doit le declarer.
@@ -58,8 +57,8 @@ jobs:
       # le merge sur le style (--exit-zero). A durcir progressivement.
       - name: Run ruff
         run: |
-          ruff check --exit-zero --output-format=github backend/ server.py audit.py
-          ruff check --exit-zero --select=E9,F63,F7,F82 backend/ server.py audit.py
+          ruff check --exit-zero --output-format=github backend/
+          ruff check --exit-zero --select=E9,F63,F7,F82 backend/
 
   # ---------------------------------------------------------------------------
   # 2. Tests Python (pytest) — bloque le merge si un test echoue
@@ -87,28 +86,10 @@ jobs:
         env:
           # Boot exige desormais ALLOWED_ORIGINS (cf. F4)
           ALLOWED_ORIGINS: http://localhost:5173
-        run: pytest tests/ -v --tb=short
+        run: pytest app/tests/ -v --tb=short
 
   # ---------------------------------------------------------------------------
-  # 3. Audit npm — frontend React racine
-  # ---------------------------------------------------------------------------
-  audit-npm-root:
-    name: npm audit (frontend React racine)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      # Mode strict : bloque le merge sur toute HIGH/CRITICAL (apres le fix F6).
-      - name: npm audit (strict)
-        run: npm audit --audit-level=high
-
-  # ---------------------------------------------------------------------------
-  # 4. Audit npm — frontend Vue (deja clean a l'instant T)
+  # 3. Audit npm — frontend Vue (deja clean a l'instant T)
   # ---------------------------------------------------------------------------
   audit-npm-vue:
     name: npm audit (frontend Vue)
@@ -127,7 +108,7 @@ jobs:
         run: npm audit --audit-level=high
 
   # ---------------------------------------------------------------------------
-  # 5. Secret scan (gitleaks) — bloque si un secret est commite par erreur
+  # 4. Secret scan (gitleaks) — bloque si un secret est commite par erreur
   # ---------------------------------------------------------------------------
   secret-scan:
     name: Secret scan (gitleaks)
