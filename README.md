@@ -483,10 +483,9 @@ npm run build       # validation : ~1600 modules transformés
 **Groupe 03**
 - Lompo Bampalou Ernest
 - Chaabi Taha
-- Bajja Ilyas
-- Taifouri Marwa
 - Jadlaoui Marwen
-- David
+- Assia Hantoum
+- David Danhouegnon
 
 **Encadrement :** Mme Annoukoubi Maha (ECC)
 **Entreprise :** BMCI — ABID Chaimaa, ESSAEGH Keltoum
