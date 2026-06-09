@@ -21,7 +21,6 @@ import pytest
 # 1. Base temporaire + environnement de test — AVANT d'importer l'application
 _TMP_DB = os.path.join(tempfile.gettempdir(), "objectifsmart_test.db")
 os.environ["DATABASE_PATH"] = _TMP_DB
-os.environ["SECRET_KEY"] = "test-secret-key-pour-les-tests-uniquement"
 os.environ["MAX_LOGIN_ATTEMPTS"] = "5"
 os.environ["LOGIN_LOCKOUT_MINUTES"] = "15"
 os.environ["ALLOWED_ORIGINS"] = "http://localhost:5173"

@@ -8,11 +8,9 @@ RÔLE
     structuré de l'ancien server.py monolithique.
 
 ÉTAT DE LA MIGRATION MVC
-    - Domaine "auth" : entièrement migré (controllers/auth_controller.py).
-    - Couches transverses (core, database, models, services, auth-provider) : en place.
-    - Domaines métier (objectives, manager, hr, ai) : à monter ici au fur et à
-      mesure de leur extraction depuis l'ancien server.py, sur le MÊME modèle que
-      auth_controller.py (un router par domaine, logique dans les services).
+    Migration terminée : tous les domaines (auth, admin, objectives, manager, hr,
+    ai) sont extraits en routers dédiés et montés ci-dessous. Chaque router délègue
+    sa logique aux services ; aucune logique métier ne subsiste dans ce fichier.
 
 EMPLACEMENT MVC
     Racine applicative : composition et démarrage.
