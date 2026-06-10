@@ -10,6 +10,7 @@ que les `relationship` inter-modèles se résolvent correctement.
 from app.database.base import Base
 from app.models.user import User
 from app.models.session import Session
+from app.models.sso_code import SsoCode
 from app.models.objective import Objective
 from app.models.company_objective import CompanyObjective
 from app.models.analysis_result import (
@@ -25,6 +26,7 @@ __all__ = [
     "Base",
     "User",
     "Session",
+    "SsoCode",
     "Objective",
     "CompanyObjective",
     "AnalysisResult",
