@@ -47,7 +47,7 @@ d'analyse et toute persistance sont assurés côté serveur.
 
 Fonctionnalités principales :
 
-- **Authentification locale** (sessions à token), prête pour une bascule **LDAP/SSO**.
+- **Authentification locale** (sessions à token) + **SSO SAML 2.0** (ADFS / Entra ID).
 - **Gestion des utilisateurs** : rôles `COLLAB`, `MANAGER`, `HR` (et `ADMIN` réservé au futur).
 - **Objectifs** : saisie, import Excel (objectifs collaborateurs et objectifs stratégiques).
 - **Analyse IA** : caractère **SMART** (Spécifique, Mesurable, Atteignable, Réaliste, Temporel)
@@ -175,7 +175,7 @@ backend/
     │   ├── identity_provider.py   # Contrat IdentityProvider + fabrique + mapping groupes
     │   └── providers/
     │       ├── local_provider.py  # Auth via base locale
-    │       └── ldap_provider.py   # Squelette LDAP/AD
+    │       └── saml_provider.py   # SSO SAML 2.0 (ADFS / Entra ID)
     │
     ├── middlewares/
     │   └── request_size.py        # Limite de taille des requêtes (anti-DoS)
@@ -450,12 +450,12 @@ de l'auth locale vers l'IAM bancaire **sans toucher aux services/controllers**.
 - **`identity_provider.py`** : classe abstraite `IdentityProvider`
   (`authenticate`, `get_user_groups`), table `BANK_GROUP_TO_ROLE`,
   fonction `map_groups_to_role` (priorité ADMIN > HR > MANAGER > COLLAB), et **fabrique**
-  `get_identity_provider()` pilotée par `AUTH_PROVIDER` (`local` par défaut, `ldap` à activer).
+  `get_identity_provider()` qui retourne le provider local (le SSO SAML suit un flux dédié).
 - **`providers/local_provider.py`** : `LocalDatabaseProvider` — vérifie l'email + le mot de
   passe contre la base locale via `user_repository` et `verify_password`. Retourne un profil
   normalisé `{external_id, email, display_name, groups}`.
-- **`providers/ldap_provider.py`** : `LDAPProvider` — squelette prêt à compléter
-  (bind LDAP, lecture `memberOf`) lors de l'intégration avec la DSI de la banque.
+- **`providers/saml_provider.py`** : `SamlProvider` — encapsule python3-saml (assertion
+  signée). L'authentification fédérée passe par `controllers/saml_controller.py` (cf. `SSO_SAML.md`).
 
 Profil normalisé renvoyé par tout fournisseur :
 
@@ -662,8 +662,8 @@ python -m pytest -v   # tests sous app/tests/ (cf. pytest.ini)
 | `ALLOWED_ORIGINS` | Origines CORS autorisées (jamais `*`) |
 | `MAX_REQUEST_SIZE_MB` | Limite de taille des requêtes |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | Configuration de l'IA locale |
-| `AUTH_PROVIDER` | `local` (défaut) ou `ldap` |
-| `LDAP_*` / `SSO_*` | Réservé à l'intégration IAM future |
+| `AUTH_PROVIDER` | `local` (défaut) ; SSO SAML actif dès que SP + IdP configurés |
+| `SAML_*` | Configuration SSO SAML 2.0 (cf. `SSO_SAML.md`) |
 
 ---
 
@@ -691,8 +691,8 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 5001 --reload
 
 ## 25. Évolutions prévues
 
-- **Authentification LDAP / SSO** : compléter `LDAPProvider` puis basculer `AUTH_PROVIDER=ldap`
-  — aucune modification des services/controllers requise grâce à l'abstraction `IdentityProvider`.
+- **Bascule SSO SAML 2.0 en production** : déjà implémenté (cf. `SSO_SAML.md`) ; renseigner
+  SP + IdP dans `.env.local` — aucune modification des services/controllers requise.
 - **Rôle `ADMIN` dédié** : aujourd'hui `HR` fait office d'admin (`require_admin`) ; un rôle
   `ADMIN` distinct est déjà anticipé dans le RBAC.
 - **Module IA étendu** : challenger/améliorer automatiquement les objectifs (reformulations

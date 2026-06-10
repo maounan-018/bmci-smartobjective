@@ -84,7 +84,7 @@ class Settings:
         self.SEED_COLLAB_PASSWORD = os.getenv("SEED_COLLAB_PASSWORD", "")
 
         # --- Authentification : fournisseur d'identite ---
-        # local (defaut) | ldap | saml
+        # local (defaut). Le SSO SAML s'active des que SP + IdP sont configures.
         self.AUTH_PROVIDER = os.getenv("AUTH_PROVIDER", "local").strip().lower()
 
         # --- SSO SAML 2.0 (ADFS / Microsoft Entra ID) ---
