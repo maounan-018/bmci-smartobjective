@@ -60,6 +60,19 @@ def test_me_with_valid_token(client, make_user, auth_token):
     assert resp.json()["user"]["email"] == "me@bmci.test"
 
 
+def test_login_rejects_invalid_email_format(client):
+    """Un email mal formé est rejeté par la validation (422), pas traité comme un login."""
+    resp = client.post("/api/auth/login", json={"email": "pas-un-email", "password": "x"})
+    assert resp.status_code == 422
+
+
+def test_login_rejects_oversize_password(client):
+    """Un mot de passe géant est rejeté (borne anti-DoS PBKDF2)."""
+    resp = client.post("/api/auth/login",
+                       json={"email": "user@bmci.ma", "password": "a" * 200})
+    assert resp.status_code == 422
+
+
 def test_login_rate_limiting(client, make_user):
     """Après plusieurs échecs, le compte est temporairement bloqué (429)."""
     make_user(email="rl@bmci.test", password="GoodPass1!")
