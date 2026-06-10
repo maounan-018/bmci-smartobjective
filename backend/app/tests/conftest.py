@@ -116,7 +116,8 @@ def auth_token():
         expires = (datetime.now() + timedelta(hours=1)).isoformat()
         db = SessionLocal()
         try:
-            db.add(SessionModel(token=token, user_id=user_id, expires_at=expires))
+            # On stocke le HASH (comme en prod) ; le token brut est renvoyé à l'appelant.
+            db.add(SessionModel(token=security.hash_token(token), user_id=user_id, expires_at=expires))
             db.commit()
         finally:
             db.close()

@@ -73,6 +73,15 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def hash_token(token: str) -> str:
+    """
+    Hash non réversible d'un token de session, pour stockage en base.
+    Le token étant déjà à haute entropie (256 bits), un SHA-256 simple suffit :
+    une fuite de la table `sessions` n'expose alors aucun token réutilisable.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 # --- Anti brute-force : tentatives échouées en mémoire (par email/IP) ---
 _failed_login_attempts: Dict[str, List[float]] = {}
 

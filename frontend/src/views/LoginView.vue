@@ -77,16 +77,18 @@ const currentRoleMeta = computed(() => roles.find((r) => r.role === selectedRole
 
 // Vérifie une session existante au chargement (réhydratation via le backend).
 onMounted(async () => {
-  // Retour d'un login SSO : token (succès) ou flag d'erreur passés en query.
+  // Retour d'un login SSO : un CODE à usage unique (succès) ou un flag d'erreur.
+  // On échange le code contre le token (le token ne transite jamais dans l'URL).
   const params = new URLSearchParams(window.location.search);
-  const ssoToken = params.get('sso_token');
+  const ssoCode = params.get('sso_code');
   const ssoErr = params.get('sso_error');
-  if (ssoToken) {
-    AuthService.setToken(ssoToken);
+  if (ssoCode) {
+    const ok = await AuthService.exchangeSsoCode(ssoCode);
+    if (!ok) error.value = "Échec de la connexion SSO. Réessayez ou contactez l'administrateur.";
   } else if (ssoErr) {
     error.value = "Échec de la connexion SSO. Réessayez ou contactez l'administrateur.";
   }
-  if (ssoToken || ssoErr) {
+  if (ssoCode || ssoErr) {
     // Nettoie l'URL (retire le query) en conservant le hash de route.
     window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
   }

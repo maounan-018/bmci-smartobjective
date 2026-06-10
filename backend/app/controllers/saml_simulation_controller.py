@@ -27,6 +27,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 
 from app.core.config import settings
 from app.services import auth_service
+from app.controllers.saml_controller import issue_sso_code
 
 router = APIRouter(prefix="/api/auth/saml", tags=["SSO SAML (simulation)"])
 
@@ -68,7 +69,8 @@ def simulate_submit(
     front = settings.SAML_FRONTEND_REDIRECT
     try:
         result = auth_service.login_from_federated(profile)
-        return RedirectResponse(f"{front}/?sso_token={result['token']}", status_code=302)
+        code = issue_sso_code(result["token"])
+        return RedirectResponse(f"{front}/?sso_code={code}", status_code=302)
     except HTTPException:
         return RedirectResponse(f"{front}/?sso_error=1", status_code=302)
 

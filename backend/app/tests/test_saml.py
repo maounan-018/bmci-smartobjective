@@ -45,6 +45,24 @@ def test_saml_metadata_returns_503_when_not_configured(client):
     assert resp.status_code == 503
 
 
+def test_sso_code_exchange_single_use(client):
+    """Un code SSO s'échange une seule fois contre le token, puis devient invalide."""
+    from app.controllers.saml_controller import issue_sso_code
+    code = issue_sso_code("tok-test-123")
+    r1 = client.post("/api/auth/saml/exchange", json={"code": code})
+    assert r1.status_code == 200
+    assert r1.json()["token"] == "tok-test-123"
+    # Usage unique : un 2e échange du même code échoue.
+    r2 = client.post("/api/auth/saml/exchange", json={"code": code})
+    assert r2.status_code == 400
+
+
+def test_sso_code_exchange_invalid(client):
+    """Un code SSO inconnu est refusé."""
+    r = client.post("/api/auth/saml/exchange", json={"code": "inexistant"})
+    assert r.status_code == 400
+
+
 def test_saml_simulation_disabled_by_default(client):
     """Sans SAML_SIMULATION=true, les routes de simulation n'existent pas (404)."""
     assert client.get("/api/auth/saml/simulate", follow_redirects=False).status_code == 404

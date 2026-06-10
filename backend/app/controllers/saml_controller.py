@@ -23,8 +23,12 @@ EMPLACEMENT MVC
     Couche "controllers" : endpoints HTTP, logique déléguée aux services/providers.
 """
 
+import secrets
+import time
+
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, Response
+from pydantic import BaseModel
 
 from app.core.config import settings
 from app.auth.saml_settings import build_saml_settings
@@ -33,6 +37,40 @@ from app.services import auth_service
 from app.utils.helpers import request_meta
 
 router = APIRouter(prefix="/api/auth/saml", tags=["SSO SAML"])
+
+
+# --- Code SSO à usage unique : le token de session ne transite JAMAIS dans l'URL.
+# L'ACS redirige avec ?sso_code=... ; le frontend l'échange (POST) contre le token.
+_SSO_CODE_TTL = 120  # secondes
+_sso_codes: dict[str, tuple[str, float]] = {}
+
+
+def _prune_codes() -> None:
+    now = time.time()
+    for c in [c for c, (_t, exp) in _sso_codes.items() if exp < now]:
+        _sso_codes.pop(c, None)
+
+
+def issue_sso_code(token: str) -> str:
+    """Crée un code à usage unique (TTL court) lié à un token de session."""
+    _prune_codes()
+    code = secrets.token_urlsafe(24)
+    _sso_codes[code] = (token, time.time() + _SSO_CODE_TTL)
+    return code
+
+
+def _consume_sso_code(code: str) -> str | None:
+    """Récupère puis invalide le code (usage unique). None si invalide/expiré."""
+    _prune_codes()
+    entry = _sso_codes.pop(code, None)
+    if not entry:
+        return None
+    token, exp = entry
+    return token if time.time() <= exp else None
+
+
+class _ExchangeRequest(BaseModel):
+    code: str
 
 
 def _prepare(request: Request, post_data: dict | None = None) -> dict:
@@ -113,10 +151,20 @@ async def acs(request: Request):
         raw = prov.process_response(_prepare(request, post_data))
         profile = extract_profile(raw)
         result = auth_service.login_from_federated(profile, request_meta(request))
-        # Le token transite en query ; le frontend le capte puis nettoie l'URL.
-        return RedirectResponse(f"{front}/?sso_token={result['token']}", status_code=302)
+        # Code à usage unique en query (PAS le token) ; le front l'échange ensuite.
+        code = issue_sso_code(result["token"])
+        return RedirectResponse(f"{front}/?sso_code={code}", status_code=302)
     except SamlNotInstalled as e:
         raise HTTPException(status_code=503, detail=str(e))
     except (ValueError, HTTPException):
         # Erreur générique côté client (détail non exposé) — le front affiche un message.
         return RedirectResponse(f"{front}/?sso_error=1", status_code=302)
+
+
+@router.post("/exchange")
+def exchange(payload: _ExchangeRequest):
+    """Échange un code SSO à usage unique contre le token de session (hors URL)."""
+    token = _consume_sso_code(payload.code)
+    if not token:
+        raise HTTPException(status_code=400, detail="Code SSO invalide ou expiré.")
+    return {"success": True, "token": token}

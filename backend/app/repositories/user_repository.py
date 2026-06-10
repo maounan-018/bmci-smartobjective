@@ -16,6 +16,7 @@ from typing import List, Optional
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_token
 from app.models.user import User
 from app.models.session import Session as SessionModel
 
@@ -31,11 +32,11 @@ def get_by_email(db: Session, email: str) -> Optional[User]:
 
 
 def get_by_valid_session(db: Session, token: str, now_iso: str) -> Optional[User]:
-    """Retourne l'utilisateur d'une session encore valide (token + non expirée)."""
+    """Retourne l'utilisateur d'une session encore valide (hash du token + non expirée)."""
     stmt = (
         select(User)
         .join(SessionModel, User.id == SessionModel.user_id)
-        .where(SessionModel.token == token, SessionModel.expires_at > now_iso)
+        .where(SessionModel.token == hash_token(token), SessionModel.expires_at > now_iso)
     )
     return db.scalars(stmt).first()
 

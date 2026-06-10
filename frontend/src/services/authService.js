@@ -45,6 +45,24 @@ export const AuthService = {
   ssoLoginUrl() {
     return `${API_BASE}/auth/saml/login`;
   },
+  // Échange le code SSO à usage unique (reçu en query) contre le token de session.
+  // Le token ne transite ainsi jamais dans l'URL.
+  async exchangeSsoCode(code) {
+    try {
+      const response = await fetch(`${API_BASE}/auth/saml/exchange`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (!data.token) return false;
+      this.setToken(data.token);
+      return true;
+    } catch {
+      return false;
+    }
+  },
   // État du SSO côté backend : { enabled, simulation }.
   // enabled => on n'affiche QUE le bouton SSO (plus d'inscription locale).
   async getSsoStatus() {

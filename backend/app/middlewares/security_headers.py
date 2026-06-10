@@ -30,4 +30,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        # CSP minimale : interdit le framing de l'API (anti-clickjacking, complète
+        # X-Frame-Options). On reste léger pour ne pas casser la page de simulation.
+        headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'")
         return response

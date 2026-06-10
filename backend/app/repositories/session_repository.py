@@ -14,12 +14,13 @@ EMPLACEMENT MVC
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_token
 from app.models.session import Session as SessionModel
 
 
 def create(db: Session, token: str, user_id: str, expires_at: str) -> SessionModel:
-    """Crée une session pour un utilisateur."""
-    session = SessionModel(token=token, user_id=user_id, expires_at=expires_at)
+    """Crée une session. Seul le HASH du token est stocké (jamais le token brut)."""
+    session = SessionModel(token=hash_token(token), user_id=user_id, expires_at=expires_at)
     db.add(session)
     return session
 
