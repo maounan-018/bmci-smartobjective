@@ -3,7 +3,7 @@
 auth/providers/saml_provider.py — Fournisseur d'identité SAML 2.0 (ADFS / Entra ID).
 
 RÔLE
-    Encapsule python3-saml (OneLogin). Contrairement aux providers Local/LDAP,
+    Encapsule python3-saml (OneLogin). Contrairement au provider Local,
     SAML n'utilise PAS authenticate(email, password) : l'IdP authentifie
     l'utilisateur et renvoie une assertion signée. Ce provider sait donc :
       - build_login_url()   : construire la requête d'authentification (redirect IdP)

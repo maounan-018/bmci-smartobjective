@@ -9,13 +9,12 @@ RÔLE
 
     Les implémentations concrètes vivent dans `auth/providers/` :
       - LocalDatabaseProvider (défaut, base locale)
-      - LDAPProvider          (Active Directory / LDAP, à activer en production)
+      - SamlProvider          (SSO SAML 2.0, cf. providers/saml_provider.py)
 
 EMPLACEMENT MVC
     Couche "auth" : authentification et récupération de l'identité.
 """
 
-import os
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict
 
@@ -58,18 +57,12 @@ def map_groups_to_role(groups: List[str]) -> str:
 
 def get_identity_provider() -> IdentityProvider:
     """
-    Fabrique : retourne le fournisseur d'identité actif selon .env.
-    AUTH_PROVIDER=local (défaut) | ldap (à activer après intégration).
+    Fabrique : retourne le fournisseur d'identité local (authentification par
+    mot de passe). L'authentification fédérée SAML ne passe PAS par ce contrat :
+    elle suit un flux par redirection dédié (cf. controllers/saml_controller.py).
 
-    Import tardif des implémentations pour éviter toute dépendance circulaire
-    (les providers importent ce module pour le contrat `IdentityProvider`).
+    Import tardif de l'implémentation pour éviter toute dépendance circulaire
+    (le provider importe ce module pour le contrat `IdentityProvider`).
     """
-    provider = os.getenv("AUTH_PROVIDER", "local").lower()
-    if provider == "ldap":
-        from app.auth.providers.ldap_provider import LDAPProvider
-        return LDAPProvider(
-            server_url=os.getenv("LDAP_SERVER_URL", ""),
-            base_dn=os.getenv("LDAP_BASE_DN", ""),
-        )
     from app.auth.providers.local_provider import LocalDatabaseProvider
     return LocalDatabaseProvider()

@@ -73,7 +73,7 @@ bmci-smartobjective/
 │       ├── services/               # Logique métier (auth, hr_*, manager, ai, …)
 │       ├── controllers/            # Routes FastAPI (auth, saml, hr, manager, ai…)
 │       ├── schemas/                # Schémas Pydantic (validés)
-│       ├── auth/                   # IdentityProvider + providers (local, ldap, saml)
+│       ├── auth/                   # IdentityProvider + providers (local, saml)
 │       ├── middlewares/            # request_size (DoS) + security_headers
 │       ├── utils/                  # Helpers (score SMART, métadonnées requête)
 │       └── tests/                  # pytest (48 tests : sécurité, RBAC, SSO, import)
@@ -287,7 +287,7 @@ Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurit
 | `MAX_REQUEST_SIZE_MB` | Limite uploads (défaut 20 Mo) |
 | `DATABASE_PATH` | Chemin SQLite |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | IA locale (`qwen3:4b`) |
-| `AUTH_PROVIDER` | `local` (défaut) / `ldap` / `saml` |
+| `AUTH_PROVIDER` | `local` (défaut) / `saml` |
 | `LOCAL_AUTH_ENABLED` | `auto` (défaut) / `true` / `false` — login local |
 | `SEED_DEMO_ACCOUNTS` + `SEED_*_PASSWORD` | Comptes démo (dev) |
 | `SAML_SIMULATION` | `true` pour tester le SSO sans IdP (dev only) |

@@ -5,7 +5,7 @@ services/auth_service.py — Logique métier d'authentification.
 RÔLE
     Orchestrent l'inscription, la connexion, la déconnexion et la résolution de
     session. Délègue :
-      - identité      -> auth/identity_provider (local aujourd'hui, LDAP demain)
+      - identité      -> auth/identity_provider (local) ou SSO SAML (fédéré)
       - cryptographie -> core/security
       - persistance   -> repositories (users, sessions)
       - traçabilité   -> services/audit_service

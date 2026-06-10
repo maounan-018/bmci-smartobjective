@@ -5,8 +5,8 @@ auth/providers/local_provider.py — Fournisseur d'identité local (base SQLite)
 RÔLE
     Authentifie un utilisateur contre la base locale via le repository utilisateur
     (SQLAlchemy ORM) et la vérification de mot de passe (core/security). C'est
-    l'implémentation par défaut, destinée à être remplacée par LDAP/SSO en
-    production bancaire SANS modifier les services/controllers.
+    l'implémentation par défaut ; en production bancaire, l'authentification
+    fédérée SAML 2.0 prend le relais (cf. providers/saml_provider.py).
 
 EMPLACEMENT MVC
     Couche "auth" : authentification et récupération de l'identité.
