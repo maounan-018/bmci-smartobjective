@@ -426,9 +426,9 @@ npm run build       # validation : ~1600 modules transformés
 | Méthode | Endpoint | Rôle requis | Description |
 |---|---|---|---|
 | GET | `/health` | public | Sonde de disponibilité |
-| GET | `/api/managers` | public | Liste publique des managers (id/name/team) pour l'inscription COLLAB |
-| POST | `/api/auth/register` | public | Inscription (COLLAB, MANAGER ou HR) |
-| POST | `/api/auth/login` | public | Connexion (token de session) |
+| POST | `/api/auth/login` | public | Connexion locale (token de session) |
+| GET | `/api/auth/saml/login` | public | Démarre le SSO (ADFS / Entra ID) |
+| POST | `/api/auth/saml/acs` | public | Réception de l'assertion SAML (création de session) |
 | POST | `/api/auth/logout` | authentifié | Déconnexion |
 | GET | `/api/auth/me` | authentifié | Profil courant |
 | GET | `/api/admin/audit-logs` | HR/ADMIN | Journal d'audit |

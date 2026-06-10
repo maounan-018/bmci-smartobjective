@@ -33,12 +33,6 @@ export const useAuthStore = defineStore('auth', {
       return result;
     },
 
-    async register(credentials) {
-      const result = await AuthService.register(credentials);
-      if (result.success) this.user = result.user;
-      return result;
-    },
-
     async logout() {
       await AuthService.logout();
       this.user = null;

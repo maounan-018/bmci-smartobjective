@@ -434,7 +434,8 @@ Les controllers sont **fins** : ils déclarent un `APIRouter`, injectent
 | `objective_controller` | `/api` | `/objectives`, `/company-objectives`, `/team/*` |
 | `manager_controller` | `/api` | `/manager/*`, `/collab/analysis-results` |
 | `hr_controller` | `/api/hr` | analyses, imports, analytics, exports |
-| `ai_controller` | `/api` | `/analyze-*`, `/import-excel-*`, `/scan-excel`, `/managers` |
+| `ai_controller` | `/api` | `/analyze-*`, `/import-excel-*`, `/scan-excel` |
+| `saml_controller` | `/api/auth/saml` | `/status`, `/metadata`, `/login`, `/acs` (SSO SAML) |
 
 La dépendance **`get_current_user`** (définie une fois dans `auth_controller`) est réutilisée
 par tous les autres controllers : c'est le point d'entrée unique de l'authentification.
@@ -477,7 +478,7 @@ Profil normalisé renvoyé par tout fournisseur :
 
 Validation et typage des entrées/sorties, **sans logique métier** :
 
-- `auth_schema` : `LoginRequest`, `RegisterRequest` (le rôle **n'est pas** accepté du client), `UserPublic`.
+- `auth_schema` : `LoginRequest`, `UserPublic` (l'inscription publique a été supprimée — comptes via SSO/JIT ou seed).
 - `user_schema` : `UserPublic`, `ManagerPublic` (sans email).
 - `objective_schema` : `ObjectiveCreate`, `ObjectiveUpdate`, `CompanyObjectiveCreate`.
 - `analysis_schema` : `SmartRequest`, `AlignmentRequest`, `ManagerPersonalAnalysisRequest`.
@@ -592,9 +593,9 @@ en leur absence, une **500** explicite est renvoyée.
 | Méthode | Endpoint | Rôle requis | Description |
 |---|---|---|---|
 | GET | `/health` | public | Sonde de disponibilité |
-| GET | `/api/managers` | public | Liste des managers (inscription) |
-| POST | `/api/auth/register` | public | Inscription (toujours COLLAB) |
-| POST | `/api/auth/login` | public | Connexion (token de session) |
+| POST | `/api/auth/login` | public | Connexion locale (token de session) |
+| GET | `/api/auth/saml/login` | public | Démarre le SSO (ADFS / Entra ID) |
+| POST | `/api/auth/saml/acs` | public | Réception de l'assertion SAML |
 | POST | `/api/auth/logout` | authentifié | Déconnexion |
 | GET | `/api/auth/me` | authentifié | Profil courant |
 | GET | `/api/admin/audit-logs` | HR/ADMIN | Journal d'audit |

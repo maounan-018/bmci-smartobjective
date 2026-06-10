@@ -1,8 +1,12 @@
 <script setup>
-// LoginView.vue — Sélection de rôle, connexion et inscription (migration de Login.tsx).
-// Délègue l'auth au store Pinia (et donc au backend FastAPI). Aucune logique de
-// sécurité côté client : juste de la validation de formulaire et de l'UX.
-import { ref, watch, onMounted, computed } from 'vue';
+// LoginView.vue — Page d'accueil : SSO d'entreprise OU connexion locale (dev).
+//
+// SSO actif (réel ou simulation) => page épurée avec UNIQUEMENT le bouton SSO.
+//   Plus d'inscription : les comptes sont créés par l'annuaire (JIT provisioning).
+// SSO inactif (dev local) => connexion email/mot de passe sur les comptes seedés.
+//
+// Aucune logique de sécurité côté client : juste de la validation de formulaire et de l'UX.
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { UserRole, getDefaultPath } from '@/utils/permissions';
@@ -13,25 +17,19 @@ import {
   ShieldCheck,
   Loader2,
   AlertCircle,
-  ChevronDown,
   Eye,
   EyeOff,
   LogIn,
-  UserPlus,
 } from 'lucide-vue-next';
 
 const router = useRouter();
 const auth = useAuthStore();
 
-const mode = ref('select'); // 'select' | 'login' | 'register'
+const mode = ref('select'); // 'select' | 'login'
 const selectedRole = ref(null);
-const managers = ref([]);
-const loadingManagers = ref(false);
 
 const email = ref('');
 const password = ref('');
-const name = ref('');
-const selectedManagerId = ref('');
 const showPassword = ref(false);
 
 const isLoading = ref(false);
@@ -53,6 +51,7 @@ const roles = [
     icon: UserCircle,
     iconClass: 'text-emerald-500',
     bgColor: 'hover:border-emerald-500 hover:bg-emerald-50',
+    demo: { email: 'collab@bmci.ma', password: 'REDACTED_DEMO_PWD' },
   },
   {
     role: UserRole.MANAGER,
@@ -61,14 +60,16 @@ const roles = [
     icon: Users,
     iconClass: 'text-teal-500',
     bgColor: 'hover:border-teal-500 hover:bg-teal-50',
+    demo: { email: 'manager@bmci.ma', password: 'REDACTED_DEMO_PWD' },
   },
   {
     role: UserRole.HR,
     label: 'RH',
-    desc: "Pilotez la stratégie et le catalogue entreprise.",
+    desc: 'Pilotez la stratégie et le catalogue entreprise.',
     icon: ShieldCheck,
     iconClass: 'text-green-500',
     bgColor: 'hover:border-green-500 hover:bg-green-50',
+    demo: { email: 'hr@bmci.ma', password: 'REDACTED_DEMO_PWD' },
   },
 ];
 
@@ -101,38 +102,14 @@ onMounted(async () => {
   ssoSimulation.value = sso.simulation;
 });
 
-// Charge les managers dès qu'un COLLAB entre dans le formulaire.
-watch([selectedRole, mode], () => {
-  if (selectedRole.value === UserRole.COLLAB && mode.value !== 'select') {
-    loadManagers();
-  }
-});
-
-async function loadManagers() {
-  loadingManagers.value = true;
-  managers.value = await AuthService.getManagers();
-  loadingManagers.value = false;
-}
-
 function handleSelectRole(role) {
   selectedRole.value = role;
   mode.value = 'login';
   error.value = null;
-  // Pré-remplissage des comptes de démonstration.
-  if (role === UserRole.MANAGER) {
-    email.value = 'manager.digital@bmci.co.ma';
-    password.value = 'REDACTED_DEMO_PWD';
-  } else if (role === UserRole.HR) {
-    email.value = 'rh@bmci.co.ma';
-    password.value = 'REDACTED_DEMO_PWD';
-  } else {
-    email.value = '';
-    password.value = '';
-  }
-}
-
-function redirectAfterAuth(user) {
-  router.replace(getDefaultPath(user.role));
+  // Pré-remplissage du compte de démonstration seedé.
+  const meta = roles.find((r) => r.role === role);
+  email.value = meta?.demo?.email || '';
+  password.value = meta?.demo?.password || '';
 }
 
 async function handleLogin() {
@@ -141,46 +118,11 @@ async function handleLogin() {
     error.value = 'Veuillez remplir tous les champs.';
     return;
   }
-  if (selectedRole.value === UserRole.COLLAB && !selectedManagerId.value) {
-    error.value = 'Veuillez sélectionner votre manager.';
-    return;
-  }
   isLoading.value = true;
-  const result = await auth.login({
-    email: email.value,
-    password: password.value,
-    manager_id: selectedRole.value === UserRole.COLLAB ? selectedManagerId.value : undefined,
-  });
+  const result = await auth.login({ email: email.value, password: password.value });
   isLoading.value = false;
-  if (result.success && result.user) redirectAfterAuth(result.user);
+  if (result.success && result.user) router.replace(getDefaultPath(result.user.role));
   else error.value = result.error || 'Erreur de connexion.';
-}
-
-async function handleRegister() {
-  error.value = null;
-  if (!email.value || !password.value || !name.value) {
-    error.value = 'Veuillez remplir tous les champs.';
-    return;
-  }
-  if (selectedRole.value === UserRole.COLLAB && !selectedManagerId.value) {
-    error.value = 'Veuillez sélectionner votre manager.';
-    return;
-  }
-  if (password.value.length < 6) {
-    error.value = 'Le mot de passe doit contenir au moins 6 caractères.';
-    return;
-  }
-  isLoading.value = true;
-  const result = await auth.register({
-    email: email.value,
-    password: password.value,
-    name: name.value,
-    role: selectedRole.value || 'COLLAB',
-    manager_id: selectedRole.value === UserRole.COLLAB ? selectedManagerId.value : undefined,
-  });
-  isLoading.value = false;
-  if (result.success && result.user) redirectAfterAuth(result.user);
-  else error.value = result.error || "Erreur lors de l'inscription.";
 }
 
 function handleBack() {
@@ -188,8 +130,6 @@ function handleBack() {
   selectedRole.value = null;
   email.value = '';
   password.value = '';
-  name.value = '';
-  selectedManagerId.value = '';
   error.value = null;
 }
 </script>
@@ -277,7 +217,7 @@ function handleBack() {
         </button>
       </div>
 
-      <!-- Formulaire connexion / inscription (mode local uniquement) -->
+      <!-- Formulaire de connexion (mode local uniquement) -->
       <div v-else-if="selectedRole" class="max-w-md mx-auto">
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
           <button
@@ -291,9 +231,7 @@ function handleBack() {
             <component :is="currentRoleMeta?.icon" :class="currentRoleMeta?.iconClass" :size="32" />
             <div>
               <div class="font-bold text-slate-800">{{ currentRoleMeta?.label }}</div>
-              <div class="text-xs text-slate-500">
-                {{ mode === 'login' ? 'Connexion' : 'Inscription' }}
-              </div>
+              <div class="text-xs text-slate-500">Connexion</div>
             </div>
           </div>
 
@@ -305,24 +243,14 @@ function handleBack() {
             <p class="text-sm">{{ error }}</p>
           </div>
 
-          <form class="space-y-4" @submit.prevent="mode === 'login' ? handleLogin() : handleRegister()">
-            <div v-if="mode === 'register'">
-              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Nom complet</label>
-              <input
-                v-model="name"
-                type="text"
-                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                placeholder="Jean Dupont"
-              />
-            </div>
-
+          <form class="space-y-4" @submit.prevent="handleLogin">
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Email</label>
               <input
                 v-model="email"
                 type="email"
                 class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                placeholder="email@bmci.co.ma"
+                placeholder="email@bmci.ma"
               />
             </div>
 
@@ -346,34 +274,6 @@ function handleBack() {
               </div>
             </div>
 
-            <div v-if="selectedRole === UserRole.COLLAB">
-              <label class="block text-xs font-bold text-slate-500 uppercase mb-2">
-                Choisir votre Manager <span class="text-red-500">*</span>
-              </label>
-              <div v-if="loadingManagers" class="flex items-center gap-2 text-slate-400 py-3">
-                <Loader2 class="animate-spin" :size="16" />
-                <span class="text-sm">Chargement des managers...</span>
-              </div>
-              <div v-else class="relative">
-                <select
-                  v-model="selectedManagerId"
-                  class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all appearance-none bg-white"
-                >
-                  <option value="">-- Sélectionnez votre manager --</option>
-                  <option v-for="mgr in managers" :key="mgr.id" :value="mgr.id">
-                    {{ mgr.name }} - {{ mgr.team || mgr.email }}
-                  </option>
-                </select>
-                <ChevronDown
-                  class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                  :size="18"
-                />
-              </div>
-              <p class="text-xs text-slate-400 mt-2">
-                Cette sélection est obligatoire pour garantir le suivi par votre manager.
-              </p>
-            </div>
-
             <button
               type="submit"
               :disabled="isLoading"
@@ -381,49 +281,19 @@ function handleBack() {
             >
               <template v-if="isLoading">
                 <Loader2 class="animate-spin" :size="18" />
-                {{ mode === 'login' ? 'Connexion...' : 'Inscription...' }}
+                Connexion...
               </template>
               <template v-else>
-                <LogIn v-if="mode === 'login'" :size="18" />
-                <UserPlus v-else :size="18" />
-                {{ mode === 'login' ? 'Se connecter' : "S'inscrire" }}
+                <LogIn :size="18" />
+                Se connecter
               </template>
             </button>
           </form>
 
-          <div class="mt-6 text-center">
-            <!-- Inscription publique autorisee pour COLLAB, MANAGER et HR. -->
-            <p v-if="mode === 'login'" class="text-sm text-slate-500">
-              Pas encore de compte ?
-              <button
-                class="text-emerald-600 font-bold hover:underline"
-                @click="mode = 'register'; error = null"
-              >
-                S'inscrire
-              </button>
-            </p>
-            <p v-else class="text-sm text-slate-500">
-              Déjà inscrit ?
-              <button
-                class="text-emerald-600 font-bold hover:underline"
-                @click="mode = 'login'; error = null"
-              >
-                Se connecter
-              </button>
-            </p>
-          </div>
-
-          <div
-            v-if="(selectedRole === UserRole.MANAGER || selectedRole === UserRole.HR) && mode === 'login'"
-            class="mt-6 p-4 bg-slate-50 rounded-xl"
-          >
-            <p class="text-xs text-slate-500 font-bold uppercase mb-2">Compte de test</p>
+          <div class="mt-6 p-4 bg-slate-50 rounded-xl">
+            <p class="text-xs text-slate-500 font-bold uppercase mb-2">Compte de démonstration</p>
             <p class="text-xs text-slate-600">
-              {{
-                selectedRole === UserRole.MANAGER
-                  ? 'Email: manager.digital@bmci.co.ma / MDP: REDACTED_DEMO_PWD'
-                  : 'Email: rh@bmci.co.ma / MDP: REDACTED_DEMO_PWD'
-              }}
+              {{ currentRoleMeta?.demo?.email }} / {{ currentRoleMeta?.demo?.password }}
             </p>
           </div>
         </div>

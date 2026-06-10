@@ -16,7 +16,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, Header, Depends, HTTPException
 
-from app.schemas.auth_schema import LoginRequest, RegisterRequest
+from app.schemas.auth_schema import LoginRequest
 from app.services import auth_service
 from app.services import audit_service as audit
 from app.models.audit_log import AuditEventType
@@ -50,12 +50,6 @@ def get_current_user(
         )
         raise HTTPException(status_code=401, detail="Session expirée ou invalide.")
     return user
-
-
-@router.post("/auth/register")
-def register(request: RegisterRequest, http_request: Request = None):
-    """Inscription d'un nouvel utilisateur (toujours COLLAB, anti-escalade)."""
-    return auth_service.register(request, request_meta(http_request))
 
 
 @router.post("/auth/login")

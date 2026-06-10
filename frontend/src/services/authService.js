@@ -60,41 +60,6 @@ export const AuthService = {
 
   // ==================== ENDPOINTS D'AUTH ====================
 
-  // Liste des managers (pour le select à l'inscription d'un COLLAB).
-  async getManagers() {
-    try {
-      const response = await fetch(`${API_BASE}/managers`);
-      if (!response.ok) throw new Error('Erreur serveur');
-      const data = await response.json();
-      return data.managers || [];
-    } catch (error) {
-      console.error('[AuthService] Erreur getManagers:', error);
-      return [];
-    }
-  },
-
-  // Inscription d'un nouveau collaborateur.
-  async register(credentials) {
-    try {
-      const response = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        return { success: false, error: data.detail || "Erreur lors de l'inscription" };
-      }
-      this.setToken(data.token);
-      const user = this._normalizeUser(data.user);
-      this.setStoredUser(user);
-      return { success: true, user };
-    } catch (error) {
-      console.error('[AuthService] Erreur register:', error);
-      return { success: false, error: 'Erreur de connexion au serveur' };
-    }
-  },
-
   // Connexion utilisateur.
   async login(credentials) {
     try {

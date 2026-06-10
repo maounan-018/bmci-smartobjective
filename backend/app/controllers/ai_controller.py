@@ -18,17 +18,10 @@ from fastapi.responses import StreamingResponse
 
 from app.controllers.auth_controller import get_current_user
 from app.schemas.analysis_schema import SmartRequest, AlignmentRequest
-from app.services import user_service
 from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
 from app.services import excel_import_service
 
 router = APIRouter(prefix="/api", tags=["IA & Import"])
-
-
-@router.get("/managers")
-def list_managers():
-    """Liste publique des managers pour la sélection à l'inscription (id/name/team)."""
-    return {"managers": user_service.get_managers_public()}
 
 
 @router.post("/analyze-smart")

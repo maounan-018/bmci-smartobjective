@@ -82,11 +82,6 @@ def get_manager_id(db: Session, user_id: str) -> Optional[str]:
     return db.scalars(select(User.manager_id).where(User.id == user_id)).first()
 
 
-def list_managers(db: Session) -> List[User]:
-    """Liste tous les utilisateurs de rôle MANAGER."""
-    return list(db.scalars(select(User).where(User.role == "MANAGER")).all())
-
-
 def get_team_ids(db: Session, manager_id: str) -> List[str]:
     """IDs des collaborateurs rattachés à un manager."""
     return list(db.scalars(select(User.id).where(User.manager_id == manager_id)).all())

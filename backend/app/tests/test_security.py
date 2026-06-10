@@ -72,7 +72,9 @@ def test_request_size_limit_rejects_oversize_upload(client):
     Content-Length avant toute lecture du body — defense rapide DoS upload.
     """
     big_payload = b"0" * (6 * 1024 * 1024)  # 6 Mo > 5 Mo
-    resp = client.post("/api/auth/register", content=big_payload)
+    # Le middleware regarde Content-Length AVANT le routage : n'importe quel
+    # chemin convient (ici /api/auth/login, qui existe).
+    resp = client.post("/api/auth/login", content=big_payload)
     assert resp.status_code == 413
     detail = resp.json().get("detail", "").lower()
     assert "max" in detail or "volumineuse" in detail

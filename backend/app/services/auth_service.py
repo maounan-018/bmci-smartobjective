@@ -22,7 +22,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core import security
@@ -48,74 +47,6 @@ def resolve_session_user(token: str) -> Optional[dict]:
     with db_session() as db:
         user = user_repository.get_by_valid_session(db, token, datetime.now().isoformat())
         return user.to_dict() if user else None
-
-
-_SELF_REGISTER_ALLOWED_ROLES = {"COLLAB", "MANAGER", "HR"}
-
-
-def register(request, meta: Meta = _EMPTY_META) -> dict:
-    """
-    Inscription publique. SECURITE : COLLAB, MANAGER et HR sont autorises.
-    Toute autre valeur reçue (ex. ADMIN) est ramenee a COLLAB (anti-escalade).
-    Un COLLAB doit choisir un manager existant ; un MANAGER ou un HR s'inscrit
-    sans manager_id.
-    """
-    ip, ua, endpoint, method = meta
-
-    # Whitelist stricte : tout ce qui n'est pas dans la liste devient COLLAB.
-    requested_role = (getattr(request, "role", None) or "").strip().upper()
-    role = requested_role if requested_role in _SELF_REGISTER_ALLOWED_ROLES else "COLLAB"
-
-    # manager_id : obligatoire pour COLLAB, ignore pour MANAGER.
-    manager_id = request.manager_id if role == "COLLAB" else None
-    if role == "COLLAB" and not manager_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Sélection du manager obligatoire. Veuillez choisir votre manager.",
-        )
-
-    user_id = f"user-{secrets.token_hex(4)}"
-    pwd_hash = security.hash_password(request.password)
-    token = security.generate_token()
-    expires = datetime.now() + timedelta(hours=settings.TOKEN_EXPIRY_HOURS)
-
-    try:
-        with db_session() as db:
-            # Pour un COLLAB, on verifie que le manager designe existe bien.
-            if role == "COLLAB" and not user_repository.is_manager(db, manager_id):
-                raise HTTPException(status_code=400, detail="Manager invalide.")
-
-            user_repository.create(
-                db,
-                user_id=user_id,
-                email=request.email,
-                password_hash=pwd_hash,
-                name=request.name,
-                role=role,
-                manager_id=manager_id,
-            )
-            session_repository.create(db, token, user_id, expires.isoformat())
-    except IntegrityError:
-        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
-
-    audit.log_event(
-        AuditEventType.LOGIN_SUCCESS, f"Inscription de {request.name}",
-        user_id=user_id, username=request.email, role=role,
-        event_status="SUCCESS", ip_address=ip, user_agent=ua,
-        endpoint=endpoint, http_method=method, token=token,
-    )
-
-    return {
-        "success": True,
-        "token": token,
-        "user": {
-            "id": user_id,
-            "email": request.email,
-            "name": request.name,
-            "role": role,
-            "manager_id": manager_id,
-        },
-    }
 
 
 def login(request, meta: Meta = _EMPTY_META) -> dict:
