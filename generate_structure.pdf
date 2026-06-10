@@ -1,0 +1,62 @@
+﻿from pathlib import Path
+import json
+
+IGNORE_DIRS = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    "venv",
+    ".venv",
+    "env",
+    ".idea",
+    ".vscode",
+    "dist",
+    "build",
+}
+
+IGNORE_FILES = {
+    "generate_structure.py",
+    "recreate_project_structure.py",
+}
+
+root = Path(".").resolve()
+
+folders = []
+files = []
+
+for path in root.rglob("*"):
+    relative_path = path.relative_to(root)
+
+    if any(part in IGNORE_DIRS for part in relative_path.parts):
+        continue
+
+    if path.is_dir():
+        folders.append(str(relative_path).replace("\\", "/"))
+
+    elif path.is_file():
+        if path.name in IGNORE_FILES:
+            continue
+        files.append(str(relative_path).replace("\\", "/"))
+
+script_content = f'''from pathlib import Path
+
+folders = {json.dumps(folders, indent=4, ensure_ascii=False)}
+
+files = {json.dumps(files, indent=4, ensure_ascii=False)}
+
+for folder in folders:
+    Path(folder).mkdir(parents=True, exist_ok=True)
+
+for file in files:
+    file_path = Path(file)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.touch(exist_ok=True)
+
+print("Structure du projet reconstruite avec succès.")
+'''
+
+output_file = root / "recreate_project_structure.py"
+output_file.write_text(script_content, encoding="utf-8")
+
+print("Script généré :", output_file)
+print("Copie recreate_project_structure.py sur l'autre PC puis lance : python recreate_project_structure.py")
