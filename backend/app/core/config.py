@@ -130,7 +130,25 @@ class Settings:
         """Vrai si le flux SSO complet est utilisable (SP + IdP configures)."""
         return self.saml_sp_ready and self.saml_idp_ready
 
+    @property
+    def saml_simulation_active(self) -> bool:
+        """Simulation active : flag dev explicite ET SSO reel non configure.
+        Des que SP+IdP sont definis, la simulation s'eteint automatiquement."""
+        return self.SAML_SIMULATION and not self.saml_enabled
 
-# Chargement du .env puis instanciation unique partagée dans toute l'application
-load_dotenv()
+    @property
+    def auth_mode(self) -> str:
+        """Mode d'authentification effectif (pour le log de demarrage)."""
+        if self.saml_enabled:
+            return "SSO SAML (reel)"
+        if self.saml_simulation_active:
+            return "SSO SAML (SIMULATION - DEV)"
+        return "local"
+
+
+# Chargement de la configuration. .env.local (secrets locaux, ignore par git)
+# est lu EN PREMIER pour etre prioritaire : load_dotenv n'ecrase jamais une cle
+# deja presente. .env fournit ensuite la config par defaut versionnee.
+load_dotenv(".env.local")
+load_dotenv(".env")
 settings = Settings()

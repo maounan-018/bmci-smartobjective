@@ -36,9 +36,17 @@ from app.controllers.ai_controller import router as ai_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Au démarrage : créer les tables ORM manquantes puis les comptes de démo (idempotent)."""
+    """Au démarrage : créer les tables ORM, semer les comptes démo, logguer le mode d'auth."""
     init_db()
     seed_demo_accounts()
+    # Bannière de démarrage : rend le mode d'authentification visible (et signale
+    # bruyamment la simulation pour éviter tout déploiement accidentel en prod).
+    if settings.saml_simulation_active:
+        print("=" * 64)
+        print("  [AUTH] Mode = SSO SAML *** SIMULATION (DEV) *** — NE PAS UTILISER EN PROD")
+        print("=" * 64)
+    else:
+        print(f"  [AUTH] Mode = {settings.auth_mode}")
     yield
 
 
@@ -71,6 +79,11 @@ def create_app() -> FastAPI:
     app.include_router(manager_router)
     app.include_router(hr_router)
     app.include_router(ai_router)
+
+    # [SIMULATION] Routes de simulation SSO — montées UNIQUEMENT en dev (jetable).
+    if settings.saml_simulation_active:
+        from app.controllers.saml_simulation_controller import router as saml_sim_router
+        app.include_router(saml_sim_router)
 
     @app.get("/health")
     def health():
