@@ -60,6 +60,29 @@ def test_me_with_valid_token(client, make_user, auth_token):
     assert resp.json()["user"]["email"] == "me@bmci.test"
 
 
+def test_login_sets_httponly_cookie_and_me_works_via_cookie(client, make_user):
+    """Le login pose un cookie de session ; /auth/me fonctionne via le cookie seul."""
+    make_user(email="cookie@bmci.ma", password="GoodPass1!", role="HR")
+    r = client.post("/api/auth/login", json={"email": "cookie@bmci.ma", "password": "GoodPass1!"})
+    assert r.status_code == 200
+    assert client.cookies.get("session")  # cookie de session posé
+    # Pas d'en-tête Authorization : l'auth passe par le cookie.
+    me = client.get("/api/auth/me")
+    assert me.status_code == 200
+    assert me.json()["user"]["email"] == "cookie@bmci.ma"
+
+
+def test_cookie_post_requires_csrf(client, make_user):
+    """Une requête mutante authentifiée par cookie exige le jeton CSRF."""
+    make_user(email="csrf@bmci.ma", password="GoodPass1!")
+    client.post("/api/auth/login", json={"email": "csrf@bmci.ma", "password": "GoodPass1!"})
+    # POST sans en-tête CSRF -> 403
+    assert client.post("/api/auth/logout").status_code == 403
+    # POST avec le bon en-tête CSRF (= valeur du cookie csrf_token) -> 200
+    csrf = client.cookies.get("csrf_token")
+    assert client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf}).status_code == 200
+
+
 def test_login_rejects_invalid_email_format(client):
     """Un email mal formé est rejeté par la validation (422), pas traité comme un login."""
     resp = client.post("/api/auth/login", json={"email": "pas-un-email", "password": "x"})

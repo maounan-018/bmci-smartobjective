@@ -34,6 +34,7 @@ from app.core.config import settings
 from app.auth.saml_settings import build_saml_settings
 from app.auth.providers.saml_provider import SamlProvider, SamlNotInstalled, extract_profile
 from app.services import auth_service
+from app.controllers.auth_controller import set_session_cookies
 from app.utils.helpers import request_meta
 
 router = APIRouter(prefix="/api/auth/saml", tags=["SSO SAML"])
@@ -162,9 +163,10 @@ async def acs(request: Request):
 
 
 @router.post("/exchange")
-def exchange(payload: _ExchangeRequest):
-    """Échange un code SSO à usage unique contre le token de session (hors URL)."""
+def exchange(payload: _ExchangeRequest, response: Response):
+    """Échange un code SSO à usage unique contre la session (cookie HttpOnly posé)."""
     token = _consume_sso_code(payload.code)
     if not token:
         raise HTTPException(status_code=400, detail="Code SSO invalide ou expiré.")
+    set_session_cookies(response, token)
     return {"success": True, "token": token}

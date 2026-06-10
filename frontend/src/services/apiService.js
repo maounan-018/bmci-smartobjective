@@ -320,7 +320,8 @@ export const ApiService = {
       formData.append('file', file);
       const response = await fetch(`${API_BASE}/hr/import-strategy`, {
         method: 'POST',
-        headers: AuthService.getAuthHeadersNoContentType(),
+        credentials: 'include',
+        headers: AuthService.uploadHeaders(),
         body: formData,
       });
       if (!response.ok) {
@@ -340,7 +341,8 @@ export const ApiService = {
       formData.append('file', file);
       const response = await fetch(`${API_BASE}/hr/import-objectives`, {
         method: 'POST',
-        headers: AuthService.getAuthHeadersNoContentType(),
+        credentials: 'include',
+        headers: AuthService.uploadHeaders(),
         body: formData,
       });
       if (!response.ok) {
@@ -444,7 +446,8 @@ export const ApiService = {
       const response = await fetch(`${API_BASE}/import-excel-analyze`, {
         method: 'POST',
         body: formData,
-        headers: AuthService.getAuthHeadersNoContentType(),
+        credentials: 'include',
+        headers: AuthService.uploadHeaders(),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -464,7 +467,8 @@ export const ApiService = {
       const response = await fetch(`${API_BASE}/scan-excel`, {
         method: 'POST',
         body: formData,
-        headers: AuthService.getAuthHeadersNoContentType(),
+        credentials: 'include',
+        headers: AuthService.uploadHeaders(),
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -484,7 +488,8 @@ export const ApiService = {
       const response = await fetch(`${API_BASE}/import-excel-export`, {
         method: 'POST',
         body: formData,
-        headers: AuthService.getAuthHeadersNoContentType(),
+        credentials: 'include',
+        headers: AuthService.uploadHeaders(),
       });
       if (!response.ok) {
         const errorData = await response.json();

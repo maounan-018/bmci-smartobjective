@@ -1,30 +1,26 @@
-// services/authService.js — Authentification et appels API authentifiés.
+// services/authService.js — Authentification par cookie de session HttpOnly.
 //
-// Migration fidèle de l'ancien authService.ts (React). Conserve le mécanisme
-// par token Bearer attendu par le backend FastAPI actuel (Authorization: Bearer ...).
-// Le token reste la SOURCE de session ; le backend reste la source de vérité sécurité.
+// Le token de session vit dans un cookie **HttpOnly** posé par le backend : il
+// n'est JAMAIS accessible au JavaScript (donc involable par XSS). Le frontend ne
+// stocke que le PROFIL utilisateur (non sensible) pour l'affichage.
 //
-// NOTE migration future SSO/cookies : quand le backend exposera des cookies
-// HttpOnly, il suffira de retirer la gestion localStorage ici sans toucher aux vues.
+// Les requêtes mutantes (POST/PUT/PATCH/DELETE) envoient le jeton CSRF
+// (double-submit) : on lit le cookie non-HttpOnly `csrf_token` et on le renvoie
+// dans l'en-tête `X-CSRF-Token`. Tous les appels utilisent `credentials: 'include'`
+// pour que le navigateur transmette les cookies.
 
 const API_BASE = '/api';
-const TOKEN_KEY = 'bmci_auth_token';
 const USER_KEY = 'bmci_auth_user';
+const CSRF_COOKIE = 'csrf_token';
+const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+function readCookie(name) {
+  const m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+  return m ? decodeURIComponent(m[1]) : '';
+}
 
 export const AuthService = {
-  // ==================== GESTION DU TOKEN ====================
-  getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-  },
-  setToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  },
-  clearToken() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-  },
-
-  // ==================== GESTION DE L'UTILISATEUR ====================
+  // ==================== PROFIL UTILISATEUR (non sensible) ====================
   getStoredUser() {
     try {
       const data = localStorage.getItem(USER_KEY);
@@ -36,35 +32,40 @@ export const AuthService = {
   setStoredUser(user) {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   },
-  isAuthenticated() {
-    return !!this.getToken() && !!this.getStoredUser();
+  clearStoredUser() {
+    localStorage.removeItem(USER_KEY);
+  },
+
+  // Jeton CSRF (cookie non-HttpOnly posé par le backend).
+  csrfToken() {
+    return readCookie(CSRF_COOKIE);
+  },
+  // En-têtes pour un upload multipart authentifié : CSRF uniquement
+  // (pas de Content-Type, fixé automatiquement par le navigateur pour FormData).
+  uploadHeaders() {
+    return { 'X-CSRF-Token': this.csrfToken() };
   },
 
   // ==================== SSO SAML ====================
-  // URL backend qui démarre le SSO (redirige vers l'IdP de la banque).
   ssoLoginUrl() {
     return `${API_BASE}/auth/saml/login`;
   },
-  // Échange le code SSO à usage unique (reçu en query) contre le token de session.
-  // Le token ne transite ainsi jamais dans l'URL.
+  // Échange le code SSO à usage unique (reçu en query) : le backend pose alors
+  // le cookie de session. Le token ne transite jamais par le JS ni l'URL.
   async exchangeSsoCode(code) {
     try {
       const response = await fetch(`${API_BASE}/auth/saml/exchange`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
       });
-      if (!response.ok) return false;
-      const data = await response.json();
-      if (!data.token) return false;
-      this.setToken(data.token);
-      return true;
+      return response.ok;
     } catch {
       return false;
     }
   },
   // État du SSO côté backend : { enabled, simulation }.
-  // enabled => on n'affiche QUE le bouton SSO (plus d'inscription locale).
   async getSsoStatus() {
     try {
       const response = await fetch(`${API_BASE}/auth/saml/status`);
@@ -76,13 +77,12 @@ export const AuthService = {
     }
   },
 
-  // ==================== ENDPOINTS D'AUTH ====================
-
-  // Connexion utilisateur.
+  // ==================== AUTH ====================
   async login(credentials) {
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
       });
@@ -90,7 +90,6 @@ export const AuthService = {
       if (!response.ok) {
         return { success: false, error: data.detail || 'Identifiants incorrects' };
       }
-      this.setToken(data.token);
       const user = this._normalizeUser(data.user);
       this.setStoredUser(user);
       return { success: true, user };
@@ -100,33 +99,26 @@ export const AuthService = {
     }
   },
 
-  // Déconnexion volontaire (invalide la session côté backend + nettoie le local).
   async logout() {
     try {
-      const token = this.getToken();
-      if (token) {
-        await fetch(`${API_BASE}/auth/logout`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRF-Token': this.csrfToken() },
+      });
     } catch (error) {
       console.error('[AuthService] Erreur logout:', error);
     } finally {
-      this.clearToken();
+      this.clearStoredUser();
     }
   },
 
-  // Réhydrate la session au démarrage : vérifie le token auprès de /auth/me.
+  // Réhydrate la session au démarrage via le cookie (aucun token côté JS).
   async validateSession() {
-    const token = this.getToken();
-    if (!token) return null;
     try {
-      const response = await fetch(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
       if (!response.ok) {
-        this.clearToken();
+        this.clearStoredUser();
         return null;
       }
       const data = await response.json();
@@ -134,32 +126,23 @@ export const AuthService = {
       this.setStoredUser(user);
       return user;
     } catch {
-      this.clearToken();
+      this.clearStoredUser();
       return null;
     }
   },
 
   // ==================== APPELS API AUTHENTIFIÉS ====================
-  getAuthHeaders() {
-    const token = this.getToken();
-    return {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  },
-  getAuthHeadersNoContentType() {
-    const token = this.getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  },
-
-  // Fetch authentifié : ajoute le token et déconnecte automatiquement sur 401.
+  // Fetch authentifié : envoie le cookie + le jeton CSRF sur les méthodes mutantes,
+  // et déconnecte automatiquement sur 401.
   async authFetch(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      headers: { ...this.getAuthHeaders(), ...(options.headers || {}) },
-    });
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (MUTATING.includes(method)) {
+      headers['X-CSRF-Token'] = this.csrfToken();
+    }
+    const response = await fetch(url, { ...options, credentials: 'include', headers });
     if (response.status === 401) {
-      this.clearToken();
+      this.clearStoredUser();
       window.location.href = '/';
     }
     return response;
