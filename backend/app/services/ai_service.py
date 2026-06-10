@@ -175,7 +175,7 @@ def call_ollama(prompt: str, system: str) -> dict:
         raise HTTPException(status_code=500, detail="Réponse IA invalide (JSON malformé).")
     except Exception as e:
         print(f"Ollama Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erreur interne lors de l'analyse IA.")
 
 
 # ============= ANALYSES RÉUTILISABLES =============

@@ -517,7 +517,8 @@ def run_scan(content: bytes, filename: str) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors du scan: {str(e)}")
+        print(f"[Excel Scan Error] {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'analyse du fichier Excel.")
 
 
 def run_import_analyze(content: bytes, filename: str, current_user: dict) -> dict:
@@ -594,7 +595,8 @@ def run_import_analyze(content: bytes, filename: str, current_user: dict) -> dic
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'import: {str(e)}")
+        print(f"[Excel Import Error] {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'import du fichier Excel.")
 
 
 def run_import_export(content: bytes, filename: str, current_user: dict) -> io.BytesIO:
@@ -625,4 +627,5 @@ def run_import_export(content: bytes, filename: str, current_user: dict) -> io.B
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'export: {str(e)}")
+        print(f"[Excel Export Error] {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du fichier Excel.")

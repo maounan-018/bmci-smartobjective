@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.middlewares.request_size import LimitRequestSizeMiddleware
+from app.middlewares.security_headers import SecurityHeadersMiddleware
 from app.database.init_db import init_db
 from app.database.seed import seed_demo_accounts
 from app.controllers.auth_controller import router as auth_router
@@ -53,6 +54,9 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Fabrique l'application FastAPI configurée (pattern factory)."""
     app = FastAPI(title=settings.APP_NAME, version="3.0.0", lifespan=lifespan)
+
+    # En-têtes de sécurité sur toutes les réponses (defense en profondeur).
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Protection DoS : rejette les requetes > MAX_REQUEST_SIZE_MB
     # (defaut 20 Mo, configurable via .env). A appliquer AVANT CORS pour

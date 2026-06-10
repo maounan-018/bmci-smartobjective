@@ -44,8 +44,13 @@ def _ensure_user(db, *, user_id, email, name, role, password, manager_id=None) -
 
 
 def seed_demo_accounts() -> None:
-    """Crée les comptes de démo (Manager → RH → Collab) si SEED_DEMO_ACCOUNTS=true."""
-    if not settings.SEED_DEMO_ACCOUNTS:
+    """Crée les comptes de démo (Manager → RH → Collab) si SEED_DEMO_ACCOUNTS=true.
+
+    Ne sème RIEN si la connexion locale est désactivée (SSO réel) : inutile de
+    créer des comptes à mots de passe faibles qui ne pourraient servir que de
+    porte dérobée.
+    """
+    if not settings.SEED_DEMO_ACCOUNTS or not settings.local_auth_enabled:
         return
 
     with db_session() as db:

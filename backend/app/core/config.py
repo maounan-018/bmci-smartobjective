@@ -115,6 +115,35 @@ class Settings:
         # Ignoré automatiquement dès que le SSO réel (SP+IdP) est configuré.
         self.SAML_SIMULATION = os.getenv("SAML_SIMULATION", "false").strip().lower() in ("1", "true", "yes")
 
+        # Environnement de déploiement : development (defaut) | production.
+        # En production, la simulation SSO est refusée (garde-fou anti-bypass).
+        self.ENV = os.getenv("ENV", "development").strip().lower()
+
+        # Connexion locale (email/mot de passe). "auto" (defaut) = activée seulement
+        # si le SSO réel n'est pas configuré ; "true"/"false" pour forcer.
+        # En SSO réel, on la coupe pour éviter une porte dérobée via comptes seedés.
+        self.LOCAL_AUTH_ENABLED = os.getenv("LOCAL_AUTH_ENABLED", "auto").strip().lower()
+
+        # Filtre d'autorisation SSO (optionnel) : si défini, seuls les utilisateurs
+        # appartenant à au moins un de ces groupes peuvent se connecter en SSO.
+        # Vide (defaut) = aucun filtre (tout employé authentifié est accepté).
+        self.SAML_ALLOWED_GROUPS = [
+            g.strip() for g in os.getenv("SAML_ALLOWED_GROUPS", "").split(",") if g.strip()
+        ]
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV in ("production", "prod")
+
+    @property
+    def local_auth_enabled(self) -> bool:
+        """Connexion locale autorisée ? Coupée par défaut dès que le SSO réel est actif."""
+        if self.LOCAL_AUTH_ENABLED in ("true", "1", "yes"):
+            return True
+        if self.LOCAL_AUTH_ENABLED in ("false", "0", "no"):
+            return False
+        return not self.saml_enabled  # "auto"
+
     @property
     def saml_sp_ready(self) -> bool:
         """Vrai si le SP est configure (suffisant pour servir les metadonnees)."""
@@ -132,9 +161,9 @@ class Settings:
 
     @property
     def saml_simulation_active(self) -> bool:
-        """Simulation active : flag dev explicite ET SSO reel non configure.
-        Des que SP+IdP sont definis, la simulation s'eteint automatiquement."""
-        return self.SAML_SIMULATION and not self.saml_enabled
+        """Simulation active : flag dev explicite, SSO reel non configure, ET hors prod.
+        En production la simulation est TOUJOURS refusee (anti-bypass d'authentification)."""
+        return self.SAML_SIMULATION and not self.saml_enabled and not self.is_production
 
     @property
     def auth_mode(self) -> str:

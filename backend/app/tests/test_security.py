@@ -78,3 +78,24 @@ def test_request_size_limit_rejects_oversize_upload(client):
     assert resp.status_code == 413
     detail = resp.json().get("detail", "").lower()
     assert "max" in detail or "volumineuse" in detail
+
+
+def test_security_headers_present(client):
+    """Les en-têtes de sécurité sont présents sur toutes les réponses."""
+    resp = client.get("/health")
+    assert resp.headers.get("x-content-type-options") == "nosniff"
+    assert resp.headers.get("x-frame-options") == "DENY"
+    assert "referrer-policy" in resp.headers
+    assert "strict-transport-security" in resp.headers
+
+
+def test_login_rate_limiting_by_ip(client, make_user):
+    """Le rate-limiting bloque aussi par IP (anti password spraying multi-comptes)."""
+    make_user(email="victim@bmci.test", password="GoodPass1!")
+    # 5 échecs depuis la même IP, mais avec des emails DIFFÉRENTS.
+    for i in range(5):
+        client.post("/api/auth/login", json={"email": f"spray{i}@bmci.test", "password": "x"})
+    # 6e tentative, même IP, avec des identifiants VALIDES : bloquée par l'IP.
+    resp = client.post("/api/auth/login",
+                       json={"email": "victim@bmci.test", "password": "GoodPass1!"})
+    assert resp.status_code == 429

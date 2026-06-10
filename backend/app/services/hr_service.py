@@ -191,7 +191,7 @@ def import_strategy(filename: str, content: bytes, current_user: dict) -> dict:
         raise
     except Exception as e:
         print(f"[HR Import Error] {e}")
-        raise HTTPException(status_code=400, detail=f"Erreur lors de l'import: {str(e)}")
+        raise HTTPException(status_code=400, detail="Erreur lors de l'import du fichier. Vérifiez le format et réessayez.")
 
 
 def import_objectives(filename: str, content: bytes, current_user: dict) -> dict:
@@ -331,7 +331,7 @@ def import_objectives(filename: str, content: bytes, current_user: dict) -> dict
         raise
     except Exception as e:
         print(f"[HR Import Error] {e}")
-        raise HTTPException(status_code=400, detail=f"Erreur lors de l'import: {str(e)}")
+        raise HTTPException(status_code=400, detail="Erreur lors de l'import du fichier. Vérifiez le format et réessayez.")
 
 
 # ============= ANALYSE EN LOT (SSE) =============

@@ -53,10 +53,25 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
     """Connexion : rate limiting -> identité -> migration hash -> session -> audit."""
     identifier = (request.email or "").strip().lower()
     ip, ua, endpoint, method = meta
+    ip_key = f"ip:{ip}" if ip else None
 
-    if not security.is_login_allowed(identifier):
+    # SECURITE : en SSO réel, la connexion locale est coupée (anti porte dérobée
+    # via comptes seedés). Désactivable/forçable via LOCAL_AUTH_ENABLED.
+    if not settings.local_auth_enabled:
         audit.log_event(
-            AuditEventType.LOGIN_FAILED, f"Compte bloqué (trop de tentatives) : {identifier}",
+            AuditEventType.ACCESS_DENIED, "Connexion locale désactivée (SSO actif)",
+            username=identifier, event_status="FAILED",
+            ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Connexion locale désactivée. Utilisez le SSO de l'entreprise.",
+        )
+
+    # Anti brute-force : limite par email ET par adresse IP (anti password spraying).
+    if not security.is_login_allowed(identifier) or (ip_key and not security.is_login_allowed(ip_key)):
+        audit.log_event(
+            AuditEventType.LOGIN_FAILED, f"Compte/IP bloqué (trop de tentatives) : {identifier}",
             username=identifier, event_status="FAILED",
             ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
         )
@@ -68,6 +83,8 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
 
     if not profile:
         security.record_failed_login(identifier)
+        if ip_key:
+            security.record_failed_login(ip_key)
         audit.log_event(
             AuditEventType.LOGIN_FAILED, f"Échec de connexion : {identifier}",
             username=identifier, event_status="FAILED",
@@ -76,6 +93,8 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
     security.reset_login_attempts(identifier)
+    if ip_key:
+        security.reset_login_attempts(ip_key)
     user_id = profile["external_id"]
     token = security.generate_token()
     expires = datetime.now() + timedelta(hours=settings.TOKEN_EXPIRY_HOURS)
@@ -123,9 +142,21 @@ def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
     if not email:
         raise HTTPException(status_code=400, detail="SSO: email absent de l'assertion.")
 
+    groups = profile.get("groups", [])
+
+    # Filtre d'autorisation optionnel : si SAML_ALLOWED_GROUPS est défini, on
+    # refuse tout utilisateur n'appartenant à aucun groupe autorisé (anti porte ouverte).
+    if settings.SAML_ALLOWED_GROUPS and not any(g in settings.SAML_ALLOWED_GROUPS for g in groups):
+        audit.log_event(
+            AuditEventType.ACCESS_DENIED, f"SSO refusé (groupe non autorisé) : {email}",
+            username=email, event_status="FAILED",
+            ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+        )
+        raise HTTPException(status_code=403, detail="Accès non autorisé : groupe requis manquant.")
+
     # Rôle déduit des groupes ; ADMIN ramené à HR (interdit en base, mais HR fait
     # office d'admin), tout le reste -> COLLAB par sécurité.
-    role = map_groups_to_role(profile.get("groups", []))
+    role = map_groups_to_role(groups)
     if role not in _ALLOWED_DB_ROLES:
         role = "HR" if role == "ADMIN" else "COLLAB"
 
