@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.middlewares.request_size import LimitRequestSizeMiddleware
 from app.database.init_db import init_db
+from app.database.seed import seed_demo_accounts
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.admin_controller import router as admin_router
 from app.controllers.objective_controller import router as objective_router
@@ -34,8 +35,9 @@ from app.controllers.ai_controller import router as ai_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Au démarrage : créer les tables ORM manquantes (idempotent)."""
+    """Au démarrage : créer les tables ORM manquantes puis les comptes de démo (idempotent)."""
     init_db()
+    seed_demo_accounts()
     yield
 
 

@@ -75,6 +75,14 @@ class Settings:
         # par upload massif. Valeur en Mo via MAX_REQUEST_SIZE_MB (defaut 20 Mo).
         self.MAX_REQUEST_SIZE_BYTES = int(os.getenv("MAX_REQUEST_SIZE_MB", "20")) * 1024 * 1024
 
+        # Seeding des comptes de demonstration au demarrage (idempotent).
+        # Active par defaut pour qu'une copie/clone fonctionne immediatement ;
+        # mettre SEED_DEMO_ACCOUNTS=false en production.
+        self.SEED_DEMO_ACCOUNTS = os.getenv("SEED_DEMO_ACCOUNTS", "true").strip().lower() in ("1", "true", "yes")
+        self.SEED_MANAGER_PASSWORD = os.getenv("SEED_MANAGER_PASSWORD", "")
+        self.SEED_HR_PASSWORD = os.getenv("SEED_HR_PASSWORD", "")
+        self.SEED_COLLAB_PASSWORD = os.getenv("SEED_COLLAB_PASSWORD", "")
+
 
 # Chargement du .env puis instanciation unique partagée dans toute l'application
 load_dotenv()

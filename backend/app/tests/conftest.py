@@ -26,6 +26,8 @@ os.environ["LOGIN_LOCKOUT_MINUTES"] = "15"
 os.environ["ALLOWED_ORIGINS"] = "http://localhost:5173"
 # Limite reduite pour pouvoir tester le rejet 413 sans envoyer 20 Mo
 os.environ["MAX_REQUEST_SIZE_MB"] = "5"
+# Pas de seeding pendant les tests : isolation stricte des donnees.
+os.environ["SEED_DEMO_ACCOUNTS"] = "false"
 
 # Supprimer une éventuelle base de test résiduelle
 if os.path.exists(_TMP_DB):
