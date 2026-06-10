@@ -24,7 +24,8 @@ EMPLACEMENT MVC
 """
 
 import secrets
-import time
+from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, Response
@@ -33,6 +34,8 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.auth.saml_settings import build_saml_settings
 from app.auth.providers.saml_provider import SamlProvider, SamlNotInstalled, extract_profile
+from app.database.session import db_session
+from app.repositories import sso_code_repository
 from app.services import auth_service
 from app.controllers.auth_controller import set_session_cookies
 from app.utils.helpers import request_meta
@@ -42,32 +45,29 @@ router = APIRouter(prefix="/api/auth/saml", tags=["SSO SAML"])
 
 # --- Code SSO à usage unique : le token de session ne transite JAMAIS dans l'URL.
 # L'ACS redirige avec ?sso_code=... ; le frontend l'échange (POST) contre le token.
+#
+# Le code est persisté en base (table sso_codes), et non en mémoire process :
+# le flux fonctionne ainsi derrière plusieurs workers (un code émis par l'un est
+# échangeable par n'importe quel autre). La table ne contient AUCUN token : elle
+# mappe le HASH du code vers un user_id ; la session n'est créée qu'à l'échange.
 _SSO_CODE_TTL = 120  # secondes
-_sso_codes: dict[str, tuple[str, float]] = {}
 
 
-def _prune_codes() -> None:
-    now = time.time()
-    for c in [c for c, (_t, exp) in _sso_codes.items() if exp < now]:
-        _sso_codes.pop(c, None)
-
-
-def issue_sso_code(token: str) -> str:
-    """Crée un code à usage unique (TTL court) lié à un token de session."""
-    _prune_codes()
+def issue_sso_code(user_id: str) -> str:
+    """Crée un code à usage unique (TTL court) lié à un utilisateur provisionné."""
     code = secrets.token_urlsafe(24)
-    _sso_codes[code] = (token, time.time() + _SSO_CODE_TTL)
+    now = datetime.now()
+    expires = (now + timedelta(seconds=_SSO_CODE_TTL)).isoformat()
+    with db_session() as db:
+        sso_code_repository.prune(db, now.isoformat())
+        sso_code_repository.create(db, code=code, user_id=user_id, expires_at=expires)
     return code
 
 
-def _consume_sso_code(code: str) -> str | None:
+def consume_sso_code(code: str) -> Optional[str]:
     """Récupère puis invalide le code (usage unique). None si invalide/expiré."""
-    _prune_codes()
-    entry = _sso_codes.pop(code, None)
-    if not entry:
-        return None
-    token, exp = entry
-    return token if time.time() <= exp else None
+    with db_session() as db:
+        return sso_code_repository.consume(db, code, datetime.now().isoformat())
 
 
 class _ExchangeRequest(BaseModel):
@@ -151,9 +151,12 @@ async def acs(request: Request):
         post_data = {k: v for k, v in form.items()}
         raw = prov.process_response(_prepare(request, post_data))
         profile = extract_profile(raw)
-        result = auth_service.login_from_federated(profile, request_meta(request))
+        # On provisionne l'utilisateur (JIT) SANS ouvrir de session : la session
+        # (et le token) est créée à l'échange du code, pour qu'aucun token ne soit
+        # conservé entre l'ACS et l'échange.
+        user_id = auth_service.provision_federated_user(profile, request_meta(request))
         # Code à usage unique en query (PAS le token) ; le front l'échange ensuite.
-        code = issue_sso_code(result["token"])
+        code = issue_sso_code(user_id)
         return RedirectResponse(f"{front}/?sso_code={code}", status_code=302)
     except SamlNotInstalled as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -163,10 +166,17 @@ async def acs(request: Request):
 
 
 @router.post("/exchange")
-def exchange(payload: _ExchangeRequest, response: Response):
-    """Échange un code SSO à usage unique contre la session (cookie HttpOnly posé)."""
-    token = _consume_sso_code(payload.code)
-    if not token:
+def exchange(payload: _ExchangeRequest, response: Response, http_request: Request = None):
+    """Échange un code SSO à usage unique contre une session (cookie HttpOnly posé).
+
+    C'est ICI que la session est ouverte : le code (persisté en base) est consommé
+    une seule fois, une session est créée pour l'utilisateur provisionné à l'ACS,
+    puis le cookie de session HttpOnly est posé (le token est aussi renvoyé pour
+    compat des clients non navigateur).
+    """
+    user_id = consume_sso_code(payload.code)
+    if not user_id:
         raise HTTPException(status_code=400, detail="Code SSO invalide ou expiré.")
-    set_session_cookies(response, token)
-    return {"success": True, "token": token}
+    result = auth_service.start_federated_session(user_id, request_meta(http_request))
+    set_session_cookies(response, result["token"])
+    return {"success": True, "token": result["token"]}

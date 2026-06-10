@@ -68,8 +68,9 @@ def simulate_submit(
     }
     front = settings.SAML_FRONTEND_REDIRECT
     try:
-        result = auth_service.login_from_federated(profile)
-        code = issue_sso_code(result["token"])
+        # Même flux en 2 temps que l'ACS réel : provision (sans session) -> code.
+        user_id = auth_service.provision_federated_user(profile)
+        code = issue_sso_code(user_id)
         return RedirectResponse(f"{front}/?sso_code={code}", status_code=302)
     except HTTPException:
         return RedirectResponse(f"{front}/?sso_error=1", status_code=302)

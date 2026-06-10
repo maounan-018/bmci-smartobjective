@@ -127,15 +127,16 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
 _ALLOWED_DB_ROLES = {"COLLAB", "MANAGER", "HR"}
 
 
-def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
+def provision_federated_user(profile: dict, meta: Meta = _EMPTY_META) -> str:
     """
-    Connexion via un fournisseur fédéré (SAML/SSO). Aucun mot de passe : on fait
-    confiance à l'assertion déjà vérifiée par le provider.
+    JIT provisioning via un fournisseur fédéré (SAML/SSO). Aucun mot de passe :
+    on fait confiance à l'assertion déjà vérifiée par le provider.
 
-    JIT provisioning : si l'email est inconnu, on crée le compte avec le rôle
-    déduit des groupes (map_groups_to_role) et un mot de passe aléatoire inutile
-    (le login local restera impossible pour ces comptes SSO). Idempotent : un
-    email déjà connu réutilise simplement le compte existant.
+    Vérifie l'autorisation (groupes), déduit le rôle et crée le compte s'il est
+    inconnu (mot de passe aléatoire inutile : le login local reste impossible
+    pour ces comptes SSO). NE crée AUCUNE session : le flux SSO ouvre la session
+    plus tard, à l'échange du code (cf. start_federated_session). Idempotent : un
+    email déjà connu réutilise le compte existant (rôle conservé). Retourne l'id.
     """
     ip, ua, endpoint, method = meta
     email = (profile.get("email") or "").strip().lower()
@@ -160,9 +161,6 @@ def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
     if role not in _ALLOWED_DB_ROLES:
         role = "HR" if role == "ADMIN" else "COLLAB"
 
-    token = security.generate_token()
-    expires = datetime.now() + timedelta(hours=settings.TOKEN_EXPIRY_HOURS)
-
     with db_session() as db:
         user = user_repository.get_by_email(db, email)
         if not user:
@@ -176,6 +174,23 @@ def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
                 role=role,
             )
             user = user_repository.get_by_id(db, user_id)
+        return user.id
+
+
+def start_federated_session(user_id: str, meta: Meta = _EMPTY_META) -> dict:
+    """
+    Ouvre une session pour un utilisateur DÉJÀ provisionné via SSO (2e temps du
+    flux fédéré, déclenché à l'échange du code SSO). Le token brut est renvoyé à
+    l'appelant et n'est jamais stocké en clair (cf. session_repository).
+    """
+    ip, ua, endpoint, method = meta
+    token = security.generate_token()
+    expires = datetime.now() + timedelta(hours=settings.TOKEN_EXPIRY_HOURS)
+
+    with db_session() as db:
+        user = user_repository.get_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=401, detail="SSO: utilisateur introuvable.")
         session_repository.delete_by_user(db, user.id)
         session_repository.create(db, token, user.id, expires.isoformat())
         user_public = _public_user(user)
@@ -187,6 +202,17 @@ def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
         ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method, token=token,
     )
     return {"success": True, "token": token, "user": user_public}
+
+
+def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
+    """
+    Connexion fédérée en un seul appel : provisionne l'utilisateur puis ouvre la
+    session. Conservé pour les appels directs (et les tests) ; le flux SSO réel
+    scinde les deux étapes (provision à l'ACS, session à l'échange du code) afin
+    qu'aucun token de session ne soit conservé entre les deux requêtes.
+    """
+    user_id = provision_federated_user(profile, meta)
+    return start_federated_session(user_id, meta)
 
 
 def logout(current_user: dict, meta: Meta = _EMPTY_META) -> dict:

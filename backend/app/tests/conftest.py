@@ -40,13 +40,13 @@ from app.database.init_db import init_db  # noqa: E402
 from app.database.session import SessionLocal  # noqa: E402
 from app.core import security  # noqa: E402
 from app.models import (  # noqa: E402
-    User, Session as SessionModel, Objective, CompanyObjective, HRImport, AuditLog,
+    User, Session as SessionModel, SsoCode, Objective, CompanyObjective, HRImport, AuditLog,
     HRAnalysisResult, ManagerAnalysisResult, CollabAnalysisResult,
 )
 
 # Tables vidées entre chaque test pour garantir l'isolation
 _CLEANED_MODELS = [
-    SessionModel, AuditLog, Objective, CompanyObjective, HRImport,
+    SsoCode, SessionModel, AuditLog, Objective, CompanyObjective, HRImport,
     HRAnalysisResult, ManagerAnalysisResult, CollabAnalysisResult, User,
 ]
 

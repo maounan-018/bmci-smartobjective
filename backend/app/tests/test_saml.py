@@ -45,16 +45,41 @@ def test_saml_metadata_returns_503_when_not_configured(client):
     assert resp.status_code == 503
 
 
-def test_sso_code_exchange_single_use(client):
-    """Un code SSO s'échange une seule fois contre le token, puis devient invalide."""
+def test_sso_code_exchange_single_use(client, make_user):
+    """Un code SSO s'échange une seule fois (la session est créée à l'échange),
+    puis devient invalide. Le code mappe vers un utilisateur, jamais vers un token."""
+    make_user(user_id="u-sso-x", email="ssox@bmci.ma", role="COLLAB")
     from app.controllers.saml_controller import issue_sso_code
-    code = issue_sso_code("tok-test-123")
+    code = issue_sso_code("u-sso-x")
+
     r1 = client.post("/api/auth/saml/exchange", json={"code": code})
     assert r1.status_code == 200
-    assert r1.json()["token"] == "tok-test-123"
+    token = r1.json()["token"]
+    # Le token renvoyé ouvre bien une session valide.
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["user"]["email"] == "ssox@bmci.ma"
+
     # Usage unique : un 2e échange du même code échoue.
     r2 = client.post("/api/auth/saml/exchange", json={"code": code})
     assert r2.status_code == 400
+
+
+def test_sso_code_no_token_stored_in_db(client, make_user):
+    """La table sso_codes ne contient JAMAIS de token de session : seulement le
+    hash du code et un user_id (défense en profondeur si la base fuite)."""
+    make_user(user_id="u-sso-y", email="ssoy@bmci.ma", role="COLLAB")
+    from app.controllers.saml_controller import issue_sso_code
+    from app.database.session import db_session
+    from app.models.sso_code import SsoCode
+
+    code = issue_sso_code("u-sso-y")
+    with db_session() as db:
+        row = db.query(SsoCode).one()
+        # Ni le code en clair, ni un token ne sont stockés.
+        assert row.code_hash != code
+        assert row.user_id == "u-sso-y"
+        assert not hasattr(row, "token")
 
 
 def test_sso_code_exchange_invalid(client):
