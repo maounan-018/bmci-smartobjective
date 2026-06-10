@@ -7,8 +7,8 @@ collaborateurs, managers et RH à évaluer la qualité des objectifs **sans jama
 faire sortir les données de l'infrastructure de la banque**.
 
 > Version **3.0** — Frontend **Vue.js (JavaScript)**, backend **Python FastAPI**
-> en architecture **MVC + SQLAlchemy ORM**, IA **Ollama** locale, sécurité et
-> traçabilité renforcées. Le backend reste l'unique source de vérité.
+> en architecture **MVC + SQLAlchemy ORM**, IA **Ollama** locale, **SSO SAML 2.0**
+> (ADFS / Entra ID) et sécurité renforcée. Le backend reste l'unique source de vérité.
 
 ---
 
@@ -19,18 +19,16 @@ faire sortir les données de l'infrastructure de la banque**.
 3. [Pile technique](#3-pile-technique)
 4. [Fonctionnalités](#4-fonctionnalités)
 5. [Rôles & isolation des données](#5-rôles--isolation-des-données)
-6. [Backend (FastAPI + SQLAlchemy)](#6-backend-fastapi--sqlalchemy)
-7. [Frontend (Vue.js)](#7-frontend-vuejs)
-8. [Module IA (Ollama)](#8-module-ia-ollama)
-9. [Sécurité & traçabilité](#9-sécurité--traçabilité)
-10. [Installation](#10-installation)
-11. [Démarrage](#11-démarrage)
-12. [Tests](#12-tests)
-13. [Configuration (.env)](#13-configuration-env)
-14. [Endpoints principaux](#14-endpoints-principaux)
-15. [Dépannage](#15-dépannage)
-16. [Évolutions prévues](#16-évolutions-prévues)
-17. [Équipe](#17-équipe)
+6. [Authentification (SSO / local) & comptes](#6-authentification-sso--local--comptes)
+7. [Sécurité & traçabilité](#7-sécurité--traçabilité)
+8. [Installation (développement)](#8-installation-développement)
+9. [Démarrage](#9-démarrage)
+10. [Tests](#10-tests)
+11. [Configuration (.env)](#11-configuration-env)
+12. [Mise en production (banque)](#12-mise-en-production-banque)
+13. [Endpoints principaux](#13-endpoints-principaux)
+14. [Dépannage](#14-dépannage)
+15. [Équipe](#15-équipe)
 
 ---
 
@@ -39,7 +37,7 @@ faire sortir les données de l'infrastructure de la banque**.
 ```
 ┌───────────────────────┐     ┌──────────────────────────┐     ┌─────────────────────┐
 │  Frontend Vue.js       │────▶│  Backend FastAPI (MVC)    │────▶│  Ollama (local)     │
-│  Vite — :3000          │     │  Python — :5001           │     │  smart-qwen8        │
+│  Vite — :3000          │     │  Python — :5001           │     │  qwen3:4b           │
 │  Pinia, vue-router     │     │  SQLAlchemy ORM           │     │  :11434             │
 │  Chart.js              │     │  SQLite (objectifsmart.db)│     │  (jamais exposé)    │
 └───────────────────────┘     └──────────────────────────┘     └─────────────────────┘
@@ -62,53 +60,43 @@ faire sortir les données de l'infrastructure de la banque**.
 ```
 bmci-smartobjective/
 ├── backend/                        # Backend FastAPI (MVC + SQLAlchemy)
-│   ├── .env                        # Configuration committée (dev local, sans secret réel)
+│   ├── .env                        # Config committée (dev, SANS secret réel)
+│   ├── create_user.py              # Outil admin : créer des comptes (rôle inclus)
 │   ├── pytest.ini
-│   ├── DOCUMENTATION.md            # Documentation technique du backend
-│   ├── COURS_BACKEND_LIGNE_PAR_LIGNE.pdf   # Cours pédagogique (PDF)
-│   ├── docs/
-│   │   └── generate_course_pdf.py  # Générateur du cours PDF
+│   ├── DOCUMENTATION.md             # Documentation technique du backend
 │   └── app/
 │       ├── main.py                 # Fabrique FastAPI + montage des routers
-│       ├── core/                   # config (.env) + security (PBKDF2, tokens)
-│       ├── database/               # SQLAlchemy : base, session, init_db
-│       ├── models/                 # Modèles ORM (7 tables)
+│       ├── core/                   # config (.env) + security (PBKDF2, tokens, hash)
+│       ├── database/               # base, session, init_db, seed (comptes démo)
+│       ├── models/                 # Modèles ORM
 │       ├── repositories/           # TOUTES les requêtes (aucun SQL ailleurs)
-│       ├── services/               # Logique métier (auth, hr, manager, ai, …)
-│       ├── controllers/            # Routes FastAPI (fines, délèguent aux services)
-│       ├── schemas/                # Schémas Pydantic
-│       ├── auth/                   # Contrat IdentityProvider + providers/
-│       ├── middlewares/            # Limitation de la taille des requêtes
-│       ├── utils/                  # Helpers (calcul SMART, métadonnées requête)
-│       └── tests/                  # pytest (32 tests sécurité / RBAC / import)
+│       ├── services/               # Logique métier (auth, hr_*, manager, ai, …)
+│       ├── controllers/            # Routes FastAPI (auth, saml, hr, manager, ai…)
+│       ├── schemas/                # Schémas Pydantic (validés)
+│       ├── auth/                   # IdentityProvider + providers (local, ldap, saml)
+│       ├── middlewares/            # request_size (DoS) + security_headers
+│       ├── utils/                  # Helpers (score SMART, métadonnées requête)
+│       └── tests/                  # pytest (48 tests : sécurité, RBAC, SSO, import)
 │
 ├── frontend/                       # Frontend Vue.js (JavaScript pur)
 │   ├── package.json
 │   ├── vite.config.js              # Proxy /api -> http://localhost:5001
-│   ├── index.html
 │   └── src/
-│       ├── main.js                 # Point d'entrée Vue + Pinia + router
-│       ├── App.vue
-│       ├── router/index.js         # Routes (guards par rôle)
-│       ├── guards/authGuard.js     # Vérification de session avant chaque route
-│       ├── stores/authStore.js     # État global d'authentification (Pinia)
-│       ├── services/               # apiService, authService, aiService
-│       ├── views/                  # LoginView, CollaboratorDashboard,
-│       │                           # ManagerDashboard, HrDashboard, SmartAnalysisView
-│       ├── components/             # Navbar, SmartBadge, AlignmentChart
-│       ├── layouts/                # DashboardLayout
-│       └── utils/                  # permissions (UserRole, getDefaultPath), formatters
+│       ├── main.js, App.vue
+│       ├── router/, guards/, stores/
+│       ├── services/               # apiService, authService (cookies), aiService
+│       ├── views/                  # LoginView, *Dashboard, SmartAnalysisView
+│       ├── components/, layouts/, utils/
 │
-├── .gitignore                      # Ignore .env.local, *.db, node_modules (backend/.env est versionné)
-├── Modelfile                       # Définition du modèle Ollama smart-qwen8
+├── .gitignore                      # Ignore .env, .env.local, *.db (sauf backend/.env versionné)
+├── Modelfile                       # Définition Ollama (smart-qwen8, optionnel)
 ├── requirements.txt                # Dépendances Python (backend)
-├── LANCER_APP.bat                  # Démarrage tout-en-un (Windows)
+├── requirements-saml.txt           # Dépendance OPTIONNELLE pour le SSO SAML
+├── SSO_SAML.md                     # Guide SSO : simulation → réel → retrait
+├── LANCER_APP.bat                  # Démarrage tout-en-un (Windows, autonome)
 ├── start_app.sh                    # Démarrage tout-en-un (Linux / macOS)
 └── README.md
 ```
-
-> Le frontend **Vue.js** (`frontend/`, JavaScript pur, Composition API) est
-> l'unique frontend officiel de l'application.
 
 ---
 
@@ -120,255 +108,144 @@ bmci-smartobjective/
 | Framework web | **FastAPI** | Routes, validation, OpenAPI |
 | Serveur ASGI | **Uvicorn** | Exécution |
 | ORM | **SQLAlchemy 2.0** | Modèles, requêtes, sessions |
-| Base de données | **SQLite** (`objectifsmart.db`) | Persistance locale |
-| Validation | **Pydantic v2** | Schémas d'entrée/sortie |
-| IA | **Ollama** (`smart-qwen8`) | Modèle local |
-| Excel | **openpyxl** | Lecture/écriture |
-| PDF | **reportlab** | Génération de rapports |
+| Base de données | **SQLite** (`objectifsmart.db`) | Persistance locale (PostgreSQL en prod) |
+| Validation | **Pydantic v2** | Schémas d'entrée bornés |
+| SSO | **python3-saml** (optionnel) | SAML 2.0 ADFS / Entra ID |
+| IA | **Ollama** (`qwen3:4b`) | Modèle local |
+| Excel / PDF | **openpyxl** / **reportlab** | Imports & rapports |
 | Tests | **pytest** + **httpx** | Tests d'intégration |
 
 ### Frontend
-| Composant | Choix | Rôle |
-|---|---|---|
-| Framework | **Vue 3** (Composition API) | UI réactive |
-| Build | **Vite** | Dev server + bundler |
-| Router | **vue-router 4** | Navigation + guards par rôle |
-| État global | **Pinia** | Store d'authentification |
-| Graphiques | **Chart.js** + **vue-chartjs** | Dashboards |
-| Icônes | **lucide-vue-next** | Iconographie |
-| Styles | **Tailwind CSS** (CDN) | Mise en forme |
+| Composant | Choix |
+|---|---|
+| Framework | **Vue 3** (Composition API) |
+| Build | **Vite** |
+| Router / État | **vue-router 4** / **Pinia** |
+| Graphiques / Icônes | **Chart.js** / **lucide-vue-next** |
+| Styles | **Tailwind CSS** |
 
 ---
 
 ## 4. Fonctionnalités
 
-- **Authentification & rôles** : login / register pour COLLAB, MANAGER, HR
-  (logout, expiration de session, anti brute-force).
-- **Objectifs personnels** : CRUD pour COLLAB, vue d'équipe pour MANAGER, vue
-  globale agrégée pour HR.
+- **Authentification** : **SSO SAML** (ADFS / Entra ID) ou connexion locale ;
+  **aucune inscription publique** (comptes provisionnés par l'admin).
+- **Objectifs personnels** : CRUD pour COLLAB, vue d'équipe MANAGER, vue globale HR.
 - **Catalogue stratégique** : référentiel des objectifs d'entreprise (HR/MANAGER).
-- **Analyse IA SMART** : évaluation des 5 critères (Spécifique, Mesurable,
-  Atteignable, Réaliste, Temporel) + reformulations FR/EN + recommandations.
-- **Alignement stratégique** : score d'alignement de chaque objectif avec le
-  catalogue (top matches + écarts).
-- **Imports Excel** : import des objectifs collaborateurs et stratégiques par RH,
-  import individuel pour Collaborateur/Manager. **Drag & drop** + sélecteur natif.
-- **Analyse en lot** (HR) : analyse SMART + alignement de N objectifs avec
-  progression **SSE (server-sent events)**.
-- **Tableaux de bord analytiques RH** : statistiques globales, évolutions
-  mensuelles, distributions, points bloquants, comparaisons par entité /
-  manager / période.
-- **Exports** : Excel multi-feuilles et PDF synthétiques (Manager + RH).
-- **Audit trail** : journalisation des évènements sensibles + filtrage anti-fuite.
-- **Module IA évolutif** : prêt à challenger et améliorer automatiquement les
-  objectifs (les reformulations sont déjà produites par le modèle).
+- **Analyse IA SMART** : évaluation des 5 critères + reformulations FR/EN.
+- **Alignement stratégique** : score d'alignement (top matches + écarts).
+- **Imports Excel** : objectifs collaborateurs & stratégiques (RH), drag & drop.
+- **Analyse en lot** (HR) : SMART + alignement de N objectifs en **SSE**.
+- **Tableaux de bord analytiques RH** + **exports** Excel / PDF.
+- **Audit trail** : journalisation des évènements sensibles (anti-fuite).
 
 ---
 
 ## 5. Rôles & isolation des données
 
-| Rôle | Périmètre | Inscription publique |
-|---|---|---|
-| **COLLAB** | Ses propres objectifs uniquement (manager obligatoire à l'inscription) | ✅ |
-| **MANAGER** | Lui-même + son équipe (`manager_id = lui`), excluant les imports RH | ✅ (sans manager) |
-| **HR** | Vue globale agrégée (uniquement les imports RH : `data_scope='HR'` ou `import_batch_id LIKE 'obj-%'`) | ✅ (sans manager) |
-| **ADMIN** | Réservé à l'évolution future ; aujourd'hui HR fait office d'admin pour l'audit | ❌ |
-
-> **Isolation stricte** : les analyses sont stockées dans **trois tables
-> physiquement séparées** (`hr_analysis_results`, `manager_analysis_results`,
-> `collab_analysis_results`). Une analyse RH n'est jamais visible côté Manager
-> et inversement. Le marquage `data_scope` sur les objectifs renforce ce
-> cloisonnement.
-
----
-
-## 6. Backend (FastAPI + SQLAlchemy)
-
-Le backend suit une **architecture en couches** stricte. Chaque couche ne parle
-qu'à la couche immédiatement inférieure.
-
-```
-controllers  →  services  →  repositories  →  models  →  database
-(routes)        (logique)    (requêtes)       (ORM)      (engine)
-```
-
-**Règles d'or :**
-- Aucun **SQL** hors des `repositories/`.
-- Aucune **logique métier** dans les `controllers/` (ils appellent un service).
-- Aucun **secret** en dur : tout passe par `core/config.py` (`.env`).
-
-### Couches
-
-| Dossier | Rôle |
+| Rôle | Périmètre |
 |---|---|
-| `app/core/` | `config` (settings depuis .env), `security` (PBKDF2, tokens, rate-limit) |
-| `app/database/` | `base` (DeclarativeBase), `session` (engine + `db_session`), `init_db` |
-| `app/models/` | 7 modèles ORM : User, Session, Objective, CompanyObjective, AnalysisResult (HR/Manager/Collab), AuditLog, HRImport |
-| `app/repositories/` | Toutes les requêtes (ORM + `text()` pour reporting RH) |
-| `app/services/` | auth, user, objective, manager, hr, ai, audit, export, excel_import, permission |
-| `app/controllers/` | auth, admin, objective, manager, hr, ai |
-| `app/schemas/` | auth, user, objective, analysis, hr (Pydantic) |
-| `app/auth/` | `IdentityProvider` (ABC) + `providers/local_provider.py` + `providers/ldap_provider.py` (squelette IAM bancaire) |
-| `app/middlewares/` | `request_size` (anti-DoS, 413 si > 20 Mo) |
-| `app/utils/` | helpers purs (score SMART, `request_meta`) |
-| `app/tests/` | 32 tests pytest (sécurité, audit, RBAC, auth, import Excel) |
+| **COLLAB** | Ses propres objectifs uniquement |
+| **MANAGER** | Lui-même + son équipe (`manager_id = lui`), hors imports RH |
+| **HR** | Vue globale agrégée (imports RH : `data_scope='HR'`) ; accès audit |
+| **ADMIN** | Réservé à l'évolution future ; HR fait office d'admin |
 
-> 📘 **Documentation détaillée** : `backend/DOCUMENTATION.md` (référence
-> technique) et `backend/COURS_BACKEND_LIGNE_PAR_LIGNE.pdf` (cours pédagogique
-> ligne par ligne pour comprendre et faire évoluer le code).
+> **Isolation stricte** : analyses stockées dans **trois tables séparées**
+> (`hr_/manager_/collab_analysis_results`). Une analyse RH n'est jamais visible
+> côté Manager et inversement. Le marquage `data_scope` renforce le cloisonnement.
 
 ---
 
-## 7. Frontend (Vue.js)
+## 6. Authentification (SSO / local) & comptes
 
-Frontend **Vue 3** en JavaScript pur (Composition API), build avec **Vite**.
+**Il n'y a pas d'inscription publique** (supprimée : inutile avec le SSO, et
+risque d'auto-attribution de rôle). Les comptes sont créés de deux façons :
 
-### Découpage
+- **SSO SAML (production)** : au 1ᵉʳ login, le compte est créé automatiquement
+  (*JIT provisioning*) avec le rôle déduit des groupes de l'annuaire (Entra/ADFS).
+  La connexion locale est alors **coupée automatiquement**.
+- **Provisionnement manuel (admin)** via `backend/create_user.py` :
+  ```bash
+  cd backend
+  python create_user.py --email rh@bmci.ma --name "RH BMCI" --role HR --password "MotDePasseFort1"
+  python create_user.py --email collab@bmci.ma --role COLLAB --manager rh@bmci.ma
+  python create_user.py --list
+  ```
 
-| Dossier / fichier | Rôle |
-|---|---|
-| `src/main.js` | Point d'entrée : crée l'app, monte Pinia, branche le router |
-| `src/App.vue` | Composant racine (`<router-view />`) |
-| `src/router/index.js` | Routes (login, dashboards par rôle) + meta `roles` |
-| `src/guards/authGuard.js` | Avant chaque route : valide la session via `/api/auth/me`, redirige selon le rôle |
-| `src/stores/authStore.js` | Store Pinia : utilisateur courant, login/logout, persistance localStorage |
-| `src/services/apiService.js` | Appels REST métier (objectifs, manager, hr, analytics, exports, imports) |
-| `src/services/authService.js` | Login / register / logout / `/me` + helpers d'authentification |
-| `src/services/aiService.js` | Wrappers analyse SMART / alignement |
-| `src/utils/permissions.js` | `UserRole` (COLLAB/MANAGER/HR), `getDefaultPath(role)` |
-| `src/utils/formatters.js` | Formatages dates, scores, libellés |
-| `src/layouts/DashboardLayout.vue` | Layout commun (navbar, slot principal) |
-| `src/components/Navbar.vue` | Barre de navigation (liens par rôle) |
-| `src/components/SmartBadge.vue` | Badge visuel d'un sous-critère SMART |
-| `src/components/AlignmentChart.vue` | Donut Chart.js d'alignement |
-| `src/views/LoginView.vue` | Sélection du rôle + login/register |
-| `src/views/CollaboratorDashboard.vue` | Mes objectifs + import CSV/Excel |
-| `src/views/ManagerDashboard.vue` | Équipe + analyses + import Excel |
-| `src/views/HrDashboard.vue` | Imports stratégie/objectifs + analyse en lot SSE + analytics + exports |
-| `src/views/SmartAnalysisView.vue` | Analyse SMART personnelle (HR) |
-
-### Connexion au backend
-
-- **Vite proxifie** `/api` → `http://localhost:5001` (cf. `vite.config.js`) →
-  pas de souci CORS en développement.
-- **Authentification** : token Bearer dans `Authorization`, géré par
-  `authService.authFetch(...)` qui purge le token et redirige sur 401.
-- **Uploads** : `<input type="file">` natif **+ drag & drop** depuis l'OS
-  (contourne la popup « Charger depuis mobile » de Microsoft Edge) sur les
-  3 dashboards.
-- **Analyse en lot** (HR) : lecture du flux **SSE** `text/event-stream` ligne
-  par ligne (`data: ...`).
+**Transport de session** : cookie **HttpOnly + Secure + SameSite** (involable par
+XSS) + protection **CSRF** (double-submit). Un en-tête `Authorization: Bearer`
+reste accepté pour les clients non-navigateur. Voir [`SSO_SAML.md`](SSO_SAML.md)
+pour brancher / simuler / retirer le SSO.
 
 ---
 
-## 8. Module IA (Ollama)
-
-L'IA tourne **en local** avec Ollama et un modèle dédié `smart-qwen8` (cf.
-`Modelfile`). Le backend appelle Ollama via HTTP (`OLLAMA_URL` du `.env`).
-
-- **Analyse SMART** : renvoie `{S, M, A, R, T, overall, confidence, issues,
-  rewrite_fr, rewrite_en}`.
-- **Analyse d'alignement** : renvoie `{alignment_score, top_matches, gaps}`.
-- **Heuristiques de cohérence** : le backend corrige les incohérences du modèle
-  (ex. `M=true` sans indicateur chiffré → remis à `false`, `overall` recalculé).
-- **Robustesse** : extraction tolérante du JSON, codes HTTP explicites
-  (503 si Ollama éteint, 504 si timeout).
-
-> Aucune donnée ne quitte l'infrastructure : le modèle s'exécute sur la même
-> machine que le backend.
-
----
-
-## 9. Sécurité & traçabilité
+## 7. Sécurité & traçabilité
 
 | Mesure | Mise en œuvre |
 |---|---|
-| **Mots de passe** | PBKDF2-HMAC-SHA256 salé (`secrets.token_bytes(16)`, coût configurable) |
-| **Vérification** | À temps constant (`hmac.compare_digest`) |
-| **Migration auto** | Détection du legacy SHA-256 → rehash transparent à la connexion |
-| **Sessions** | Tokens aléatoires (`secrets.token_urlsafe(32)`), expiration configurable, session unique |
-| **Anti brute-force** | Blocage 429 après `MAX_LOGIN_ATTEMPTS` (défaut 5) sur `LOGIN_LOCKOUT_MINUTES` (défaut 15) |
-| **CORS** | Origines explicites via `.env`, **wildcard `*` interdit** (échec démarrage) |
-| **Taille requête** | Middleware 413 au-delà de `MAX_REQUEST_SIZE_MB` (défaut 20 Mo) |
-| **RBAC** | `permission_service` centralise : `require_role`, `require_admin`, `check_collab_access`, `check_manager_access`, `get_accessible_user_ids` |
-| **Anti-escalade** | Whitelist `{COLLAB, MANAGER, HR}` à l'inscription ; toute autre valeur → COLLAB. Le rôle ADMIN n'est jamais créé via `/auth/register` |
-| **Audit trail** | Tous les évènements sensibles journalisés (login/logout/access denied/session expired) avec **filtrage** des descriptions (`password`, `token`, `secret`, … → `[DESCRIPTION FILTRÉE]`) ; les tokens ne sont jamais stockés en clair (hash court `session_ref`) |
-| **Consultation audit** | Réservée HR/ADMIN via `/api/admin/audit-logs` |
+| **Mots de passe** | PBKDF2-HMAC-SHA256 salé, vérif à temps constant, migration legacy auto |
+| **Sessions** | Token aléatoire **hashé en base** (SHA-256), cookie **HttpOnly/Secure/SameSite** |
+| **CSRF** | Double-submit (`csrf_token` ↔ `X-CSRF-Token`) sur les mutations par cookie |
+| **SSO SAML** | Assertions signées exigées (RSA-SHA256, strict), token **jamais dans l'URL** (code à usage unique) |
+| **Inscription** | Supprimée → aucune escalade de rôle ; comptes via SSO/JIT ou `create_user.py` |
+| **Login local** | Coupé automatiquement en SSO réel (`LOCAL_AUTH_ENABLED=auto`) |
+| **Simulation SSO** | Refusée si `ENV=production` |
+| **Validation entrées** | Email validé, longueurs bornées (anti-DoS PBKDF2 / IA) |
+| **Anti brute-force** | Blocage 429 par **email ET IP** |
+| **CORS** | Origines explicites via `.env`, wildcard `*` interdit (échec démarrage) |
+| **En-têtes HTTP** | nosniff, X-Frame-Options DENY, HSTS, Referrer-Policy, CSP `frame-ancestors` |
+| **Taille requête** | Middleware 413 au-delà de `MAX_REQUEST_SIZE_MB` |
+| **Erreurs** | Messages génériques au client, détail loggué serveur |
+| **Audit trail** | Évènements sensibles journalisés, descriptions filtrées, token jamais en clair |
 
 ---
 
-## 10. Installation
+## 8. Installation (développement)
 
 ### Prérequis
-
 | Outil | Version |
 |---|---|
 | **Python** | ≥ 3.10 (testé 3.12) |
 | **Node.js** | ≥ 18 |
 | **Ollama** | dernière version ([installer](https://ollama.com)) |
 
-### 1) Cloner et entrer dans le projet
 ```bash
+# 1) Cloner
 git clone https://github.com/LOMPO-ERNEST/bmci-smartobjective.git
 cd bmci-smartobjective
-```
 
-### 2) Backend Python
-```bash
+# 2) Backend
 pip install -r requirements.txt
-```
 
-### 3) Frontend Vue
-```bash
+# 3) Frontend
 cd frontend && npm install && cd ..
+
+# 4) Modèle IA local
+ollama pull qwen3:4b
 ```
 
-### 4) Modèle IA Ollama
-```bash
-ollama create smart-qwen8 -f Modelfile
-```
-
-### 5) Configuration
-
-Rien à faire : le fichier **`backend/.env` est déjà versionné** dans le dépôt.
-L'application démarre directement après le clone (un seul env, identique en
-local et sur GitHub).
-
-> ⚠️ `backend/.env` ne contient **aucun secret réel** — uniquement de la config
-> de développement local. Pour de vrais secrets (clé API, identifiants LDAP/SSO),
-> utiliser un fichier `.env.local` (ignoré par git), **jamais** ce fichier versionné.
+**Configuration** : `backend/.env` est **déjà versionné** (config de dev, **sans
+secret réel**). L'application démarre directement après le clone. Pour de vrais
+secrets (certificats SSO, etc.) → `backend/.env.local` (ignoré par git, prioritaire).
 
 ---
 
-## 11. Démarrage
+## 9. Démarrage
 
-### Option A — Démarrage tout-en-un
+### Option A — Tout-en-un (recommandé)
 ```bash
-# Windows
-LANCER_APP.bat
+# Windows : double-clic ou
+LANCER_APP.bat        # vérifie Python/Node, installe les deps, lance tout
 
 # Linux / macOS
 ./start_app.sh
 ```
-Lance Ollama, le backend (port 5001) et le frontend (port 3000) en parallèle.
 
-### Option B — Trois terminaux manuels
-
-**Terminal 1 — Ollama**
+### Option B — Manuel (3 terminaux)
 ```bash
-ollama serve
-```
-
-**Terminal 2 — Backend FastAPI (port 5001)**
-```bash
-cd backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 5001 --reload
-```
-
-**Terminal 3 — Frontend Vue (port 3000)**
-```bash
-cd frontend
-npm run dev
+ollama serve                                                            # 1
+cd backend && python -m uvicorn app.main:app --port 5001 --reload       # 2
+cd frontend && npm run dev                                              # 3
 ```
 
 ### Accès
@@ -376,108 +253,130 @@ npm run dev
 - **API Swagger** : http://localhost:5001/docs
 - **Health check** : http://localhost:5001/health
 
----
+### Comptes de démonstration (dev local, créés au démarrage)
+| Rôle | Email | Mot de passe |
+|---|---|---|
+| HR | `hr@bmci.ma` | `REDACTED_DEMO_PWD` |
+| Manager | `manager@bmci.ma` | `REDACTED_DEMO_PWD` |
+| Collaborateur | `collab@bmci.ma` | `REDACTED_DEMO_PWD` |
 
-## 12. Tests
-
-### Backend (pytest)
-```bash
-cd backend
-python -m pytest -v
-```
-**32 tests verts**. Base SQLite **temporaire isolée** (jamais la production),
-schéma créé via l'ORM (`init_db`) dans `app/tests/conftest.py`.
-
-Couverture :
-- `test_security.py` — PBKDF2, vérif, legacy, tokens, rate-limit, rejet 413
-- `test_audit.py` — écriture/lecture, filtrage anti-fuite, `session_ref`
-- `test_permissions.py` — RBAC, périmètres par rôle
-- `test_auth_endpoints.py` — 401, login/register (COLLAB/MANAGER/HR autorisés,
-  ADMIN ramené à COLLAB), rate-limit 429
-- `test_hr_import.py` — mots de passe aléatoires distincts, pas de recréation
-  d'utilisateur existant
-
-### Frontend (build de production)
-```bash
-cd frontend
-npm run build       # validation : ~1600 modules transformés
-```
+> ⚠️ Comptes de **démo uniquement** : désactivés automatiquement en SSO réel,
+> à retirer/changer en production (`SEED_DEMO_ACCOUNTS=false`).
 
 ---
 
-## 13. Configuration (`.env`)
+## 10. Tests
+
+```bash
+cd backend && python -m pytest -v        # 48 tests verts
+cd frontend && npm run build             # validation build (~1600 modules)
+```
+Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurité
+(PBKDF2, cookies, CSRF, rate-limit, en-têtes), audit, RBAC, auth, SSO SAML, import Excel.
+
+---
+
+## 11. Configuration (`.env`)
 
 | Variable | Rôle |
 |---|---|
-| `SESSION_DURATION_HOURS` | Durée de validité d'une session (défaut 24) |
-| `PBKDF2_ITERATIONS` | Coût du hachage (défaut 200 000) |
-| `MAX_LOGIN_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | Anti brute-force (défaut 5 / 15) |
-| `MAX_REQUEST_SIZE_MB` | Limite uploads (défaut 20 Mo) |
-| `DATABASE_PATH` | Chemin SQLite (défaut `objectifsmart.db`) |
+| `ENV` | `development` (défaut) ou `production` (refuse la simulation SSO) |
 | `ALLOWED_ORIGINS` | Origines CORS (obligatoire ; `*` interdit) |
-| `OLLAMA_URL` / `OLLAMA_MODEL` | Configuration de l'IA locale |
-| `AUTH_PROVIDER` | `local` (défaut) ou `ldap` (à activer après intégration IAM) |
-| `LDAP_*` / `SSO_*` | Réservé à la future intégration IAM bancaire |
+| `SESSION_DURATION_HOURS` / `PBKDF2_ITERATIONS` | Sessions / coût hachage |
+| `MAX_LOGIN_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | Anti brute-force |
+| `MAX_REQUEST_SIZE_MB` | Limite uploads (défaut 20 Mo) |
+| `DATABASE_PATH` | Chemin SQLite |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | IA locale (`qwen3:4b`) |
+| `AUTH_PROVIDER` | `local` (défaut) / `ldap` / `saml` |
+| `LOCAL_AUTH_ENABLED` | `auto` (défaut) / `true` / `false` — login local |
+| `SEED_DEMO_ACCOUNTS` + `SEED_*_PASSWORD` | Comptes démo (dev) |
+| `SAML_SIMULATION` | `true` pour tester le SSO sans IdP (dev only) |
+| `SAML_SP_*` / `SAML_IDP_*` | Config SSO réel (secrets → `.env.local`) |
+| `SAML_ALLOWED_GROUPS` | Filtre d'accès SSO optionnel |
+
+> Détails SSO complets dans [`SSO_SAML.md`](SSO_SAML.md).
 
 ---
 
-## 14. Endpoints principaux
+## 12. Mise en production (banque)
 
-| Méthode | Endpoint | Rôle requis | Description |
+> ⚙️ La mise en production se fait **par-dessus le code**, sans le modifier.
+> Étapes recommandées (serveur interne banque) :
+
+1. **Variables d'environnement** dans `backend/.env.local` (jamais committé) :
+   ```ini
+   ENV=production
+   ALLOWED_ORIGINS=https://example.com
+   SEED_DEMO_ACCOUNTS=false
+   ```
+   → en `production` + SSO configuré, **la connexion locale et les comptes démo
+   sont automatiquement désactivés**.
+
+2. **Brancher le SSO réel** (valeurs fournies par la DSI) — voir [`SSO_SAML.md`](SSO_SAML.md) :
+   ```bash
+   pip install -r requirements-saml.txt
+   # puis renseigner SAML_SP_* / SAML_IDP_* dans .env.local
+   ```
+   Transmettre à la DSI l'URL des métadonnées SP : `/api/auth/saml/metadata`.
+
+3. **HTTPS** via un reverse proxy (nginx / IIS) portant le **certificat TLS**
+   (interne banque ou Let's Encrypt). Indispensable : les cookies `Secure` et
+   l'en-tête HSTS ne sont actifs qu'en HTTPS.
+
+4. **Serveur d'application** : remplacer `uvicorn --reload` par plusieurs workers
+   (gunicorn + workers uvicorn sous Linux, ou service Windows).
+
+5. **Base PostgreSQL** recommandée au-delà de SQLite pour la charge concurrente.
+
+6. **Comptes** : provisionner les comptes réels via `create_user.py` (mode local
+   de secours) ou laisser le **JIT SSO** créer les comptes au 1ᵉʳ login.
+
+7. **Sauvegardes + supervision** (logs, alertes) et **validation sécu/DSI** (pentest).
+
+---
+
+## 13. Endpoints principaux
+
+| Méthode | Endpoint | Rôle | Description |
 |---|---|---|---|
 | GET | `/health` | public | Sonde de disponibilité |
-| POST | `/api/auth/login` | public | Connexion locale (token de session) |
+| POST | `/api/auth/login` | public | Connexion locale (cookie de session) |
+| GET | `/api/auth/saml/status` | public | État du SSO (`enabled`, `simulation`) |
 | GET | `/api/auth/saml/login` | public | Démarre le SSO (ADFS / Entra ID) |
-| POST | `/api/auth/saml/acs` | public | Réception de l'assertion SAML (création de session) |
+| POST | `/api/auth/saml/acs` | public | Réception de l'assertion SAML signée |
+| GET | `/api/auth/saml/metadata` | public | Métadonnées SP (pour la DSI) |
+| POST | `/api/auth/saml/exchange` | public | Échange du code SSO contre la session |
 | POST | `/api/auth/logout` | authentifié | Déconnexion |
 | GET | `/api/auth/me` | authentifié | Profil courant |
 | GET | `/api/admin/audit-logs` | HR/ADMIN | Journal d'audit |
 | GET/POST | `/api/objectives` | authentifié | Lister / créer un objectif |
-| GET/PUT/DELETE | `/api/objectives/{id}` | propriétaire/HR | Lire / modifier / supprimer |
 | GET/POST | `/api/company-objectives` | public / MANAGER-HR | Catalogue stratégique |
-| GET | `/api/team/members`, `/api/team/stats` | MANAGER/HR | Équipe générique |
 | GET | `/api/manager/*` | MANAGER | Dashboard, équipe, analyses, export |
 | GET | `/api/collab/analysis-results` | COLLAB | Analyses privées |
-| POST | `/api/analyze-smart`, `/api/analyze-alignment` | authentifié | Analyse IA unitaire |
-| POST | `/api/scan-excel`, `/api/import-excel-analyze`, `/api/import-excel-export` | COLLAB/MANAGER/HR | Pipeline Excel intelligent |
+| POST | `/api/analyze-smart`, `/api/analyze-alignment` | authentifié | Analyse IA |
 | POST | `/api/hr/import-strategy`, `/api/hr/import-objectives` | HR | Imports Excel RH |
 | POST | `/api/hr/analyze-batch` | HR | Analyse en lot **SSE** |
-| GET | `/api/hr/analytics`, `/api/hr/objectives-details`, `/api/hr/imports` | HR | Tableaux de bord & historique |
-| GET | `/api/hr/export-excel`, `/api/hr/export-pdf`, `/api/manager/export` | HR / MANAGER | Rapports |
+| GET | `/api/hr/analytics`, `/api/hr/export-excel`, `/api/hr/export-pdf` | HR | Analytics & rapports |
 
 > Liste complète interactive sur **`/docs`** (Swagger UI).
 
 ---
 
-## 15. Dépannage
+## 14. Dépannage
 
-| Symptôme | Cause probable | Solution |
-|---|---|---|
-| Backend refuse de démarrer (`ALLOWED_ORIGINS doit être défini`) | `backend/.env` supprimé localement | Restaurer le fichier versionné : `git checkout -- backend/.env` |
-| « Ollama n'est pas démarré » | Service Ollama hors ligne | `ollama serve` |
-| « Modèle smart-qwen8 non trouvé » | Modèle non créé | `ollama create smart-qwen8 -f Modelfile` |
-| Frontend voit 404 sur `/api/*` | Backend pas sur :5001 ou proxy KO | Vérifier `frontend/vite.config.js` (target = `http://localhost:5001`) et que le backend tourne |
-| Erreur d'upload « payload too large » | Fichier > 20 Mo | Augmenter `MAX_REQUEST_SIZE_MB` dans `.env` |
-| Edge ouvre la popup « Charger depuis mobile » | Fonctionnalité Edge | Glisser-déposer le fichier sur la zone (drag & drop intégré) ou désactiver dans `edge://settings` |
-| Inscription HR/MANAGER : « Sélection du manager obligatoire » | Backend > 9006b6d ancien | Mettre à jour le backend (la whitelist élargie est sur la branche `mvc-sqlalchemy-refactor`) |
-
----
-
-## 16. Évolutions prévues
-
-- **LDAP / SSO** (intégration IAM bancaire) — `LDAPProvider` est déjà un
-  squelette ; bascule via `AUTH_PROVIDER=ldap` sans modifier les
-  services/controllers.
-- **Rôle `ADMIN` dédié** (aujourd'hui HR fait office d'admin).
-- **Endpoint administratif** pour créer/désactiver des comptes (au-delà de la
-  whitelist d'inscription publique).
-- **Module IA étendu** : challenge et amélioration interactive des objectifs.
-- **Migrations** : introduction d'Alembic au-delà du `create_all` quand le
-  schéma évoluera.
+| Symptôme | Solution |
+|---|---|
+| Backend refuse de démarrer (`ALLOWED_ORIGINS doit être défini`) | Restaurer `git checkout -- backend/.env` |
+| « Ollama n'est pas démarré » | `ollama serve` |
+| « Modèle qwen3:4b non trouvé » | `ollama pull qwen3:4b` |
+| Frontend voit 404 sur `/api/*` | Vérifier que le backend tourne sur :5001 (proxy `vite.config.js`) |
+| Connexion impossible en local | Vérifier qu'un compte existe (`python create_user.py --list`) |
+| Bouton SSO absent | SSO non configuré : voir [`SSO_SAML.md`](SSO_SAML.md) (ou `SAML_SIMULATION=true` en dev) |
+| Upload « payload too large » | Augmenter `MAX_REQUEST_SIZE_MB` |
 
 ---
 
-## 17. Équipe
+## 15. Équipe
 
 **Groupe 03**
 - Lompo Bampalou Ernest
