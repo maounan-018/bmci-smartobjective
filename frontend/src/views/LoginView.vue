@@ -37,7 +37,8 @@ const showPassword = ref(false);
 const isLoading = ref(false);
 const error = ref(null);
 const checkingSession = ref(true);
-const ssoEnabled = ref(false);
+const ssoEnabled = ref(false);     // SSO actif (réel OU simulation) => page SSO uniquement
+const ssoSimulation = ref(false);  // true en mode simulation (dev)
 
 // Démarre le SSO : le backend redirige le navigateur vers l'IdP de la banque.
 function startSso() {
@@ -95,7 +96,9 @@ onMounted(async () => {
     return;
   }
   checkingSession.value = false;
-  ssoEnabled.value = await AuthService.isSsoEnabled();
+  const sso = await AuthService.getSsoStatus();
+  ssoEnabled.value = sso.enabled;
+  ssoSimulation.value = sso.simulation;
 });
 
 // Charge les managers dès qu'un COLLAB entre dans le formulaire.
@@ -218,8 +221,45 @@ function handleBack() {
         <p class="text-slate-500 text-lg">Plateforme d'Analyse d'Objectifs SMART</p>
       </div>
 
-      <!-- Sélection du rôle -->
-      <div v-if="mode === 'select'" class="grid md:grid-cols-3 gap-6">
+      <!-- SSO actif (réel ou simulation) : page épurée, AUCUNE inscription locale -->
+      <div v-if="ssoEnabled" class="max-w-md mx-auto">
+        <div
+          v-if="error"
+          class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-3 text-red-700"
+        >
+          <AlertCircle :size="20" />
+          <p class="text-sm">{{ error }}</p>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 text-center">
+          <div class="inline-flex bg-emerald-50 p-4 rounded-2xl mb-5">
+            <ShieldCheck class="text-emerald-600" :size="36" />
+          </div>
+          <h2 class="text-xl font-bold text-slate-800 mb-2">Connexion sécurisée</h2>
+          <p class="text-slate-500 text-sm mb-6">
+            Connectez-vous avec votre compte d'entreprise BMCI.
+            Votre rôle est attribué automatiquement par l'annuaire.
+          </p>
+
+          <button
+            class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+            @click="startSso"
+          >
+            <LogIn :size="18" />
+            Se connecter avec le SSO BMCI
+          </button>
+
+          <div
+            v-if="ssoSimulation"
+            class="mt-5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs"
+          >
+            ⚠️ Mode simulation (développement) — l'IdP réel n'est pas encore branché.
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode local (dev, SSO inactif) : sélection du rôle -->
+      <div v-else-if="mode === 'select'" class="grid md:grid-cols-3 gap-6">
         <button
           v-for="item in roles"
           :key="item.role"
@@ -237,33 +277,7 @@ function handleBack() {
         </button>
       </div>
 
-      <!-- SSO entreprise (affiché uniquement si configuré côté backend) -->
-      <div v-if="mode === 'select' && ssoEnabled" class="max-w-md mx-auto mt-10">
-        <div
-          v-if="error"
-          class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 flex items-center gap-3 text-red-700"
-        >
-          <AlertCircle :size="20" />
-          <p class="text-sm">{{ error }}</p>
-        </div>
-        <div class="flex items-center gap-3 mb-4">
-          <div class="flex-1 h-px bg-slate-200"></div>
-          <span class="text-xs text-slate-400 uppercase tracking-wider">ou</span>
-          <div class="flex-1 h-px bg-slate-200"></div>
-        </div>
-        <button
-          class="w-full bg-white border-2 border-emerald-600 text-emerald-700 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
-          @click="startSso"
-        >
-          <ShieldCheck :size="18" />
-          Se connecter avec le SSO BMCI
-        </button>
-        <p class="text-xs text-slate-400 mt-2 text-center">
-          Authentification unique via l'annuaire de l'entreprise (Entra ID).
-        </p>
-      </div>
-
-      <!-- Formulaire connexion / inscription -->
+      <!-- Formulaire connexion / inscription (mode local uniquement) -->
       <div v-else-if="selectedRole" class="max-w-md mx-auto">
         <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
           <button

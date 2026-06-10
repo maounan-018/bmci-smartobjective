@@ -45,15 +45,16 @@ export const AuthService = {
   ssoLoginUrl() {
     return `${API_BASE}/auth/saml/login`;
   },
-  // Le SSO est-il configuré côté backend ? (pour afficher/masquer le bouton SSO)
-  async isSsoEnabled() {
+  // État du SSO côté backend : { enabled, simulation }.
+  // enabled => on n'affiche QUE le bouton SSO (plus d'inscription locale).
+  async getSsoStatus() {
     try {
       const response = await fetch(`${API_BASE}/auth/saml/status`);
-      if (!response.ok) return false;
+      if (!response.ok) return { enabled: false, simulation: false };
       const data = await response.json();
-      return !!data.enabled;
+      return { enabled: !!data.enabled, simulation: !!data.simulation };
     } catch {
-      return false;
+      return { enabled: false, simulation: false };
     }
   },
 
