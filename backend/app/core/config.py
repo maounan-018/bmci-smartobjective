@@ -110,6 +110,10 @@ class Settings:
             "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups",
         ).strip()
         self.SAML_DEFAULT_ROLE = os.getenv("SAML_DEFAULT_ROLE", "COLLAB").strip().upper()
+        # Mode SIMULATION (DEV UNIQUEMENT) : court-circuite l'IdP réel pour tester
+        # le flux SSO de bout en bout sans Entra ID ni python3-saml. JAMAIS en prod.
+        # Ignoré automatiquement dès que le SSO réel (SP+IdP) est configuré.
+        self.SAML_SIMULATION = os.getenv("SAML_SIMULATION", "false").strip().lower() in ("1", "true", "yes")
 
     @property
     def saml_sp_ready(self) -> bool:

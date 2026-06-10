@@ -24,10 +24,10 @@ from app.repositories import user_repository
 # ----------------------- Dégradation propre (non configuré) -----------------------
 
 def test_saml_status_disabled_by_default(client):
-    """En l'absence de config SAML, /status indique enabled=false."""
+    """En l'absence de config SAML, /status indique enabled=false (et pas de simulation)."""
     resp = client.get("/api/auth/saml/status")
     assert resp.status_code == 200
-    assert resp.json() == {"enabled": False}
+    assert resp.json() == {"enabled": False, "simulation": False}
 
 
 def test_saml_login_returns_503_when_not_configured(client):
@@ -43,6 +43,16 @@ def test_saml_acs_returns_503_when_not_configured(client):
 def test_saml_metadata_returns_503_when_not_configured(client):
     resp = client.get("/api/auth/saml/metadata")
     assert resp.status_code == 503
+
+
+def test_saml_simulation_disabled_by_default(client):
+    """Sans SAML_SIMULATION=true, les routes de simulation n'existent pas (404)."""
+    assert client.get("/api/auth/saml/simulate", follow_redirects=False).status_code == 404
+    assert client.post(
+        "/api/auth/saml/simulate",
+        data={"email": "x@bmci.ma", "role": "HR"},
+        follow_redirects=False,
+    ).status_code == 404
 
 
 # ----------------------- JIT provisioning (login fédéré) -----------------------
