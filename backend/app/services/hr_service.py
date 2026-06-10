@@ -34,6 +34,7 @@ from app.repositories import (
 )
 from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
 from app.services import export_service
+from app.utils.helpers import smart_flags_score, smart_values
 
 try:
     import openpyxl
@@ -45,29 +46,6 @@ except ImportError:  # pragma: no cover
 def _require_hr(current_user: dict) -> None:
     if current_user["role"] != "HR":
         raise HTTPException(status_code=403, detail="Accès réservé aux RH.")
-
-
-def _smart_flags_score(smart_result: dict) -> float:
-    return (
-        (1 if smart_result.get("S") else 0)
-        + (1 if smart_result.get("M") else 0)
-        + (1 if smart_result.get("A") else 0)
-        + (1 if smart_result.get("R") else 0)
-        + (1 if smart_result.get("T") else 0)
-    ) / 5 * 100
-
-
-def _smart_values(smart_result: dict) -> dict:
-    issues = smart_result.get("issues", [])
-    return {
-        "s_score": 1 if smart_result.get("S") else 0,
-        "m_score": 1 if smart_result.get("M") else 0,
-        "a_score": 1 if smart_result.get("A") else 0,
-        "r_score": 1 if smart_result.get("R") else 0,
-        "t_score": 1 if smart_result.get("T") else 0,
-        "issues_count": len(issues),
-        "top_issue": issues[0].get("problem", "") if issues else "",
-    }
 
 
 # ============= ANALYSE PERSONNELLE RH =============
@@ -85,8 +63,8 @@ def analyze_personal(request, current_user: dict) -> dict:
     else:
         alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
 
-    smart_score = _smart_flags_score(smart_result)
-    sv = _smart_values(smart_result)
+    smart_score = smart_flags_score(smart_result)
+    sv = smart_values(smart_result)
     result_id = f"hr-personal-{secrets.token_hex(6)}"
 
     with db_session() as db:
@@ -398,8 +376,8 @@ def build_batch_generator(objective_ids: List[str], current_user: dict):
                 else:
                     alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
 
-                smart_score = _smart_flags_score(smart_result)
-                sv = _smart_values(smart_result)
+                smart_score = smart_flags_score(smart_result)
+                sv = smart_values(smart_result)
 
                 with db_session() as db:
                     objective_repository.update_fields(db, obj["id"], {

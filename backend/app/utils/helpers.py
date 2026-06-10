@@ -51,6 +51,31 @@ def is_smart_valid(obj) -> bool:
     return calculate_smart_total(obj) >= 4
 
 
+def smart_flags_score(smart_result: dict) -> float:
+    """Score SMART en pourcentage (0-100) à partir des 5 booléens S/M/A/R/T."""
+    return (
+        (1 if smart_result.get("S") else 0)
+        + (1 if smart_result.get("M") else 0)
+        + (1 if smart_result.get("A") else 0)
+        + (1 if smart_result.get("R") else 0)
+        + (1 if smart_result.get("T") else 0)
+    ) / 5 * 100
+
+
+def smart_values(smart_result: dict) -> dict:
+    """Sous-scores entiers + nombre d'issues + issue principale."""
+    issues = smart_result.get("issues", [])
+    return {
+        "s_score": 1 if smart_result.get("S") else 0,
+        "m_score": 1 if smart_result.get("M") else 0,
+        "a_score": 1 if smart_result.get("A") else 0,
+        "r_score": 1 if smart_result.get("R") else 0,
+        "t_score": 1 if smart_result.get("T") else 0,
+        "issues_count": len(issues),
+        "top_issue": issues[0].get("problem", "") if issues else "",
+    }
+
+
 def request_meta(req: Optional[Request]):
     """Extrait (ip_address, user_agent, endpoint, http_method) d'une requête FastAPI."""
     if req is None:

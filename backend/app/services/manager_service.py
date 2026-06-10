@@ -27,23 +27,12 @@ from app.repositories import (
 from app.services import objective_service
 from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
 from app.services.export_service import generate_manager_excel, generate_manager_pdf
-from app.utils.helpers import safe_int
+from app.utils.helpers import safe_int, smart_flags_score, smart_values
 
 
 def _require_manager(current_user: dict) -> None:
     if current_user["role"] != "MANAGER":
         raise HTTPException(status_code=403, detail="Accès réservé aux managers.")
-
-
-def _smart_flags_score(smart_result: dict) -> float:
-    """Score SMART en pourcentage à partir des 5 booléens S/M/A/R/T."""
-    return (
-        (1 if smart_result.get("S") else 0)
-        + (1 if smart_result.get("M") else 0)
-        + (1 if smart_result.get("A") else 0)
-        + (1 if smart_result.get("R") else 0)
-        + (1 if smart_result.get("T") else 0)
-    ) / 5 * 100
 
 
 def _finalize_result(result: dict) -> dict:
@@ -64,20 +53,6 @@ def _finalize_result(result: dict) -> dict:
     result["objective_title"] = title
     result["analyzed_at"] = result.get("analyzed_at") or datetime.now().isoformat()
     return result
-
-
-def _smart_values(smart_result: dict) -> dict:
-    """Sous-scores entiers + nombre d'issues + issue principale."""
-    issues = smart_result.get("issues", [])
-    return {
-        "s_score": 1 if smart_result.get("S") else 0,
-        "m_score": 1 if smart_result.get("M") else 0,
-        "a_score": 1 if smart_result.get("A") else 0,
-        "r_score": 1 if smart_result.get("R") else 0,
-        "t_score": 1 if smart_result.get("T") else 0,
-        "issues_count": len(issues),
-        "top_issue": issues[0].get("problem", "") if issues else "",
-    }
 
 
 # ============= OBJECTIFS / ÉQUIPE =============
@@ -195,8 +170,8 @@ def analyze_personal(request, current_user: dict) -> dict:
     else:
         alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
 
-    smart_score = _smart_flags_score(smart_result)
-    sv = _smart_values(smart_result)
+    smart_score = smart_flags_score(smart_result)
+    sv = smart_values(smart_result)
     result_id = f"mgr-personal-{secrets.token_hex(6)}"
 
     with db_session() as db:
@@ -245,8 +220,8 @@ def analyze_objective(objective_id: str, current_user: dict) -> dict:
     else:
         alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
 
-    smart_score = _smart_flags_score(smart_result)
-    sv = _smart_values(smart_result)
+    smart_score = smart_flags_score(smart_result)
+    sv = smart_values(smart_result)
 
     with db_session() as db:
         objective_repository.update_fields(db, objective_id, {
