@@ -30,7 +30,7 @@ from app.database.session import db_session
 from app.repositories import user_repository, session_repository
 from app.services import audit_service as audit
 from app.models.audit_log import AuditEventType
-from app.auth.identity_provider import get_identity_provider
+from app.auth.identity_provider import get_identity_provider, map_groups_to_role
 
 # Métadonnées de requête : (ip_address, user_agent, endpoint, http_method)
 Meta = Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]
@@ -169,6 +169,60 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
         user_id=user_id, username=username, role=user_role,
         event_status="SUCCESS", ip_address=ip, user_agent=ua,
         endpoint=endpoint, http_method=method, token=token,
+    )
+    return {"success": True, "token": token, "user": user_public}
+
+
+# Rôles acceptés en base (la contrainte CHECK du modèle User interdit ADMIN).
+_ALLOWED_DB_ROLES = {"COLLAB", "MANAGER", "HR"}
+
+
+def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
+    """
+    Connexion via un fournisseur fédéré (SAML/SSO). Aucun mot de passe : on fait
+    confiance à l'assertion déjà vérifiée par le provider.
+
+    JIT provisioning : si l'email est inconnu, on crée le compte avec le rôle
+    déduit des groupes (map_groups_to_role) et un mot de passe aléatoire inutile
+    (le login local restera impossible pour ces comptes SSO). Idempotent : un
+    email déjà connu réutilise simplement le compte existant.
+    """
+    ip, ua, endpoint, method = meta
+    email = (profile.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="SSO: email absent de l'assertion.")
+
+    # Rôle déduit des groupes ; ADMIN ramené à HR (interdit en base, mais HR fait
+    # office d'admin), tout le reste -> COLLAB par sécurité.
+    role = map_groups_to_role(profile.get("groups", []))
+    if role not in _ALLOWED_DB_ROLES:
+        role = "HR" if role == "ADMIN" else "COLLAB"
+
+    token = security.generate_token()
+    expires = datetime.now() + timedelta(hours=settings.TOKEN_EXPIRY_HOURS)
+
+    with db_session() as db:
+        user = user_repository.get_by_email(db, email)
+        if not user:
+            user_id = f"saml-{secrets.token_hex(4)}"
+            user_repository.create(
+                db,
+                user_id=user_id,
+                email=email,
+                password_hash=security.hash_password(secrets.token_urlsafe(32)),
+                name=profile.get("display_name") or email,
+                role=role,
+            )
+            user = user_repository.get_by_id(db, user_id)
+        session_repository.delete_by_user(db, user.id)
+        session_repository.create(db, token, user.id, expires.isoformat())
+        user_public = _public_user(user)
+        uid, uemail, uname, urole = user.id, user.email, user.name, user.role
+
+    audit.log_event(
+        AuditEventType.LOGIN_SUCCESS, f"Connexion SSO SAML de {uname}",
+        user_id=uid, username=uemail, role=urole, event_status="SUCCESS",
+        ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method, token=token,
     )
     return {"success": True, "token": token, "user": user_public}
 

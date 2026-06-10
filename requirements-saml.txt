@@ -1,0 +1,15 @@
+# =============================================================================
+# Dependance OPTIONNELLE — SSO SAML 2.0 (AUTH_PROVIDER=saml, ADFS / Entra ID).
+#
+# NON incluse dans requirements.txt a dessein : python3-saml depend de xmlsec
+# (binaire natif libxmlsec1), penible a installer sous Windows. L'application
+# demarre normalement en mode local SANS cette dependance.
+#
+# Pour activer le SSO :
+#   1. Installer ici          : pip install -r requirements-saml.txt
+#      (Windows : privilegier WSL/Docker Linux, ou des wheels xmlsec compatibles)
+#   2. Renseigner les SAML_*   dans backend/.env (ou .env.local pour les secrets)
+#   3. AUTH_PROVIDER reste informatif ; le SSO s'active des que SP+IdP sont definis
+# =============================================================================
+
+python3-saml==1.16.0

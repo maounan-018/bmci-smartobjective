@@ -83,6 +83,49 @@ class Settings:
         self.SEED_HR_PASSWORD = os.getenv("SEED_HR_PASSWORD", "")
         self.SEED_COLLAB_PASSWORD = os.getenv("SEED_COLLAB_PASSWORD", "")
 
+        # --- Authentification : fournisseur d'identite ---
+        # local (defaut) | ldap | saml
+        self.AUTH_PROVIDER = os.getenv("AUTH_PROVIDER", "local").strip().lower()
+
+        # --- SSO SAML 2.0 (ADFS / Microsoft Entra ID) ---
+        # Vide par defaut => SSO desactive (l'app reste en mode local).
+        # SP = ce service ; IdP = l'annuaire de la banque.
+        self.SAML_SP_ENTITY_ID = os.getenv("SAML_SP_ENTITY_ID", "").strip()
+        self.SAML_SP_ACS_URL = os.getenv("SAML_SP_ACS_URL", "").strip()
+        self.SAML_SP_SLS_URL = os.getenv("SAML_SP_SLS_URL", "").strip()
+        self.SAML_SP_X509_CERT = os.getenv("SAML_SP_X509_CERT", "").strip()
+        self.SAML_SP_PRIVATE_KEY = os.getenv("SAML_SP_PRIVATE_KEY", "").strip()
+        self.SAML_IDP_ENTITY_ID = os.getenv("SAML_IDP_ENTITY_ID", "").strip()
+        self.SAML_IDP_SSO_URL = os.getenv("SAML_IDP_SSO_URL", "").strip()
+        self.SAML_IDP_SLO_URL = os.getenv("SAML_IDP_SLO_URL", "").strip()
+        self.SAML_IDP_X509_CERT = os.getenv("SAML_IDP_X509_CERT", "").strip()
+        self.SAML_STRICT = os.getenv("SAML_STRICT", "true").strip().lower() in ("1", "true", "yes")
+        # Apres login SSO, on renvoie le navigateur vers cette base d'URL frontend.
+        self.SAML_FRONTEND_REDIRECT = os.getenv("SAML_FRONTEND_REDIRECT", "http://localhost:3000").strip().rstrip("/")
+        # Noms de claims (valeurs Microsoft par defaut ; vide => fallback intelligent).
+        self.SAML_ATTR_EMAIL = os.getenv("SAML_ATTR_EMAIL", "").strip()
+        self.SAML_ATTR_NAME = os.getenv("SAML_ATTR_NAME", "").strip()
+        self.SAML_ATTR_GROUPS = os.getenv(
+            "SAML_ATTR_GROUPS",
+            "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups",
+        ).strip()
+        self.SAML_DEFAULT_ROLE = os.getenv("SAML_DEFAULT_ROLE", "COLLAB").strip().upper()
+
+    @property
+    def saml_sp_ready(self) -> bool:
+        """Vrai si le SP est configure (suffisant pour servir les metadonnees)."""
+        return bool(self.SAML_SP_ENTITY_ID and self.SAML_SP_ACS_URL)
+
+    @property
+    def saml_idp_ready(self) -> bool:
+        """Vrai si l'IdP est configure (entityId + SSO URL + certificat)."""
+        return bool(self.SAML_IDP_ENTITY_ID and self.SAML_IDP_SSO_URL and self.SAML_IDP_X509_CERT)
+
+    @property
+    def saml_enabled(self) -> bool:
+        """Vrai si le flux SSO complet est utilisable (SP + IdP configures)."""
+        return self.saml_sp_ready and self.saml_idp_ready
+
 
 # Chargement du .env puis instanciation unique partagée dans toute l'application
 load_dotenv()

@@ -40,6 +40,23 @@ export const AuthService = {
     return !!this.getToken() && !!this.getStoredUser();
   },
 
+  // ==================== SSO SAML ====================
+  // URL backend qui démarre le SSO (redirige vers l'IdP de la banque).
+  ssoLoginUrl() {
+    return `${API_BASE}/auth/saml/login`;
+  },
+  // Le SSO est-il configuré côté backend ? (pour afficher/masquer le bouton SSO)
+  async isSsoEnabled() {
+    try {
+      const response = await fetch(`${API_BASE}/auth/saml/status`);
+      if (!response.ok) return false;
+      const data = await response.json();
+      return !!data.enabled;
+    } catch {
+      return false;
+    }
+  },
+
   // ==================== ENDPOINTS D'AUTH ====================
 
   // Liste des managers (pour le select à l'inscription d'un COLLAB).

@@ -37,6 +37,12 @@ const showPassword = ref(false);
 const isLoading = ref(false);
 const error = ref(null);
 const checkingSession = ref(true);
+const ssoEnabled = ref(false);
+
+// Démarre le SSO : le backend redirige le navigateur vers l'IdP de la banque.
+function startSso() {
+  window.location.href = AuthService.ssoLoginUrl();
+}
 
 const roles = [
   {
@@ -69,12 +75,27 @@ const currentRoleMeta = computed(() => roles.find((r) => r.role === selectedRole
 
 // Vérifie une session existante au chargement (réhydratation via le backend).
 onMounted(async () => {
+  // Retour d'un login SSO : token (succès) ou flag d'erreur passés en query.
+  const params = new URLSearchParams(window.location.search);
+  const ssoToken = params.get('sso_token');
+  const ssoErr = params.get('sso_error');
+  if (ssoToken) {
+    AuthService.setToken(ssoToken);
+  } else if (ssoErr) {
+    error.value = "Échec de la connexion SSO. Réessayez ou contactez l'administrateur.";
+  }
+  if (ssoToken || ssoErr) {
+    // Nettoie l'URL (retire le query) en conservant le hash de route.
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+  }
+
   const user = await auth.validateSession();
   if (user) {
     router.replace(getDefaultPath(user.role));
     return;
   }
   checkingSession.value = false;
+  ssoEnabled.value = await AuthService.isSsoEnabled();
 });
 
 // Charge les managers dès qu'un COLLAB entre dans le formulaire.
@@ -214,6 +235,32 @@ function handleBack() {
           <h3 class="text-xl font-bold text-slate-800 mb-2">{{ item.label }}</h3>
           <p class="text-slate-500 text-sm leading-relaxed">{{ item.desc }}</p>
         </button>
+      </div>
+
+      <!-- SSO entreprise (affiché uniquement si configuré côté backend) -->
+      <div v-if="mode === 'select' && ssoEnabled" class="max-w-md mx-auto mt-10">
+        <div
+          v-if="error"
+          class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 flex items-center gap-3 text-red-700"
+        >
+          <AlertCircle :size="20" />
+          <p class="text-sm">{{ error }}</p>
+        </div>
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex-1 h-px bg-slate-200"></div>
+          <span class="text-xs text-slate-400 uppercase tracking-wider">ou</span>
+          <div class="flex-1 h-px bg-slate-200"></div>
+        </div>
+        <button
+          class="w-full bg-white border-2 border-emerald-600 text-emerald-700 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
+          @click="startSso"
+        >
+          <ShieldCheck :size="18" />
+          Se connecter avec le SSO BMCI
+        </button>
+        <p class="text-xs text-slate-400 mt-2 text-center">
+          Authentification unique via l'annuaire de l'entreprise (Entra ID).
+        </p>
       </div>
 
       <!-- Formulaire connexion / inscription -->

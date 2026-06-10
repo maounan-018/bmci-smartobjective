@@ -26,6 +26,7 @@ from app.middlewares.request_size import LimitRequestSizeMiddleware
 from app.database.init_db import init_db
 from app.database.seed import seed_demo_accounts
 from app.controllers.auth_controller import router as auth_router
+from app.controllers.saml_controller import router as saml_router
 from app.controllers.admin_controller import router as admin_router
 from app.controllers.objective_controller import router as objective_router
 from app.controllers.manager_controller import router as manager_router
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
 
     # Montage des routeurs (un par domaine métier)
     app.include_router(auth_router)
+    app.include_router(saml_router)
     app.include_router(admin_router)
     app.include_router(objective_router)
     app.include_router(manager_router)
