@@ -26,6 +26,8 @@ os.environ["LOGIN_LOCKOUT_MINUTES"] = "15"
 os.environ["ALLOWED_ORIGINS"] = "http://localhost:5173"
 # Limite reduite pour pouvoir tester le rejet 413 sans envoyer 20 Mo
 os.environ["MAX_REQUEST_SIZE_MB"] = "5"
+# Quota IA bas pour tester le rate limiting rapidement (5 appels / fenetre).
+os.environ["AI_RATE_LIMIT_MAX"] = "5"
 # Pas de seeding pendant les tests : isolation stricte des donnees.
 os.environ["SEED_DEMO_ACCOUNTS"] = "false"
 
@@ -42,12 +44,14 @@ from app.core import security  # noqa: E402
 from app.models import (  # noqa: E402
     User, Session as SessionModel, SsoCode, Objective, CompanyObjective, HRImport, AuditLog,
     HRAnalysisResult, ManagerAnalysisResult, CollabAnalysisResult,
+    LoginAttempt, AiCall,
 )
 
 # Tables vidées entre chaque test pour garantir l'isolation
 _CLEANED_MODELS = [
     SsoCode, SessionModel, AuditLog, Objective, CompanyObjective, HRImport,
     HRAnalysisResult, ManagerAnalysisResult, CollabAnalysisResult, User,
+    LoginAttempt, AiCall,
 ]
 
 
@@ -73,8 +77,8 @@ def _clean_tables():
         db.commit()
     finally:
         db.close()
-    # Réinitialiser le compteur anti brute-force (état en mémoire)
-    security._failed_login_attempts.clear()
+    # L'anti brute-force est désormais en base (table login_attempts, vidée
+    # ci-dessus via _CLEANED_MODELS) : plus aucun état mémoire à réinitialiser.
     yield
 
 

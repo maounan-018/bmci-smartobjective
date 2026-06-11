@@ -21,6 +21,8 @@ from app.models.analysis_result import (
 )
 from app.models.audit_log import AuditLog, AuditEventType
 from app.models.hr_import import HRImport
+from app.models.login_attempt import LoginAttempt
+from app.models.ai_call import AiCall
 
 __all__ = [
     "Base",
@@ -36,4 +38,6 @@ __all__ = [
     "AuditLog",
     "AuditEventType",
     "HRImport",
+    "LoginAttempt",
+    "AiCall",
 ]

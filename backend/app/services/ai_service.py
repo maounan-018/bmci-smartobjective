@@ -142,11 +142,13 @@ def extract_json_from_text(text: str) -> dict:
     raise json.JSONDecodeError("No valid JSON found", text, 0)
 
 
-def call_ollama(prompt: str, system: str) -> dict:
-    """Appelle le modèle Ollama local et renvoie le JSON extrait de la réponse."""
-    try:
-        full_prompt = f"/no_think\n{prompt}"
+def _post_to_ollama(prompt: str, system: str) -> str:
+    """Un seul appel HTTP à Ollama ; renvoie le texte brut du champ 'response'.
 
+    Les erreurs d'INFRASTRUCTURE (Ollama éteint, timeout) lèvent une HTTPException
+    et ne sont PAS réessayées par call_ollama (un nouvel essai n'y changerait rien)."""
+    full_prompt = f"/no_think\n{prompt}"
+    try:
         response = requests.post(
             settings.OLLAMA_URL,
             json={
@@ -154,31 +156,74 @@ def call_ollama(prompt: str, system: str) -> dict:
                 "system": system,
                 "prompt": full_prompt,
                 "stream": False,
-                "format": "json"
+                "format": "json",
             },
-            timeout=180
+            timeout=180,
         )
         response.raise_for_status()
-        result = response.json()
-        text = result.get("response", "{}")
-
-        # Trace de débogage tronquée — jamais de secret ici.
-        print(f"[DEBUG] Raw response: {text[:500]}...")
-
-        return extract_json_from_text(text)
+        return response.json().get("response", "{}")
     except requests.exceptions.ConnectionError:
         raise HTTPException(status_code=503, detail="Ollama n'est pas démarré. Lancez 'ollama serve' puis réessayez.")
     except requests.exceptions.Timeout:
         raise HTTPException(status_code=504, detail="Le modèle met trop de temps à répondre.")
-    except json.JSONDecodeError as e:
-        print(f"JSON Decode Error: {e}")
-        raise HTTPException(status_code=500, detail="Réponse IA invalide (JSON malformé).")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Ollama Error: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne lors de l'analyse IA.")
 
 
+def call_ollama(prompt: str, system: str, is_valid=None) -> dict:
+    """Appelle Ollama et renvoie le JSON extrait, AVEC RÉESSAI.
+
+    Le modèle local renvoie de temps à autre un JSON vide ({}) ou du texte non
+    parsable. Sans réessai, l'appelant retombe alors sur ses valeurs par défaut —
+    d'où l'analyse dégradée « tout faux, sans reformulation » vue côté utilisateur.
+    On réessaie donc tant que la réponse est vide, non parsable, ou refusée par
+    `is_valid`, dans la limite de settings.AI_MAX_ATTEMPTS essais. Les erreurs
+    d'infrastructure (503/504) remontent immédiatement (réessai inutile).
+
+    `is_valid(dict) -> bool` laisse chaque appelant définir une réponse exploitable
+    (présence des critères SMART, d'un score d'alignement, …).
+    """
+    attempts = max(1, settings.AI_MAX_ATTEMPTS)
+    last_result: dict = {}
+    parsed_ever = False
+
+    for attempt in range(1, attempts + 1):
+        text = _post_to_ollama(prompt, system)  # 503/504 propagés immédiatement
+        # Trace tronquée — jamais de secret ici.
+        print(f"[DEBUG] Ollama réponse (essai {attempt}/{attempts}): {text[:300]}...")
+        try:
+            result = extract_json_from_text(text)
+        except json.JSONDecodeError:
+            continue  # réponse non parsable -> nouvel essai
+        parsed_ever = True
+        if result and (is_valid is None or is_valid(result)):
+            return result
+        last_result = result or last_result
+        # réponse vide ou incomplète -> nouvel essai
+
+    if not parsed_ever:
+        # Aucune réponse parsable, même après réessais (texte systématiquement bruité).
+        raise HTTPException(status_code=500, detail="Réponse IA invalide (JSON malformé).")
+    # Réponses parsables mais vides/incomplètes : on rend le dernier dict obtenu ;
+    # l'appelant le complète avec ses valeurs par défaut (repli historique).
+    return last_result
+
+
 # ============= ANALYSES RÉUTILISABLES =============
+
+def _smart_response_ok(result: dict) -> bool:
+    """Réponse SMART exploitable : le modèle a réellement évalué les critères
+    (au moins une lettre S/M/A/R/T présente), et pas seulement renvoyé un {} vide."""
+    return any(k in result for k in ("S", "M", "A", "R", "T"))
+
+
+def _alignment_response_ok(result: dict) -> bool:
+    """Réponse d'alignement exploitable : présence d'un score ou de correspondances."""
+    return "alignment_score" in result or "top_matches" in result
+
 
 def analyze_smart_internal(title: str, description: str = None) -> dict:
     """Analyse SMART d'un objectif — réutilisable par tous les domaines."""
@@ -215,7 +260,7 @@ Description: {description or 'Non fournie'}
 
 Évalue chaque critère SMART avec rigueur."""
 
-    result = call_ollama(prompt, system_prompt)
+    result = call_ollama(prompt, system_prompt, is_valid=_smart_response_ok)
 
     defaults = {
         "S": False, "M": False, "A": False, "R": False, "T": False,
@@ -262,7 +307,7 @@ PRIORITÉS STRATÉGIQUES BMCI:
 Calcule un score d'alignement global."""
 
     try:
-        result = call_ollama(prompt, system_prompt)
+        result = call_ollama(prompt, system_prompt, is_valid=_alignment_response_ok)
 
         if "alignment_score" not in result:
             result["alignment_score"] = 50
