@@ -232,6 +232,10 @@ ollama create smart-qwen8 -f Modelfile
 secret réel**). L'application démarre directement après le clone. Pour de vrais
 secrets (certificats SSO, etc.) → `backend/.env.local` (ignoré par git, prioritaire).
 
+> 📘 **Guide de déploiement complet** (installation pas à pas sur un **nouveau PC**
+> **et** **mise en production** bancaire, avec checklist et dépannage) :
+> voir **[`DEPLOIEMENT.md`](DEPLOIEMENT.md)**.
+
 ---
 
 ## 9. Démarrage
@@ -307,7 +311,9 @@ Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurit
 ## 12. Mise en production (banque)
 
 > ⚙️ La mise en production se fait **par-dessus le code**, sans le modifier.
-> Étapes recommandées (serveur interne banque) :
+> Étapes recommandées (serveur interne banque) ci-dessous — **guide détaillé pas
+> à pas** (build offline, multi-worker, HTTPS, checklist) dans
+> **[`DEPLOIEMENT.md`](DEPLOIEMENT.md)** :
 
 1. **Variables d'environnement** dans `backend/.env.local` (jamais committé) :
    ```ini
