@@ -13,6 +13,7 @@ EMPLACEMENT MVC
 """
 
 import os
+import logging
 
 
 def load_dotenv(path: str = ".env") -> None:
@@ -34,7 +35,7 @@ def load_dotenv(path: str = ".env") -> None:
                 if key and key not in os.environ:
                     os.environ[key] = value
     except Exception as e:
-        print(f"[WARNING] Lecture .env impossible: {e}")
+        logging.getLogger(__name__).warning("Lecture .env impossible: %s", e)
 
 
 class Settings:
@@ -43,6 +44,9 @@ class Settings:
     def __init__(self) -> None:
         # Application
         self.APP_NAME = os.getenv("APP_NAME", "ObjectifSMART-AI")
+        # Niveau de log applicatif : DEBUG | INFO | WARNING | ERROR. En prod -> INFO
+        # (masque les logs DEBUG, donc aucune donnee RH dans les journaux).
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").strip().upper()
 
         # Intelligence artificielle (Ollama)
         self.OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")

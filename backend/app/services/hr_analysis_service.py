@@ -12,6 +12,7 @@ EMPLACEMENT MVC
 """
 
 import json
+import logging
 import secrets
 from datetime import datetime
 from typing import List
@@ -26,6 +27,8 @@ from app.repositories import (
 from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
 from app.utils.helpers import smart_flags_score, smart_values
 from app.services.hr_common import require_hr
+
+logger = logging.getLogger(__name__)
 
 
 # ============= ANALYSE PERSONNELLE RH =============
@@ -177,7 +180,7 @@ def build_batch_generator(objective_ids: List[str], current_user: dict):
                 })
                 analyzed += 1
             except Exception as e:
-                print(f"[Batch Analysis Error] {obj['id']}: {e}")
+                logger.error("Erreur analyse en lot pour %s: %s", obj['id'], e)
                 results.append({"id": obj["id"], "title": obj["title"], "success": False, "error": str(e)})
                 errors += 1
 

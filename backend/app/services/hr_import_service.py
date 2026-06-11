@@ -12,6 +12,7 @@ EMPLACEMENT MVC
 """
 
 import io
+import logging
 import secrets
 from typing import List
 
@@ -26,6 +27,8 @@ from app.repositories import (
     hr_import_repository,
 )
 from app.services.hr_common import require_hr
+
+logger = logging.getLogger(__name__)
 
 try:
     import openpyxl
@@ -100,7 +103,7 @@ def import_strategy(filename: str, content: bytes, current_user: dict) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[HR Import Error] {e}")
+        logger.error("Erreur import RH: %s", e)
         raise HTTPException(status_code=400, detail="Erreur lors de l'import du fichier. Vérifiez le format et réessayez.")
 
 
@@ -240,5 +243,5 @@ def import_objectives(filename: str, content: bytes, current_user: dict) -> dict
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[HR Import Error] {e}")
+        logger.error("Erreur import RH: %s", e)
         raise HTTPException(status_code=400, detail="Erreur lors de l'import du fichier. Vérifiez le format et réessayez.")

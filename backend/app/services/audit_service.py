@@ -13,12 +13,15 @@ EMPLACEMENT MVC
 """
 
 import hashlib
+import logging
 from datetime import datetime
 from typing import Optional, List
 
 from app.database.session import db_session
 from app.repositories import audit_repository
 from app.models.audit_log import AuditEventType
+
+logger = logging.getLogger(__name__)
 
 # Mots-clés interdits dans les descriptions — protection anti-fuite
 _FORBIDDEN = (
@@ -84,7 +87,7 @@ def log_event(
         with db_session() as db:
             audit_repository.insert(db, values)
     except Exception as e:  # la journalisation ne doit jamais casser la requête
-        print(f"[AUDIT][WARN] Échec d'écriture du log: {e}")
+        logger.warning("Échec d'écriture du log d'audit: %s", e)
 
 
 def fetch_logs(

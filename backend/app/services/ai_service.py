@@ -21,11 +21,14 @@ EMPLACEMENT MVC
 
 import re
 import json
+import logging
 
 import requests
 from fastapi import HTTPException
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # ============= HEURISTIQUES =============
@@ -169,7 +172,7 @@ def _post_to_ollama(prompt: str, system: str) -> str:
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Ollama Error: {e}")
+        logger.error("Erreur Ollama: %s", e)
         raise HTTPException(status_code=500, detail="Erreur interne lors de l'analyse IA.")
 
 
@@ -192,8 +195,9 @@ def call_ollama(prompt: str, system: str, is_valid=None) -> dict:
 
     for attempt in range(1, attempts + 1):
         text = _post_to_ollama(prompt, system)  # 503/504 propagés immédiatement
-        # Trace tronquée — jamais de secret ici.
-        print(f"[DEBUG] Ollama réponse (essai {attempt}/{attempts}): {text[:300]}...")
+        # Trace VERBEUSE en debug uniquement : contient le contenu analysé (données
+        # RH). En prod (LOG_LEVEL=INFO) elle est masquée -> aucune fuite dans les logs.
+        logger.debug("Ollama réponse (essai %d/%d): %s...", attempt, attempts, text[:300])
         try:
             result = extract_json_from_text(text)
         except json.JSONDecodeError:

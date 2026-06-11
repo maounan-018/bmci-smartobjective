@@ -22,6 +22,7 @@ EMPLACEMENT MVC
 import re
 import io
 import json
+import logging
 import secrets
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -33,6 +34,8 @@ from app.services.ai_service import analyze_smart_internal, analyze_alignment_in
 from app.database.session import db_session
 from app.repositories import company_objective_repository, analysis_repository
 
+logger = logging.getLogger(__name__)
+
 # openpyxl est optionnel : l'import échoue proprement si absent.
 try:
     import openpyxl
@@ -41,7 +44,7 @@ try:
     EXCEL_SUPPORT = True
 except Exception as e:  # pragma: no cover
     EXCEL_SUPPORT = False
-    print(f"[WARNING] openpyxl indisponible - import Excel limité ({e})")
+    logger.warning("openpyxl indisponible - import Excel limité (%s)", e)
 
 
 class ExcelColumnDetector:
@@ -517,7 +520,7 @@ def run_scan(content: bytes, filename: str) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[Excel Scan Error] {e}")
+        logger.error("Erreur scan Excel: %s", e)
         raise HTTPException(status_code=500, detail="Erreur lors de l'analyse du fichier Excel.")
 
 
@@ -595,7 +598,7 @@ def run_import_analyze(content: bytes, filename: str, current_user: dict) -> dic
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[Excel Import Error] {e}")
+        logger.error("Erreur import Excel: %s", e)
         raise HTTPException(status_code=500, detail="Erreur lors de l'import du fichier Excel.")
 
 
@@ -627,5 +630,5 @@ def run_import_export(content: bytes, filename: str, current_user: dict) -> io.B
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[Excel Export Error] {e}")
+        logger.error("Erreur export Excel: %s", e)
         raise HTTPException(status_code=500, detail="Erreur lors de la génération du fichier Excel.")

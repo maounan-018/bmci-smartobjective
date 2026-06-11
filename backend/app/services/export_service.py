@@ -12,12 +12,15 @@ EMPLACEMENT MVC
 """
 
 import io
+import logging
 from datetime import datetime
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.utils.helpers import safe_int, safe_float, is_smart_valid
+
+logger = logging.getLogger(__name__)
 
 # --- Détection du support Excel (openpyxl) ---
 try:
@@ -26,7 +29,7 @@ try:
     EXCEL_SUPPORT = True
 except Exception as e:  # pragma: no cover
     EXCEL_SUPPORT = False
-    print(f"[WARNING] openpyxl indisponible - export Excel limité ({e})")
+    logger.warning("openpyxl indisponible - export Excel limité (%s)", e)
 
 # --- Détection du support PDF (reportlab) ---
 try:
@@ -39,7 +42,7 @@ try:
     PDF_SUPPORT = True
 except Exception as e:  # pragma: no cover
     PDF_SUPPORT = False
-    print(f"[WARNING] reportlab indisponible - export PDF limité ({e})")
+    logger.warning("reportlab indisponible - export PDF limité (%s)", e)
 
 
 def generate_manager_excel(objectives, personal_analyses, current_user) -> StreamingResponse:

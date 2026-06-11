@@ -16,12 +16,17 @@ EMPLACEMENT MVC
     Racine applicative : composition et démarrage.
 """
 
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import requests
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.core.config import settings
+from app.core.logging import setup_logging
+from app.database.session import db_session
 from app.middlewares.request_size import LimitRequestSizeMiddleware
 from app.middlewares.security_headers import SecurityHeadersMiddleware
 from app.database.init_db import init_db
@@ -34,6 +39,8 @@ from app.controllers.manager_controller import router as manager_router
 from app.controllers.hr_controller import router as hr_router
 from app.controllers.ai_controller import router as ai_router
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,16 +50,17 @@ async def lifespan(app: FastAPI):
     # Bannière de démarrage : rend le mode d'authentification visible (et signale
     # bruyamment la simulation pour éviter tout déploiement accidentel en prod).
     if settings.saml_simulation_active:
-        print("=" * 64)
-        print("  [AUTH] Mode = SSO SAML *** SIMULATION (DEV) *** — NE PAS UTILISER EN PROD")
-        print("=" * 64)
+        logger.warning("=" * 64)
+        logger.warning("[AUTH] Mode = SSO SAML *** SIMULATION (DEV) *** — NE PAS UTILISER EN PROD")
+        logger.warning("=" * 64)
     else:
-        print(f"  [AUTH] Mode = {settings.auth_mode}")
+        logger.info("[AUTH] Mode = %s", settings.auth_mode)
     yield
 
 
 def create_app() -> FastAPI:
     """Fabrique l'application FastAPI configurée (pattern factory)."""
+    setup_logging()
     app = FastAPI(title=settings.APP_NAME, version="3.0.0", lifespan=lifespan)
 
     # En-têtes de sécurité sur toutes les réponses (defense en profondeur).
@@ -91,8 +99,52 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health():
-        """Sonde de disponibilité."""
+        """Sonde de LIVENESS : le process répond (ne teste pas les dépendances)."""
         return {"status": "ok", "app": settings.APP_NAME}
+
+    @app.get("/health/ready")
+    def health_ready(response: Response):
+        """Sonde de READINESS : l'app peut-elle réellement servir ?
+
+        - Base de données : dépendance **critique** -> HTTP 503 si KO.
+        - Ollama (modèle IA) : dépendance **souple** ; si indisponible, l'app reste
+          utilisable hors analyses -> statut 'degraded' mais HTTP 200 (ne pas sortir
+          toute l'app de la rotation du load balancer pour une panne IA).
+        """
+        checks: dict[str, str] = {}
+
+        db_ok = True
+        try:
+            with db_session() as db:
+                db.execute(text("SELECT 1"))
+            checks["database"] = "ok"
+        except Exception:
+            db_ok = False
+            checks["database"] = "unreachable"
+
+        ollama_ok = True
+        try:
+            base = settings.OLLAMA_URL.split("/api/")[0]
+            r = requests.get(f"{base}/api/tags", timeout=2)
+            r.raise_for_status()
+            models = [m.get("name", "") for m in r.json().get("models", [])]
+            if any(n == settings.OLLAMA_MODEL or n.startswith(f"{settings.OLLAMA_MODEL}:") for n in models):
+                checks["ollama"] = "ok"
+            else:
+                ollama_ok = False
+                checks["ollama"] = f"modele '{settings.OLLAMA_MODEL}' absent"
+        except Exception:
+            ollama_ok = False
+            checks["ollama"] = "unreachable"
+
+        if not db_ok:
+            response.status_code = 503
+            status = "not_ready"
+        elif not ollama_ok:
+            status = "degraded"
+        else:
+            status = "ready"
+        return {"status": status, "checks": checks, "app": settings.APP_NAME}
 
     return app
 
