@@ -252,8 +252,11 @@ Primitives cryptographiques (bibliothèque standard uniquement) :
   Supporte aussi l'**ancien format SHA-256 simple** (legacy) pour migration transparente.
 - `needs_rehash()` — indique si un hash legacy doit être migré (fait à la connexion).
 - `generate_token()` — token de session cryptographiquement sûr (`secrets.token_urlsafe(32)`).
-- **Anti brute-force** (en mémoire) : `is_login_allowed`, `record_failed_login`,
-  `reset_login_attempts` — blocage après `MAX_LOGIN_ATTEMPTS` échecs pendant `LOGIN_LOCKOUT_MINUTES`.
+- **Anti brute-force** (`services/throttle_service.py`, état **EN BASE** — table
+  `login_attempts`) : `is_login_allowed`, `record_failed_login`, `reset_login_attempts` —
+  blocage après `MAX_LOGIN_ATTEMPTS` échecs pendant `LOGIN_LOCKOUT_MINUTES`. Le compteur
+  est partagé entre workers et survit au redémarrage (l'ancien dictionnaire en mémoire
+  ne tenait pas en multi-worker).
 
 ---
 

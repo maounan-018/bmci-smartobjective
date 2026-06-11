@@ -9,6 +9,8 @@ format SHA-256 legacy, unicité des tokens et limitation anti brute-force.
 import hashlib
 
 from app.core import security
+from app.core.config import settings
+from app.services import throttle_service
 
 
 def test_hash_password_roundtrip():
@@ -52,16 +54,19 @@ def test_generate_token_unique_and_long():
 
 
 def test_rate_limiting_blocks_after_max_attempts():
-    """Après MAX_LOGIN_ATTEMPTS échecs, l'identifiant est bloqué."""
+    """Après MAX_LOGIN_ATTEMPTS échecs, l'identifiant est bloqué (état EN BASE).
+
+    Le compteur vit désormais dans la table `login_attempts` (vidée entre chaque
+    test par la fixture _clean_tables), plus dans un dictionnaire en mémoire.
+    """
     ident = "brute@bmci.test"
-    security._failed_login_attempts.clear()
-    assert security.is_login_allowed(ident) is True
-    for _ in range(security.settings.MAX_LOGIN_ATTEMPTS):
-        security.record_failed_login(ident)
-    assert security.is_login_allowed(ident) is False
+    assert throttle_service.is_login_allowed(ident) is True
+    for _ in range(settings.MAX_LOGIN_ATTEMPTS):
+        throttle_service.record_failed_login(ident)
+    assert throttle_service.is_login_allowed(ident) is False
     # La réinitialisation débloque l'identifiant
-    security.reset_login_attempts(ident)
-    assert security.is_login_allowed(ident) is True
+    throttle_service.reset_login_attempts(ident)
+    assert throttle_service.is_login_allowed(ident) is True
 
 
 def test_request_size_limit_rejects_oversize_upload(client):

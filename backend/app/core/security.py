@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-core/security.py — Primitives de sécurité (hachage, tokens, anti brute-force).
+core/security.py — Primitives de sécurité (hachage, tokens).
 
 RÔLE
     Source de vérité unique pour les opérations cryptographiques :
       - hachage des mots de passe (PBKDF2-HMAC-SHA256, salé, bibliothèque standard) ;
       - vérification à temps constant + migration depuis l'ancien format SHA-256 ;
-      - génération de tokens de session ;
-      - limitation des tentatives de connexion (rate limiting en mémoire).
+      - génération et hachage de tokens de session.
+
+    L'anti brute-force (rate limiting) vit désormais EN BASE, dans
+    services/throttle_service.py : l'état est partagé entre workers et survit au
+    redémarrage (l'ancien dictionnaire en mémoire ne tenait pas en multi-worker).
 
 POURQUOI PBKDF2 ET PAS SHA-256 SIMPLE
     SHA-256 sans sel est vulnérable aux tables arc-en-ciel et au brute-force GPU.
@@ -17,11 +20,9 @@ EMPLACEMENT MVC
     Couche "core" : sécurité transverse, réutilisable par les services.
 """
 
-import time
 import hmac
 import hashlib
 import secrets
-from typing import Dict, List
 
 from app.core.config import settings
 
@@ -80,26 +81,3 @@ def hash_token(token: str) -> str:
     une fuite de la table `sessions` n'expose alors aucun token réutilisable.
     """
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-# --- Anti brute-force : tentatives échouées en mémoire (par email/IP) ---
-_failed_login_attempts: Dict[str, List[float]] = {}
-
-
-def is_login_allowed(identifier: str) -> bool:
-    """False si l'identifiant a dépassé le nombre de tentatives autorisées."""
-    now = time.time()
-    window_start = now - (settings.LOGIN_LOCKOUT_MINUTES * 60)
-    attempts = [t for t in _failed_login_attempts.get(identifier, []) if t > window_start]
-    _failed_login_attempts[identifier] = attempts
-    return len(attempts) < settings.MAX_LOGIN_ATTEMPTS
-
-
-def record_failed_login(identifier: str) -> None:
-    """Enregistre une tentative échouée pour le rate limiting."""
-    _failed_login_attempts.setdefault(identifier, []).append(time.time())
-
-
-def reset_login_attempts(identifier: str) -> None:
-    """Réinitialise le compteur après une connexion réussie."""
-    _failed_login_attempts.pop(identifier, None)

@@ -1,0 +1,5 @@
+/* Feuille de style principale — Tailwind compilé localement (plus de CDN).
+   Les @font-face d'Inter sont importées en amont dans main.js (@fontsource). */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

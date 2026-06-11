@@ -47,6 +47,10 @@ class Settings:
         # Intelligence artificielle (Ollama)
         self.OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
         self.OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "smart-qwen8")
+        # Nombre d'essais d'appel au modele : il renvoie parfois {} (vide) ou du
+        # texte non parsable ; un reessai evite l'analyse degradee "tout faux, sans
+        # reformulation". 1 = aucun reessai (cf. ai_service.call_ollama).
+        self.AI_MAX_ATTEMPTS = int(os.getenv("AI_MAX_ATTEMPTS", "2"))
 
         # Base de données
         self.DB_PATH = os.getenv("DATABASE_PATH", "objectifsmart.db")
@@ -74,6 +78,13 @@ class Settings:
         # Limite globale de taille de requete (octets). Protege contre les DoS
         # par upload massif. Valeur en Mo via MAX_REQUEST_SIZE_MB (defaut 20 Mo).
         self.MAX_REQUEST_SIZE_BYTES = int(os.getenv("MAX_REQUEST_SIZE_MB", "20")) * 1024 * 1024
+
+        # Rate limiting des appels IA (anti-saturation d'Ollama, traite en serie).
+        # Au plus AI_RATE_LIMIT_MAX analyses par AI_RATE_LIMIT_WINDOW_SECONDS et par
+        # utilisateur. Etat en base (table ai_calls) => multi-worker, cf.
+        # services/ai_rate_limit_service.
+        self.AI_RATE_LIMIT_MAX = int(os.getenv("AI_RATE_LIMIT_MAX", "10"))
+        self.AI_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("AI_RATE_LIMIT_WINDOW_SECONDS", "60"))
 
         # Seeding des comptes de demonstration au demarrage (idempotent).
         # Active par defaut pour qu'une copie/clone fonctionne immediatement ;

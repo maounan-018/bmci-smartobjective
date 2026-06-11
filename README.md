@@ -37,7 +37,7 @@ faire sortir les données de l'infrastructure de la banque**.
 ```
 ┌───────────────────────┐     ┌──────────────────────────┐     ┌─────────────────────┐
 │  Frontend Vue.js       │────▶│  Backend FastAPI (MVC)    │────▶│  Ollama (local)     │
-│  Vite — :3000          │     │  Python — :5001           │     │  qwen3:4b           │
+│  Vite — :3000          │     │  Python — :5001           │     │  smart-qwen8        │
 │  Pinia, vue-router     │     │  SQLAlchemy ORM           │     │  :11434             │
 │  Chart.js              │     │  SQLite (objectifsmart.db)│     │  (jamais exposé)    │
 └───────────────────────┘     └──────────────────────────┘     └─────────────────────┘
@@ -89,7 +89,7 @@ bmci-smartobjective/
 │       ├── components/, layouts/, utils/
 │
 ├── .gitignore                      # Ignore .env, .env.local, *.db (sauf backend/.env versionné)
-├── Modelfile                       # Définition Ollama (smart-qwen8, optionnel)
+├── Modelfile                       # Définition Ollama du modèle smart-qwen8 (REQUIS pour l'IA)
 ├── requirements.txt                # Dépendances Python (backend)
 ├── requirements-saml.txt           # Dépendance OPTIONNELLE pour le SSO SAML
 ├── SSO_SAML.md                     # Guide SSO : simulation → réel → retrait
@@ -111,7 +111,7 @@ bmci-smartobjective/
 | Base de données | **SQLite** (`objectifsmart.db`) | Persistance locale (PostgreSQL en prod) |
 | Validation | **Pydantic v2** | Schémas d'entrée bornés |
 | SSO | **python3-saml** (optionnel) | SAML 2.0 ADFS / Entra ID |
-| IA | **Ollama** (`qwen3:4b`) | Modèle local |
+| IA | **Ollama** (`smart-qwen8`, construit depuis le `Modelfile`) | Modèle local |
 | Excel / PDF | **openpyxl** / **reportlab** | Imports & rapports |
 | Tests | **pytest** + **httpx** | Tests d'intégration |
 
@@ -220,9 +220,13 @@ pip install -r requirements.txt
 # 3) Frontend
 cd frontend && npm install && cd ..
 
-# 4) Modèle IA local
-ollama pull qwen3:4b
+# 4) Modèle IA local (smart-qwen8, construit depuis le Modelfile)
+ollama pull qwen3:8b
+ollama create smart-qwen8 -f Modelfile
 ```
+
+> 💡 `LANCER_APP.bat` (Windows) et `start_app.sh` (Linux/macOS) font ces étapes
+> automatiquement si le modèle est absent.
 
 **Configuration** : `backend/.env` est **déjà versionné** (config de dev, **sans
 secret réel**). L'application démarre directement après le clone. Pour de vrais
@@ -286,7 +290,9 @@ Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurit
 | `MAX_LOGIN_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | Anti brute-force |
 | `MAX_REQUEST_SIZE_MB` | Limite uploads (défaut 20 Mo) |
 | `DATABASE_PATH` | Chemin SQLite |
-| `OLLAMA_URL` / `OLLAMA_MODEL` | IA locale (`qwen3:4b`) |
+| `OLLAMA_URL` / `OLLAMA_MODEL` | IA locale (`smart-qwen8`) |
+| `AI_MAX_ATTEMPTS` | Réessais IA si réponse vide/non parsable (défaut 2) |
+| `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_SECONDS` | Quota d'analyses IA par utilisateur (défaut 10/60 s) |
 | `AUTH_PROVIDER` | `local` (défaut) / `saml` |
 | `LOCAL_AUTH_ENABLED` | `auto` (défaut) / `true` / `false` — login local |
 | `SEED_DEMO_ACCOUNTS` + `SEED_*_PASSWORD` | Comptes démo (dev) |
@@ -368,7 +374,8 @@ Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurit
 |---|---|
 | Backend refuse de démarrer (`ALLOWED_ORIGINS doit être défini`) | Restaurer `git checkout -- backend/.env` |
 | « Ollama n'est pas démarré » | `ollama serve` |
-| « Modèle qwen3:4b non trouvé » | `ollama pull qwen3:4b` |
+| « Modèle smart-qwen8 non trouvé » | `ollama pull qwen3:8b` puis `ollama create smart-qwen8 -f Modelfile` |
+| « Trop d'analyses IA » (HTTP 429) | Quota anti-saturation : patienter ou ajuster `AI_RATE_LIMIT_MAX` |
 | Frontend voit 404 sur `/api/*` | Vérifier que le backend tourne sur :5001 (proxy `vite.config.js`) |
 | Connexion impossible en local | Vérifier qu'un compte existe (`python create_user.py --list`) |
 | Bouton SSO absent | SSO non configuré : voir [`SSO_SAML.md`](SSO_SAML.md) (ou `SAML_SIMULATION=true` en dev) |

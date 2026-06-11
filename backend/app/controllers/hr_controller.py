@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Body
 from fastapi.responses import StreamingResponse
 
 from app.controllers.auth_controller import get_current_user
+from app.controllers.dependencies import ai_rate_limited_user
 from app.schemas.hr_schema import HRPersonalAnalysisRequest
 from app.services import hr_service
 
@@ -26,9 +27,9 @@ router = APIRouter(prefix="/api/hr", tags=["RH"])
 @router.post("/analyze-personal")
 def hr_analyze_personal_objective(
     request: HRPersonalAnalysisRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(ai_rate_limited_user),
 ):
-    """Analyse SMART d'un objectif personnel RH (stocké en table privée)."""
+    """Analyse SMART d'un objectif personnel RH (stocké en table privée, quota IA)."""
     return hr_service.analyze_personal(request, current_user)
 
 
@@ -61,9 +62,9 @@ async def import_objectives_excel(
 @router.post("/analyze-batch")
 def analyze_batch(
     objective_ids: List[str] = Body(default=[]),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(ai_rate_limited_user),
 ):
-    """Analyse batch d'objectifs RH (SMART + alignement) en streaming SSE."""
+    """Analyse batch d'objectifs RH (SMART + alignement) en streaming SSE (quota IA)."""
     generator = hr_service.build_batch_generator(objective_ids, current_user)
     return StreamingResponse(generator(), media_type="text/event-stream")
 

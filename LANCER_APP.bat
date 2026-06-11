@@ -83,7 +83,7 @@ if not exist "%ROOT%frontend\node_modules" (
 echo     Dependances Frontend OK
 
 REM ============================================================
-REM [6/7] Ollama + modele qwen3:4b
+REM [6/7] Ollama + modele smart-qwen8 (construit depuis Modelfile)
 REM ============================================================
 echo [6/7] Verification d'Ollama et du modele IA...
 set "OLLAMA=%LOCALAPPDATA%\Programs\Ollama\ollama.exe"
@@ -101,10 +101,12 @@ if not exist "!OLLAMA!" (
 if defined OLLAMA (
     start "Ollama" /min cmd /c ""!OLLAMA!" serve"
     timeout /t 3 /nobreak >nul
-    "!OLLAMA!" list 2>nul | findstr /i "qwen3:4b" >nul 2>&1
+    "!OLLAMA!" list 2>nul | findstr /i "smart-qwen8" >nul 2>&1
     if errorlevel 1 (
-        echo     Modele qwen3:4b absent. Telechargement... (volumineux, patiente)
-        "!OLLAMA!" pull qwen3:4b
+        echo     Modele smart-qwen8 absent. Construction depuis le Modelfile...
+        echo     (telecharge la base qwen3:8b si besoin - volumineux, patiente)
+        "!OLLAMA!" pull qwen3:8b
+        "!OLLAMA!" create smart-qwen8 -f "%~dp0Modelfile"
     )
     echo     Ollama OK
 )

@@ -13,6 +13,7 @@ EMPLACEMENT MVC
 from fastapi import APIRouter, Depends
 
 from app.controllers.auth_controller import get_current_user
+from app.controllers.dependencies import ai_rate_limited_user
 from app.schemas.analysis_schema import ManagerPersonalAnalysisRequest
 from app.services import manager_service
 
@@ -52,15 +53,15 @@ def get_collab_analysis_results(current_user: dict = Depends(get_current_user)):
 @router.post("/manager/analyze-personal")
 def manager_analyze_personal_objective(
     request: ManagerPersonalAnalysisRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(ai_rate_limited_user),
 ):
-    """Analyse SMART de l'objectif personnel du Manager."""
+    """Analyse SMART de l'objectif personnel du Manager (quota IA appliqué)."""
     return manager_service.analyze_personal(request, current_user)
 
 
 @router.post("/manager/analyze-objective/{objective_id}")
-def manager_analyze_objective(objective_id: str, current_user: dict = Depends(get_current_user)):
-    """Analyse un objectif d'un collaborateur de l'équipe."""
+def manager_analyze_objective(objective_id: str, current_user: dict = Depends(ai_rate_limited_user)):
+    """Analyse un objectif d'un collaborateur de l'équipe (quota IA appliqué)."""
     return manager_service.analyze_objective(objective_id, current_user)
 
 
