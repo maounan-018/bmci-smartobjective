@@ -42,11 +42,23 @@ REM [3/7] Fichiers critiques presents et non vides ?
 REM    (detecte une copie corrompue : fichiers a 0 octet)
 REM ============================================================
 echo [3/7] Verification de l'integrite des fichiers...
-call :CHECK_FILE "%ROOT%backend\.env"            || goto :FAIL
-call :CHECK_FILE "%ROOT%backend\app\main.py"      || goto :FAIL
-call :CHECK_FILE "%ROOT%requirements.txt"         || goto :FAIL
-call :CHECK_FILE "%ROOT%frontend\package.json"    || goto :FAIL
-call :CHECK_FILE "%ROOT%frontend\vite.config.js"  || goto :FAIL
+set "INTEGRITE_OK=1"
+for %%F in ("%ROOT%backend\.env" "%ROOT%backend\app\main.py" "%ROOT%requirements.txt" "%ROOT%frontend\package.json" "%ROOT%frontend\vite.config.js") do (
+    if not exist "%%~F" (
+        echo     [ERREUR] Fichier manquant : %%~F
+        set "INTEGRITE_OK="
+    ) else if %%~zF EQU 0 (
+        echo     [ERREUR] Fichier VIDE ^(copie corrompue^) : %%~F
+        set "INTEGRITE_OK="
+    )
+)
+if not defined INTEGRITE_OK (
+    echo.
+    echo     La copie du projet semble incomplete ou corrompue.
+    echo     Re-clone le projet ^(git clone^) ou recopie le dossier entier.
+    pause
+    exit /b 1
+)
 echo     Fichiers OK
 
 REM ============================================================
@@ -138,24 +150,3 @@ echo   Appuie sur une touche pour ouvrir le navigateur...
 pause >nul
 start "" "http://localhost:3000"
 exit /b 0
-
-REM ============================================================
-REM  Sous-routine : verifie qu'un fichier existe ET n'est pas vide
-REM ============================================================
-:CHECK_FILE
-if not exist "%~1" (
-    echo     [ERREUR] Fichier manquant : %~1
-    exit /b 1
-)
-if %~z1 EQU 0 (
-    echo     [ERREUR] Fichier VIDE (copie corrompue) : %~1
-    exit /b 1
-)
-exit /b 0
-
-:FAIL
-echo.
-echo     La copie du projet semble incomplete ou corrompue.
-echo     Re-copie le dossier en entier (ou utilise git clone).
-pause
-exit /b 1
