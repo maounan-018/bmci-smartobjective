@@ -60,6 +60,12 @@ class Settings:
         # texte non parsable ; un reessai evite l'analyse degradee "tout faux, sans
         # reformulation". 1 = aucun reessai (cf. ai_service.call_ollama).
         self.AI_MAX_ATTEMPTS = int(os.getenv("AI_MAX_ATTEMPTS", "2"))
+        # Determinisme explicite de l'appel modele : on NE depend plus du seul
+        # Modelfile (si OLLAMA_MODEL pointait sur un modele de base, on perdait le
+        # temperature=0 silencieusement). temperature 0 + seed fixe => sorties
+        # reproductibles, condition de confiance/auditabilite.
+        self.AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0"))
+        self.AI_SEED = int(os.getenv("AI_SEED", "42"))
 
         # RAG (assistant « base de connaissances ») — embeddings 100% locaux via
         # Ollama, stockes et cherches DANS SQLite grace a l'extension sqlite-vec
