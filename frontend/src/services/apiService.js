@@ -514,6 +514,54 @@ export const ApiService = {
     }
   },
 
+  // ==================== BASE DE CONNAISSANCES (RAG / ASSISTANT) ====================
+  // Documents qui alimentent la recherche sémantique de l'assistant (MANAGER/ADMIN).
+  async getRagDocuments() {
+    try {
+      const response = await AuthService.authFetch(`${API_BASE}/rag/documents`);
+      if (!response.ok) return [];
+      return await response.json();
+    } catch (error) {
+      console.error('[ApiService] getRagDocuments error:', error);
+      return [];
+    }
+  },
+
+  async uploadRagDocument(file, { title = '', scope = 'GLOBAL' } = {}) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (title) formData.append('title', title);
+      formData.append('scope', scope);
+      const response = await fetch(`${API_BASE}/rag/documents`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: AuthService.uploadHeaders(),
+        body: formData,
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        return { success: false, error: err.detail || 'Erreur lors du téléversement' };
+      }
+      return { success: true, document: await response.json() };
+    } catch (error) {
+      console.error('[ApiService] uploadRagDocument error:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  async deleteRagDocument(docId) {
+    try {
+      const response = await AuthService.authFetch(`${API_BASE}/rag/documents/${docId}`, {
+        method: 'DELETE',
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('[ApiService] deleteRagDocument error:', error);
+      return false;
+    }
+  },
+
   // ==================== HELPERS PRIVÉS ====================
   _buildFilterParams(filters, withScores = false) {
     if (!filters) return '';

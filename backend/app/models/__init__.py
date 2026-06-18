@@ -23,6 +23,8 @@ from app.models.audit_log import AuditLog, AuditEventType
 from app.models.hr_import import HRImport
 from app.models.login_attempt import LoginAttempt
 from app.models.ai_call import AiCall
+from app.models.rag_document import RagDocument
+from app.models.rag_chunk import RagChunk
 
 __all__ = [
     "Base",
@@ -40,4 +42,6 @@ __all__ = [
     "HRImport",
     "LoginAttempt",
     "AiCall",
+    "RagDocument",
+    "RagChunk",
 ]

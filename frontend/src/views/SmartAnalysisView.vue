@@ -203,7 +203,7 @@ function scoreClass(score) {
           </h4>
           <div v-if="myAnalysisResult.alignment_analysis.top_matches?.length > 0" class="text-xs text-slate-500">
             Aligné avec:
-            {{ myAnalysisResult.alignment_analysis.top_matches.map((m) => m.objective_id).join(', ') }}
+            {{ myAnalysisResult.alignment_analysis.top_matches.map((m) => m.title || m.objective_id).join(', ') }}
           </div>
         </div>
       </div>
@@ -348,7 +348,7 @@ function scoreClass(score) {
             </div>
 
             <div
-              v-if="selectedHistoryItem.smart_analysis?.rewrite_fr || selectedHistoryItem.smart_analysis?.rewrite_en"
+              v-if="(selectedHistoryItem.smart_score || 0) < 100 && (selectedHistoryItem.smart_analysis?.rewrite_fr || selectedHistoryItem.smart_analysis?.rewrite_en)"
             >
               <h4 class="font-semibold text-slate-700 mb-2 flex items-center gap-2">
                 <RefreshCw :size="16" class="text-blue-500" />
@@ -385,7 +385,7 @@ function scoreClass(score) {
               </h4>
               <div v-if="selectedHistoryItem.alignment_analysis.top_matches?.length > 0" class="text-xs text-slate-500">
                 Aligné avec:
-                {{ selectedHistoryItem.alignment_analysis.top_matches.map((m) => m.objective_id).join(', ') }}
+                {{ selectedHistoryItem.alignment_analysis.top_matches.map((m) => m.title || m.objective_id).join(', ') }}
               </div>
             </div>
 

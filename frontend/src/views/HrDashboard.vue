@@ -86,16 +86,14 @@ async function loadData() {
   loading.value = true;
   error.value = null;
   try {
-    const [analyticsData, objectivesData, importsData, hrAnalysisData] = await Promise.all([
+    const [analyticsData, objectivesData, importsData] = await Promise.all([
       ApiService.getHRAnalytics(filters.value),
       ApiService.getHRObjectivesDetails(filters.value),
       ApiService.getHRImports(),
-      ApiService.getHRAnalysisResults(),
     ]);
     analytics.value = analyticsData;
     objectives.value = objectivesData.objectives;
     imports.value = importsData;
-    if (hrAnalysisData) hrAnalysisHistory.value = hrAnalysisData.results || [];
   } catch (err) {
     console.error(err);
     error.value = 'Erreur lors de la récupération des données RH.';
@@ -445,7 +443,7 @@ function noDetailedAnalysis(analysisObj) {
                 <h4 class="font-semibold text-slate-700 text-sm">Objectifs stratégiques alignés :</h4>
                 <div v-for="(match, idx) in objModalAlignment.top_matches" :key="idx" class="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
                   <div class="flex items-center justify-between">
-                    <span class="font-semibold text-emerald-700">{{ match.objective_id }}</span>
+                    <span class="font-semibold text-emerald-700">{{ match.title || match.objective_id }}</span>
                     <span class="bg-emerald-500 text-white text-xs px-2 py-1 rounded-full font-bold">{{ match.score }}%</span>
                   </div>
                   <p v-if="match.reason" class="text-emerald-600 text-sm mt-1">{{ match.reason }}</p>
@@ -457,7 +455,7 @@ function noDetailedAnalysis(analysisObj) {
               </div>
             </div>
 
-            <div v-if="objModalSmart?.rewrite_fr || selectedHRObjective.rewrite_fr || objModalSmart?.rewrite_en || selectedHRObjective.rewrite_en" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+            <div v-if="(selectedHRObjective.smart_score || 0) < 100 && (objModalSmart?.rewrite_fr || selectedHRObjective.rewrite_fr || objModalSmart?.rewrite_en || selectedHRObjective.rewrite_en)" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
               <h3 class="font-bold text-blue-800 mb-4 flex items-center gap-2"><Sparkles :size="20" />Reformulations Suggérées</h3>
               <div v-if="objModalSmart?.rewrite_fr || selectedHRObjective.rewrite_fr" class="mb-3">
                 <h4 class="font-semibold text-blue-700 text-sm mb-1">🇫🇷 Français :</h4>
@@ -876,133 +874,6 @@ function noDetailedAnalysis(analysisObj) {
         </div>
       </div>
 
-      <!-- ===== ANALYSE SMART PERSONNELLE DU RH ===== -->
-      <div class="space-y-6">
-        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white">
-          <h2 class="text-2xl font-black flex items-center gap-3"><Sparkles :size="28" />Mon Analyse SMART</h2>
-          <p class="text-purple-100 mt-2">Saisissez votre objectif personnel et obtenez une analyse SMART détaillée avec des recommandations d'amélioration.</p>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border p-6">
-          <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2"><Sparkles :size="20" class="text-purple-500" />Analyser mon objectif</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Titre de l'objectif *</label>
-              <input v-model="hrObjectiveTitle" type="text" placeholder="Ex: Optimiser le processus de recrutement pour réduire le délai d'embauche de 30%" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Description (optionnel)</label>
-              <textarea v-model="hrObjectiveDesc" placeholder="Contexte, moyens, contraintes, indicateurs de suivi..." :rows="3" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"></textarea>
-            </div>
-            <button @click="handleAnalyzeHRObjective" :disabled="isAnalyzingPersonal || !hrObjectiveTitle.trim()" :class="['w-full py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all', isAnalyzingPersonal || !hrObjectiveTitle.trim() ? 'bg-slate-300 cursor-not-allowed' : 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700']">
-              <template v-if="isAnalyzingPersonal"><Loader2 :size="20" class="animate-spin" />Analyse en cours...</template>
-              <template v-else><Sparkles :size="20" />Analyser mon objectif</template>
-            </button>
-          </div>
-        </div>
-
-        <!-- Résultat de l'analyse -->
-        <div v-if="hrAnalysisResult" class="bg-white rounded-2xl shadow-lg border-2 border-emerald-200 p-6">
-          <h3 class="font-bold text-lg text-emerald-700 mb-4 flex items-center gap-2"><CheckCircle2 :size="24" />Résultat de l'analyse</h3>
-          <div class="flex items-center gap-6 mb-6">
-            <div :class="['text-5xl font-black', hrAnalysisResult.smart_score >= 80 ? 'text-emerald-600' : hrAnalysisResult.smart_score >= 60 ? 'text-yellow-600' : 'text-red-600']">{{ Math.round(hrAnalysisResult.smart_score) }}%</div>
-            <div class="flex gap-2">
-              <span v-for="letter in ['S','M','A','R','T']" :key="letter" :class="['w-10 h-10 flex items-center justify-center rounded-lg font-bold', hrAnalysisResult.smart_analysis?.[letter] ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500']">{{ letter }}</span>
-            </div>
-          </div>
-          <div v-if="hrAnalysisResult.smart_analysis?.issues && hrAnalysisResult.smart_analysis.issues.length > 0" class="mb-6">
-            <h4 class="font-bold text-slate-700 mb-3">Points d'amélioration :</h4>
-            <div class="space-y-2">
-              <div v-for="(issue, idx) in hrAnalysisResult.smart_analysis.issues" :key="idx" class="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <div class="font-semibold text-amber-800">[{{ issue.letter }}] {{ issue.problem }}</div>
-                <div v-if="issue.fix" class="text-sm text-amber-600 mt-1">💡 {{ issue.fix }}</div>
-              </div>
-            </div>
-          </div>
-          <div v-if="hrAnalysisResult.smart_analysis?.rewrite_fr || hrAnalysisResult.smart_analysis?.rewrite_en" class="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-            <h4 class="font-bold text-blue-800 mb-2">Reformulation suggérée :</h4>
-            <p v-if="hrAnalysisResult.smart_analysis?.rewrite_fr" class="text-blue-700">🇫🇷 {{ hrAnalysisResult.smart_analysis.rewrite_fr }}</p>
-            <p v-if="hrAnalysisResult.smart_analysis?.rewrite_en" class="text-blue-600 mt-2">🇬🇧 {{ hrAnalysisResult.smart_analysis.rewrite_en }}</p>
-          </div>
-        </div>
-
-        <!-- Import Excel personnel -->
-        <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-2xl border border-amber-200">
-          <h3 class="font-bold text-lg text-amber-800 mb-4 flex items-center gap-2"><FileSpreadsheet :size="20" />Ou importer des objectifs via Excel</h3>
-          <p class="text-sm text-amber-700 mb-4">Importez un fichier Excel contenant vos propres objectifs à analyser. Le fichier doit contenir une colonne <strong>"Titre"</strong> (obligatoire) et optionnellement une colonne <strong>"Description"</strong>.</p>
-          <div class="flex items-center gap-4">
-            <input ref="personalFileInput" type="file" accept=".xlsx,.xls" @change="handleImportPersonalExcel" class="hidden" id="personal-excel-import" />
-            <label for="personal-excel-import" :class="['flex items-center gap-2 px-6 py-3 rounded-lg font-bold cursor-pointer transition-all', isImportingPersonal ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700']">
-              <template v-if="isImportingPersonal"><Loader2 :size="20" class="animate-spin" />Import en cours...</template>
-              <template v-else><Upload :size="20" />Choisir un fichier Excel</template>
-            </label>
-            <a href="#" @click.prevent="downloadPersonalTemplate" class="text-sm text-amber-600 hover:underline flex items-center gap-1"><Download :size="16" />Télécharger un modèle</a>
-          </div>
-        </div>
-
-        <!-- Résultats import personnel -->
-        <div v-if="personalImportResults" class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-200">
-          <h3 class="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2"><CheckCircle2 :size="20" class="text-emerald-500" />Résultats de l'import ({{ personalImportResults.total_processed }} objectif(s) analysé(s))</h3>
-          <div v-if="personalImportResults.results && personalImportResults.results.length > 0" class="space-y-4 max-h-[500px] overflow-y-auto">
-            <div v-for="(result, idx) in personalImportResults.results" :key="idx" class="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <div class="flex items-start justify-between mb-3">
-                <div class="flex-1">
-                  <h4 class="font-semibold text-slate-800">{{ result.title }}</h4>
-                  <p v-if="result.description" class="text-sm text-slate-500 mt-1">{{ result.description }}</p>
-                </div>
-                <div :class="['text-2xl font-bold ml-4', result.smart_score >= 80 ? 'text-emerald-600' : result.smart_score >= 60 ? 'text-yellow-600' : 'text-red-600']">{{ Math.round(result.smart_score) }}%</div>
-              </div>
-              <div class="flex gap-2 mb-3">
-                <div v-for="letter in ['S','M','A','R','T']" :key="letter" :class="['w-8 h-8 rounded flex items-center justify-center text-sm font-bold', result.smart_analysis?.[letter] ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500']">{{ letter }}</div>
-              </div>
-              <div v-if="result.alignment_analysis" class="text-xs text-slate-600">Alignement stratégique: <span class="font-bold">{{ result.alignment_analysis.alignment_score?.toFixed(0) || 0 }}%</span></div>
-              <div v-if="result.smart_analysis?.issues && result.smart_analysis.issues.length > 0" class="mt-2">
-                <p class="text-xs text-red-600 font-medium">⚠️ {{ result.smart_analysis.issues.length }} amélioration(s) suggérée(s)</p>
-              </div>
-            </div>
-          </div>
-          <div v-if="personalImportResults.errors && personalImportResults.errors.length > 0" class="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-            <h4 class="font-semibold text-red-700 mb-2">Erreurs ({{ personalImportResults.errors.length }})</h4>
-            <p v-for="(err, idx) in personalImportResults.errors" :key="idx" class="text-sm text-red-600">Ligne {{ err.row }}: {{ err.title }} - {{ err.error }}</p>
-          </div>
-          <button @click="personalImportResults = null" class="mt-4 text-sm text-slate-500 hover:text-slate-700">Fermer les résultats</button>
-        </div>
-
-        <!-- Historique des analyses personnelles -->
-        <div v-if="!personalImportResults" class="bg-white rounded-2xl shadow-sm border overflow-hidden">
-          <div class="p-4 bg-gradient-to-r from-slate-50 to-slate-100 border-b flex items-center justify-between">
-            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
-              <History :size="20" class="text-slate-400" />
-              Historique de mes analyses
-              <span v-if="hrAnalysisHistory.length > 0" class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full ml-2">{{ hrAnalysisHistory.length }}</span>
-            </h3>
-          </div>
-          <div v-if="hrAnalysisHistory.length === 0" class="p-8 text-center text-slate-400">
-            <Sparkles :size="32" class="mx-auto mb-2 opacity-50" />
-            <p>Aucune analyse effectuée pour le moment.</p>
-            <p class="text-sm mt-1">Importez un fichier Excel ci-dessus pour commencer.</p>
-          </div>
-          <div v-else class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-            <div v-for="(item, idx) in hrAnalysisHistory" :key="item.id || idx" class="p-4 hover:bg-slate-50 transition-colors cursor-pointer group" @click="selectedHrAnalysis = item">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="font-medium text-slate-800 group-hover:text-emerald-600 transition-colors">{{ item.objective_title || `Analyse #${idx + 1}` }}</div>
-                  <div class="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                    <span>{{ formatDateTime(item.analyzed_at) }}</span>
-                    <span class="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"><Eye :size="12" /> Voir détails</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <div class="flex gap-1">
-                    <span v-for="letter in ['s','m','a','r','t']" :key="letter" :class="['w-6 h-6 flex items-center justify-center rounded text-xs font-bold', (item.smart_analysis?.[letter.toUpperCase()] || item[`${letter}_score`]) ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400']">{{ letter.toUpperCase() }}</span>
-                  </div>
-                  <div :class="['text-lg font-bold', item.smart_score >= 80 ? 'text-emerald-600' : item.smart_score >= 60 ? 'text-yellow-600' : 'text-red-600']">{{ Math.round(item.smart_score || 0) }}%</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </DashboardLayout>
 </template>

@@ -13,14 +13,15 @@ EMPLACEMENT MVC
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.controllers.auth_controller import get_current_user
 from app.controllers.dependencies import ai_rate_limited_user
 from app.schemas.analysis_schema import SmartRequest, AlignmentRequest
-from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
-from app.services import excel_import_service
+from app.schemas.chat_schema import ChatRequest, ChatResponse
+from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal, run_chat_coach
+from app.services import excel_import_service, permission_service
 
 router = APIRouter(prefix="/api", tags=["IA & Import"])
 
@@ -71,3 +72,14 @@ async def scan_excel_structure(
     """Scanne la structure d'un fichier Excel (prévisualisation avant import)."""
     content = await file.read()
     return excel_import_service.run_scan(content, file.filename)
+
+
+@router.post("/chat-coach", response_model=ChatResponse)
+def chat_coach(request: ChatRequest, current_user: dict = Depends(ai_rate_limited_user)):
+    """Conversation avec le Coach IA SMART (réservé MANAGER/COLLAB, quota IA).
+
+    Le Coach guide pas à pas vers un objectif SMART et s'appuie sur la base de
+    connaissances (RAG) pour le contexte BMCI.
+    """
+    permission_service.require_role(current_user, ["MANAGER", "COLLAB"])
+    return run_chat_coach(request.messages)

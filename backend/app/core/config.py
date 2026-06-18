@@ -51,10 +51,21 @@ class Settings:
         # Intelligence artificielle (Ollama)
         self.OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
         self.OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "smart-qwen8")
+        # Modele du Coach IA conversationnel (chat). Defaut = meme modele que
+        # l'analyse ; mettre OLLAMA_CHAT_MODEL=qwen3:8b pour un ton plus naturel.
+        self.OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", self.OLLAMA_MODEL)
         # Nombre d'essais d'appel au modele : il renvoie parfois {} (vide) ou du
         # texte non parsable ; un reessai evite l'analyse degradee "tout faux, sans
         # reformulation". 1 = aucun reessai (cf. ai_service.call_ollama).
         self.AI_MAX_ATTEMPTS = int(os.getenv("AI_MAX_ATTEMPTS", "2"))
+
+        # RAG (assistant « base de connaissances ») — embeddings 100% locaux via
+        # Ollama, stockes et cherches DANS SQLite grace a l'extension sqlite-vec
+        # (aucune base vectorielle externe : tout reste sur l'infra => conforme CNDP).
+        self.OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
+        # Dimension des vecteurs du modele d'embedding (fixe le schema de la table
+        # vec0). Doit correspondre au modele ci-dessus : bge-m3 = 1024.
+        self.RAG_EMBEDDING_DIM = int(os.getenv("RAG_EMBEDDING_DIM", "1024"))
 
         # Base de données
         self.DB_PATH = os.getenv("DATABASE_PATH", "objectifsmart.db")

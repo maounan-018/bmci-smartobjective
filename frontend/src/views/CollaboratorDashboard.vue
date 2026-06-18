@@ -325,7 +325,7 @@ function smartScoreClass(score) {
                   :key="m.objective_id"
                   class="text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg border border-emerald-100"
                 >
-                  <div class="font-bold">{{ m.objective_id }}: {{ m.score }}%</div>
+                  <div class="font-bold">{{ m.title || m.objective_id }}: {{ m.score }}%</div>
                   <div class="text-emerald-600 mt-1">{{ m.reason }}</div>
                 </div>
                 <span

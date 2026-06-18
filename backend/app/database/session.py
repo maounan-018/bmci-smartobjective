@@ -17,13 +17,18 @@ EMPLACEMENT MVC
     Couche "database" : connexion et gestion du cycle de vie des sessions.
 """
 
+import logging
 from contextlib import contextmanager
 from typing import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
+import sqlite_vec
+
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # --- Construction de l'URL de connexion ---------------------------------------
 # On reste sur SQLite (fichier) pour préserver la base existante objectifsmart.db.
@@ -36,6 +41,28 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     future=True,
 )
+
+
+# --- Extension sqlite-vec : recherche vectorielle du RAG ----------------------
+# Les tables virtuelles vec0 (vecteurs d'embeddings) n'existent que si l'extension
+# sqlite-vec est chargee dans la connexion courante. On la charge donc sur CHAQUE
+# connexion via l'evenement "connect" du moteur. Ce meme moteur est reutilise par
+# la suite de tests, qui herite ainsi automatiquement de la recherche vectorielle.
+@event.listens_for(engine, "connect")
+def _load_sqlite_vec(dbapi_connection, connection_record):
+    """Active puis charge sqlite-vec, et recoupe le chargement d'extensions.
+
+    Defensif : si l'extension ne peut pas se charger (build SQLite sans support,
+    paquet absent...), on journalise une erreur SANS casser la connexion. L'app
+    (authentification, objectifs) reste disponible ; seules les fonctions RAG
+    echoueront, et de facon explicite.
+    """
+    try:
+        dbapi_connection.enable_load_extension(True)
+        sqlite_vec.load(dbapi_connection)
+        dbapi_connection.enable_load_extension(False)
+    except Exception as e:  # pragma: no cover - depend de l'environnement SQLite
+        logger.error("sqlite-vec non charge (RAG indisponible): %s", e)
 
 # Fabrique de sessions. `expire_on_commit=False` permet de continuer à lire les
 # attributs d'un objet après commit (utile pour renvoyer un dict au controller).

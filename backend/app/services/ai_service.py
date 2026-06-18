@@ -22,11 +22,13 @@ EMPLACEMENT MVC
 import re
 import json
 import logging
+from typing import List
 
 import requests
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.schemas.chat_schema import ChatMessage, ChatResponse
 
 logger = logging.getLogger(__name__)
 
@@ -243,13 +245,24 @@ RÈGLES STRICTES:
 
 overall = true UNIQUEMENT si S ET M ET A ET R ET T sont tous true.
 
+Pour CHAQUE critère, donne une explication COURTE et SPÉCIFIQUE à CET objectif :
+cite l'élément concret qui justifie ton verdict (un chiffre, une date, un mot-clé du texte).
+JAMAIS de phrase générique.
+  Ex. M satisfait  : "Indicateur chiffré présent : 50 comptes par trimestre."
+  Ex. T non satisfait : "Aucune échéance : le mot 'bientôt' ne fixe pas de date."
+
 Retourne UNIQUEMENT un JSON valide:
 {
   "S": boolean,
+  "S_explanation": "pourquoi S est satisfait ou non, spécifique à l'objectif",
   "M": boolean,
+  "M_explanation": "idem pour M",
   "A": boolean,
+  "A_explanation": "idem pour A",
   "R": boolean,
+  "R_explanation": "idem pour R",
   "T": boolean,
+  "T_explanation": "idem pour T",
   "overall": boolean,
   "confidence": number (0.0 à 1.0),
   "issues": [{"letter": "S|M|A|R|T", "problem": "description", "fix": "suggestion"}],
@@ -268,6 +281,8 @@ Description: {description or 'Non fournie'}
 
     defaults = {
         "S": False, "M": False, "A": False, "R": False, "T": False,
+        "S_explanation": "", "M_explanation": "", "A_explanation": "",
+        "R_explanation": "", "T_explanation": "",
         "overall": False, "confidence": 0.5, "issues": [],
         "rewrite_fr": title, "rewrite_en": title
     }
@@ -290,13 +305,22 @@ def analyze_alignment_internal(objective_title: str, company_objectives: list) -
     system_prompt = """Tu es un expert en stratégie d'entreprise à la BMCI.
 Tu évalues l'alignement des objectifs individuels avec les priorités stratégiques.
 
+RÈGLES STRICTES (anti-réponse générique) :
+- "reason" : explique le lien CONCRET entre CET objectif et CET axe, en citant un
+  élément précis (mot-clé commun, contribution chiffrée). Ex : "Contribue à la
+  bancarisation via l'ouverture de 50 comptes professionnels." JAMAIS de phrase
+  passe-partout du type "aligné avec la stratégie de la banque".
+- "gaps" : lacunes CONCRÈTES de l'objectif (ce qui manque précisément pour mieux
+  couvrir les axes), pas des généralités.
+- Ne mets dans "top_matches" que des axes RÉELLEMENT liés ; si aucun, renvoie [].
+
 Retourne UNIQUEMENT un JSON valide:
 {
   "alignment_score": number (0 à 100),
   "top_matches": [
-    {"objective_id": "ID", "score": number (0-100), "reason": "Explication"}
+    {"objective_id": "ID de l'axe", "score": number (0-100), "reason": "lien concret et spécifique à cet objectif"}
   ],
-  "gaps": ["Liste des lacunes"]
+  "gaps": ["lacune concrète 1", "lacune concrète 2"]
 }
 
 Maximum 3 correspondances dans top_matches."""
@@ -322,6 +346,13 @@ Calcule un score d'alignement global."""
 
         result["top_matches"] = result["top_matches"][:3]
 
+        # Enrichit chaque correspondance avec le TITRE de l'axe (au lieu du seul
+        # identifiant cryptique type "STRAT-3") pour un affichage lisible partout.
+        id_to_title = {str(o.get("id")): o.get("title", "") for o in company_objectives}
+        for m in result["top_matches"]:
+            if isinstance(m, dict) and not m.get("title"):
+                m["title"] = id_to_title.get(str(m.get("objective_id")), "")
+
         return result
     except HTTPException:
         return {
@@ -329,3 +360,126 @@ Calcule un score d'alignement global."""
             "top_matches": [],
             "gaps": ["Analyse d'alignement non disponible"]
         }
+
+
+# ============= COACH IA (CHAT CONVERSATIONNEL + RAG) =============
+
+# Endpoint /api/chat dérivé de OLLAMA_URL (.../api/generate -> .../api/chat),
+# même convention que la sonde /health/ready et embedding_service.
+_OLLAMA_CHAT_URL = f"{settings.OLLAMA_URL.split('/api/')[0]}/api/chat"
+
+_COACH_SYSTEM_PROMPT = """/no_think
+Tu es un Coach IA expert en objectifs SMART pour la BMCI (Banque Marocaine pour le Commerce et l'Industrie).
+LANGUE : reponds TOUJOURS en FRANCAIS, sans exception.
+Tu guides l'utilisateur PAS A PAS, UNE SEULE QUESTION a la fois.
+INTERDICTION de faire une analyse SMART complete d'un coup.
+Progression : Accueil -> S -> M -> A -> R -> T -> Synthese.
+Sois concis, bienveillant, professionnel.
+
+REGLE pour la SYNTHESE FINALE uniquement :
+Quand TOUS les criteres S, M, A, R, T sont couverts, termine ton message en ajoutant :
+{"final_objective": "Texte SMART complet reformule en francais", "ready": true}"""
+
+# Supprime les blocs <think>...</think> que qwen3 insère parfois malgré /no_think.
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+# Marqueur de fin de conversation : {"final_objective": "...", "ready": true}.
+_FINAL_MARKER_RE = re.compile(
+    r'\{\s*"final_objective"\s*:\s*"(?P<obj>(?:[^"\\]|\\.)+)"\s*,\s*"ready"\s*:\s*true\s*\}',
+    re.DOTALL,
+)
+
+
+def _retrieve_coach_context(messages: List[ChatMessage]) -> str | None:
+    """Récupère du contexte BMCI pertinent (RAG) à partir du dernier message user.
+
+    Défensif : si le RAG est indisponible ou ne renvoie rien, le Coach continue
+    SANS contexte (il ne doit jamais tomber en panne à cause du RAG).
+    """
+    last_user = next((m.content for m in reversed(messages) if m.role == "user"), None)
+    if not last_user:
+        return None
+    try:
+        from app.services import rag_service  # import tardif : évite tout cycle
+        passages = rag_service.retrieve(last_user, scope="GLOBAL", top_k=3)
+    except Exception as e:  # RAG indisponible -> on continue sans contexte
+        logger.warning("RAG indisponible pour le Coach (poursuite sans contexte): %s", e)
+        return None
+    if not passages:
+        return None
+    return "\n\n".join(f"- {p['text']}" for p in passages)
+
+
+def call_ollama_chat(messages: List[dict], extra_context: str = None) -> str:
+    """Appelle l'endpoint /api/chat d'Ollama (mode conversationnel).
+
+    `extra_context` (passages RAG) est injecté dans le message système pour que le
+    Coach s'appuie sur le contexte BMCI réel sans l'inventer.
+    """
+    system_content = _COACH_SYSTEM_PROMPT
+    if extra_context:
+        system_content += (
+            "\n\nCONTEXTE BMCI (appuie-toi dessus s'il est pertinent, ne l'invente pas) :\n"
+            + extra_context
+        )
+    payload = {
+        "model": settings.OLLAMA_CHAT_MODEL,
+        "stream": False,
+        # Désactive le raisonnement interne de qwen3 : sinon il consomme tout le
+        # budget de génération en <think> et renvoie un `content` vide. Champ
+        # ignoré sans effet de bord par les anciennes versions d'Ollama.
+        "think": False,
+        "messages": [{"role": "system", "content": system_content}] + messages,
+        "options": {"temperature": 0.4, "num_predict": 512},
+    }
+    try:
+        response = requests.post(_OLLAMA_CHAT_URL, json=payload, timeout=180)
+        response.raise_for_status()
+        return response.json().get("message", {}).get("content", "")
+    except requests.exceptions.ConnectionError:
+        raise HTTPException(status_code=503, detail="Ollama n'est pas démarré. Lancez 'ollama serve' puis réessayez.")
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="Le modèle met trop de temps à répondre.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Erreur Coach IA (chat): %s", e)
+        raise HTTPException(status_code=500, detail="Erreur interne du Coach IA.")
+
+
+def run_chat_coach(messages: List[ChatMessage]) -> ChatResponse:
+    """Orchestre un tour de conversation avec le Coach IA (enrichi par le RAG).
+
+    1. Récupère du contexte BMCI (RAG) à partir du dernier message utilisateur.
+    2. Appelle /api/chat (prompt système + contexte injecté).
+    3. Nettoie les blocs <think>...</think> de qwen3.
+    4. Détecte le marqueur final {"final_objective": "...", "ready": true}.
+    """
+    raw_messages = [{"role": m.role, "content": m.content} for m in messages]
+    context = _retrieve_coach_context(messages)
+    raw_reply = call_ollama_chat(raw_messages, extra_context=context)
+
+    # Retire les blocs <think>...</think> et un éventuel bloc tronqué non fermé.
+    raw_reply = _THINK_RE.sub("", raw_reply)
+    raw_reply = re.sub(r"<think>.*$", "", raw_reply, flags=re.DOTALL | re.IGNORECASE).strip()
+
+    final_objective = None
+    ready = False
+    display_reply = raw_reply
+
+    match = _FINAL_MARKER_RE.search(raw_reply)
+    if match:
+        try:
+            marker = json.loads(match.group(0))
+            final_objective = marker.get("final_objective")
+            ready = True
+            display_reply = raw_reply[: match.start()].strip()
+        except Exception:
+            pass
+
+    return ChatResponse(
+        reply=display_reply,
+        ready=ready,
+        final_objective=final_objective,
+        current_step="SYNTHESE" if ready else "S",
+    )

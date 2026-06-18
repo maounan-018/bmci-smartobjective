@@ -38,6 +38,7 @@ from app.controllers.objective_controller import router as objective_router
 from app.controllers.manager_controller import router as manager_router
 from app.controllers.hr_controller import router as hr_router
 from app.controllers.ai_controller import router as ai_router
+from app.controllers.rag_controller import router as rag_router
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(manager_router)
     app.include_router(hr_router)
     app.include_router(ai_router)
+    app.include_router(rag_router)
 
     # [SIMULATION] Routes de simulation SSO — montées UNIQUEMENT en dev (jetable).
     if settings.saml_simulation_active:

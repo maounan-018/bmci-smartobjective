@@ -1,7 +1,12 @@
 <script setup>
 // DashboardLayout.vue — Habillage commun des vues authentifiées : Navbar + contenu + footer.
 // Reprend le footer de marque BMCI qui était dans App.tsx.
+// Injecte aussi le Coach IA (assistant) en flottant — réservé MANAGER/COLLAB.
 import Navbar from '@/components/Navbar.vue';
+import ChatCoach from '@/components/ChatCoach.vue';
+import { useAuthStore } from '@/stores/authStore';
+
+const auth = useAuthStore();
 </script>
 
 <template>
@@ -16,5 +21,8 @@ import Navbar from '@/components/Navbar.vue';
         Développé par des étudiants de l'École Centrale Casablanca
       </div>
     </footer>
+
+    <!-- Assistant Coach IA (flottant) — uniquement pour Manager et Collaborateur. -->
+    <ChatCoach v-if="auth.isAuthenticated && ['MANAGER', 'COLLAB'].includes(auth.role)" />
   </div>
 </template>

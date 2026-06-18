@@ -8,17 +8,19 @@ import { ApiService } from '@/services/apiService';
 import SmartBadge from '@/components/SmartBadge.vue';
 import AlignmentChart from '@/components/AlignmentChart.vue';
 import DashboardLayout from '@/layouts/DashboardLayout.vue';
+import KnowledgeBaseManager from '@/components/KnowledgeBaseManager.vue';
 import {
   Users, Target, ChevronRight, Loader2, AlertCircle,
   CheckCircle2, TrendingUp, RefreshCw, Eye, Plus, Download,
   Search, PieChart as PieChartIcon, Play, Sparkles, FileSpreadsheet, Upload, X,
+  BookOpen,
 } from 'lucide-vue-next';
 
 const auth = useAuthStore();
 const user = computed(() => auth.user || {});
 
 // Tâche active (null = vue principale avec les 3 tâches)
-const activeTask = ref(null); // 'smart' | 'team' | 'strategy' | null
+const activeTask = ref(null); // 'smart' | 'team' | 'strategy' | 'knowledge' | null
 const loadingState = ref('loading'); // 'idle' | 'loading' | 'success' | 'error'
 const error = ref(null);
 
@@ -450,7 +452,7 @@ function historyIssueFor(item, key) {
               <h4 class="font-bold text-slate-800 mb-1">Alignement Stratégique</h4>
               <div class="flex gap-2 flex-wrap mt-2">
                 <div v-for="m in selectedObjective.alignmentAnalysis?.top_matches" :key="m.objective_id" class="text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg border border-emerald-100">
-                  <div class="font-bold">{{ m.objective_id }}: {{ m.score }}%</div>
+                  <div class="font-bold">{{ m.title || m.objective_id }}: {{ m.score }}%</div>
                   <div class="text-emerald-600 mt-1">{{ m.reason }}</div>
                 </div>
                 <span v-if="!selectedObjective.alignmentAnalysis?.top_matches?.length" class="text-xs text-slate-400">Aucune correspondance</span>
@@ -565,7 +567,7 @@ function historyIssueFor(item, key) {
           Mes Tâches
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           <!-- Tâche 1 -->
           <div class="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 border-amber-200 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all group">
             <div class="flex items-center gap-3 mb-4">
@@ -634,7 +636,44 @@ function historyIssueFor(item, key) {
               </button>
             </div>
           </div>
+
+          <!-- Tâche 4 : Base de connaissances de l'assistant -->
+          <div class="bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all group">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+                <BookOpen :size="24" class="text-white" />
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-indigo-900">Base de connaissances</h3>
+                <p class="text-xs text-indigo-600">Documents de l'assistant</p>
+              </div>
+            </div>
+            <p class="text-sm text-indigo-700 mb-4">
+              Ajoutez les documents (stratégie, politiques…) sur lesquels l'assistant s'appuie pour répondre.
+            </p>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-indigo-500 font-medium">Alimente la recherche sémantique</span>
+              <button @click="activeTask = 'knowledge'" class="px-4 py-2 bg-indigo-500 text-white rounded-lg font-bold text-sm hover:bg-indigo-600 transition-colors flex items-center gap-2 group-hover:scale-105">
+                <Play :size="16" />
+                Démarrer
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- TÂCHE: Base de connaissances de l'assistant -->
+      <div v-if="activeTask === 'knowledge'" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <button @click="activeTask = null" class="flex items-center gap-2 text-indigo-600 font-bold hover:underline">
+            <ChevronRight class="rotate-180" :size="20" /> Retour aux tâches
+          </button>
+          <div class="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg">
+            <BookOpen :size="18" />
+            <span class="font-bold">Tâche: Base de connaissances</span>
+          </div>
+        </div>
+        <KnowledgeBaseManager />
       </div>
 
       <!-- TÂCHE: Analyse SMART personnelle -->
@@ -848,7 +887,7 @@ function historyIssueFor(item, key) {
               Alignement stratégique: {{ myAnalysisResult.alignment_analysis.alignment_score }}%
             </h4>
             <div v-if="myAnalysisResult.alignment_analysis.top_matches?.length > 0" class="text-xs text-slate-500">
-              Aligné avec: {{ myAnalysisResult.alignment_analysis.top_matches.map(m => m.objective_id).join(', ') }}
+              Aligné avec: {{ myAnalysisResult.alignment_analysis.top_matches.map(m => m.title || m.objective_id).join(', ') }}
             </div>
           </div>
         </div>
