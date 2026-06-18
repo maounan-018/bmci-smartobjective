@@ -120,6 +120,11 @@ if defined OLLAMA (
         "!OLLAMA!" pull qwen3:8b
         "!OLLAMA!" create smart-qwen8 -f "%~dp0Modelfile"
     )
+    "!OLLAMA!" list 2>nul | findstr /i "bge-m3" >nul 2>&1
+    if errorlevel 1 (
+        echo     Modele d'embeddings bge-m3 absent. Telechargement pour le RAG...
+        "!OLLAMA!" pull bge-m3
+    )
     echo     Ollama OK
 )
 

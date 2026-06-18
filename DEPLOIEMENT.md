@@ -39,10 +39,12 @@ Ces scripts font **tout automatiquement** : installation des dépendances Python
 pip install -r requirements.txt
 cd frontend && npm install && cd ..
 
-# 2) Modèle IA local (= OLLAMA_MODEL du .env).
-#    Construit smart-qwen8 et télécharge sa base qwen3:8b automatiquement
-#    la première fois (volumineux). Le modèle ne quitte jamais la machine.
+# 2) Modèles IA locaux (ne quittent jamais la machine) :
+#    - smart-qwen8 : analyse SMART (construit depuis le Modelfile, base qwen3:8b).
+#    - qwen3:8b    : Coach IA conversationnel (récupéré comme base de smart-qwen8).
+#    - bge-m3      : embeddings du RAG / recherche sémantique (à télécharger).
 ollama create smart-qwen8 -f Modelfile
+ollama pull bge-m3
 
 # 3) Démarrer (3 terminaux)
 ollama serve                                                       # terminal 1
@@ -122,7 +124,7 @@ Transmettre à la DSI l'URL des métadonnées SP : **`/api/auth/saml/metadata`**
 
 ### 7. IA locale (Ollama)
 
-Sur le serveur : `ollama create smart-qwen8 -f Modelfile`. Le modèle tourne **en local, l'analyse ne sort jamais de l'infra**. Ajuster l'anti-saturation via `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_SECONDS`.
+Sur le serveur : `ollama create smart-qwen8 -f Modelfile` **et** `ollama pull bge-m3` (embeddings du RAG / Coach). Tout tourne **en local, rien ne sort de l'infra**. Ajuster l'anti-saturation via `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_SECONDS`.
 
 ### 8. Comptes réels
 
@@ -136,7 +138,9 @@ Provisionner via `python backend/create_user.py --email … --role … --passwor
 |---|---|---|
 | `ENV` | `development` / `production` | `development` |
 | `ALLOWED_ORIGINS` | Origines CORS (**obligatoire**, `*` interdit) | — |
-| `OLLAMA_MODEL` | Modèle Ollama (doit exister localement) | `smart-qwen8` |
+| `OLLAMA_MODEL` | Modèle d'analyse SMART (doit exister localement) | `smart-qwen8` |
+| `OLLAMA_CHAT_MODEL` | Modèle du Coach IA conversationnel | `qwen3:8b` |
+| `OLLAMA_EMBED_MODEL` | Modèle d'embeddings (RAG / recherche sémantique) | `bge-m3` |
 | `AI_MAX_ATTEMPTS` | Essais d'appel IA (réessai si réponse vide `{}`) | `2` |
 | `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_SECONDS` | Quota d'analyses IA par utilisateur (anti-saturation) | `10` / `60` |
 | `SESSION_DURATION_HOURS` / `PBKDF2_ITERATIONS` | Sessions / coût de hachage | `24` / `200000` |
@@ -152,7 +156,7 @@ Provisionner via `python backend/create_user.py --email … --role … --passwor
 - [ ] `backend/.env.local` : `ENV=production`, `ALLOWED_ORIGINS=https://…`, `SEED_DEMO_ACCOUNTS=false`
 - [ ] **HTTPS** actif (reverse proxy + certificat TLS)
 - [ ] Backend lancé en **multi-worker** (gunicorn/uvicorn `-w 4`)
-- [ ] **Ollama + `smart-qwen8`** présents sur le serveur (`ollama create … -f Modelfile`)
+- [ ] **Ollama** + ses **3 modèles** : `smart-qwen8` (`ollama create … -f Modelfile`), `qwen3:8b` (base, auto) et **`bge-m3`** (`ollama pull bge-m3`, pour le RAG / Coach)
 - [ ] (option) **SSO SAML** configuré + métadonnées transmises à la DSI
 - [ ] **PostgreSQL** si charge concurrente, **sauvegardes** BDD planifiées
 - [ ] Supervision (logs, alertes) + validation sécurité / DSI
@@ -170,3 +174,4 @@ Provisionner via `python backend/create_user.py --email … --role … --passwor
 | Front 404 sur `/api/*` (dev) | Le backend doit tourner sur `:5001` (proxy `vite.config.js`) |
 | Styles cassés en prod | Servir `frontend/dist/` (issu de `npm run build`), pas `index.html` brut |
 | Connexion locale impossible | Vérifier qu'un compte existe : `python backend/create_user.py --list` |
+| RAG / base de connaissances / Coach IA sans contexte | Modèle d'embeddings manquant : `ollama pull bge-m3` |

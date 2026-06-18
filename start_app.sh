@@ -25,6 +25,12 @@ if ! ollama list | grep -q "smart-qwen8"; then
     ollama create smart-qwen8 -f Modelfile
 fi
 
+# Vérifier le modèle d'embeddings bge-m3 (recherche sémantique RAG / Coach)
+if ! ollama list | grep -q "bge-m3"; then
+    echo -e "${YELLOW}[INFO] Téléchargement du modèle d'embeddings bge-m3 (RAG)...${NC}"
+    ollama pull bge-m3
+fi
+
 # Démarrer Ollama si pas déjà lancé
 if ! pgrep -x "ollama" > /dev/null; then
     echo -e "${GREEN}[1/3] Démarrage d'Ollama...${NC}"
