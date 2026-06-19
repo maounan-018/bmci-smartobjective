@@ -21,3 +21,25 @@ dist/
 # Sorties des outils PDF (projet_en_pdf.py / pdf_en_projet.py)
 _pdf_export/
 _code_reconstruit/
+
+# Fichiers BINAIRES — exclus du depot pour que le "Download ZIP" de GitHub ne
+# contienne QUE du texte (certains reseaux d'entreprise bloquent les binaires).
+# Les .xlsx de demo se regenerent : python generer_fichiers_test.py
+*.xlsx
+*.xls
+*.zip
+*.7z
+*.rar
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.exe
+*.dll
+*.bin
