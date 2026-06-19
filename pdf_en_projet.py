@@ -39,7 +39,15 @@ except ImportError as e:
     sys.exit(1)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(HERE, "_pdf_export")
+
+
+def _default_src() -> str:
+    """Sans argument : prend _pdf_export.zip s'il existe, sinon le dossier _pdf_export."""
+    z = os.path.join(HERE, "_pdf_export.zip")
+    return z if os.path.exists(z) else os.path.join(HERE, "_pdf_export")
+
+
+SRC = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else _default_src()
 DEST = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else os.path.join(HERE, "_code_reconstruit")
 
 META_PATH_KEY = "/OsaRelPath"
@@ -125,8 +133,9 @@ def main():
     if manifest:
         print(f"  Manifeste : {len(manifest)} correspondance(s) chargee(s)")
 
-    done = failed = 0
+    done = failed = seen = 0
     for label, pdf_bytes in iter_pdfs(SRC):
+        seen += 1
         try:
             reader = PdfReader(io.BytesIO(pdf_bytes))
             meta = reader.metadata or {}
@@ -160,8 +169,18 @@ def main():
             failed += 1
             print(f"  [ERR] {label} -> {e}")
 
+    if seen == 0:
+        print("  [!] AUCUN fichier .pdf trouve dans la source.")
+        print(f"      Source examinee : {SRC}")
+        print("      Causes probables :")
+        print("        - Mauvais chemin : passe l'emplacement EXACT de tes PDF, ex :")
+        print('          python pdf_en_projet.py "C:\\\\Users\\\\toi\\\\Downloads\\\\_pdf_export.zip"')
+        print("        - Les PDF sont ailleurs (ils ne sont PAS sur GitHub : a copier a part).")
+        print("=" * 60)
+        return 1
+
     print("=" * 60)
-    print(f"  Termine : {done} fichiers reconstruits, {failed} en echec.")
+    print(f"  Termine : {done} fichiers reconstruits sur {seen} PDF, {failed} en echec.")
     print(f"  -> Code complet dans : {DEST}")
     print("=" * 60)
     return 0 if failed == 0 else 1
