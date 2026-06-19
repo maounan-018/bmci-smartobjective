@@ -249,6 +249,10 @@ LANCER_APP.bat        # vérifie Python/Node, installe les deps, lance tout
 ./start_app.sh
 ```
 
+> 🩺 **Un doute sur un nouveau PC ?** Double-clic sur **`VERIFIER.bat`** (ou `python verif_projet.py`)
+> avant de lancer : il vérifie Python, dépendances, `sqlite-vec`, Ollama + modèles, fichiers et ports,
+> et donne pour chaque manque la commande exacte qui répare.
+
 ### Option B — Manuel (3 terminaux)
 ```bash
 ollama serve                                                            # 1

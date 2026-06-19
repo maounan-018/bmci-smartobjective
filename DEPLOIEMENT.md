@@ -17,7 +17,8 @@ Ce guide couvre **deux scénarios** :
 | **Node.js** | ≥ 18 | `node --version` |
 | **Ollama** | dernière ([ollama.com](https://ollama.com)) | `ollama --version` |
 
-> 💡 Diagnostic automatique à tout moment : **`python verif_projet.py`** (vérifie fichiers, dépendances, ports).
+> 💡 Diagnostic automatique à tout moment : **double-clic sur `VERIFIER.bat`** (ou `python verif_projet.py`).
+> Il contrôle Python, dépendances backend/frontend, support `sqlite-vec` (RAG), Ollama + ses modèles, fichiers critiques et ports — et indique pour chaque manque **la commande exacte qui répare**.
 
 ---
 
