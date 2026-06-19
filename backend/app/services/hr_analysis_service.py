@@ -108,18 +108,24 @@ def get_analysis_results(current_user: dict) -> dict:
 
 # ============= ANALYSE EN LOT (SSE) =============
 
-def build_batch_generator(objective_ids: List[str], current_user: dict):
+def build_batch_generator(objective_ids: List[str], current_user: dict, force: bool = False):
     """
     Prépare l'analyse en lot et retourne un générateur SSE (text/event-stream).
     Seuls les objectifs de périmètre HR sont analysés.
+
+    - objective_ids fournis -> ces objectifs (ré-analyse ciblée).
+    - sinon force=True       -> TOUS les objectifs HR (régénère les analyses existantes).
+    - sinon                  -> seulement les NON analysés (idempotent, défaut).
     """
     require_hr(current_user)
 
     with db_session() as db:
-        if not objective_ids:
-            objs = objective_repository.list_unanalyzed_hr(db, limit=100)
-        else:
+        if objective_ids:
             objs = objective_repository.list_hr_by_ids(db, objective_ids)
+        elif force:
+            objs = objective_repository.list_hr_all(db, limit=500)
+        else:
+            objs = objective_repository.list_unanalyzed_hr(db, limit=100)
         objectives = [{"id": o.id, "title": o.title, "description": o.description} for o in objs]
         company_objectives = company_objective_repository.list_for_alignment(db)
 

@@ -357,9 +357,10 @@ export const ApiService = {
   },
 
   // Analyse en lot avec progression (flux SSE "data: ...").
-  async analyzeBatch(objectiveIds = [], onProgress) {
+  async analyzeBatch(objectiveIds = [], onProgress, force = false) {
     try {
-      const response = await AuthService.authFetch(`${API_BASE}/hr/analyze-batch`, {
+      const url = `${API_BASE}/hr/analyze-batch${force ? '?force=true' : ''}`;
+      const response = await AuthService.authFetch(url, {
         method: 'POST',
         body: JSON.stringify(objectiveIds),
       });

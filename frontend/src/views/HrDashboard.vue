@@ -126,7 +126,7 @@ async function handleFileUpload(type) {
   }
 }
 
-async function handleAnalyze() {
+async function handleAnalyze(force = false) {
   isAnalyzing.value = true;
   error.value = null;
   lastAnalysis.value = null;
@@ -138,7 +138,7 @@ async function handleAnalyze() {
       } else if (progress.type === 'progress') {
         analysisProgress.value = { current: progress.current || 0, total: progress.total || 0, title: progress.title || '' };
       }
-    });
+    }, force);
     if (result.success) {
       lastAnalysis.value = result;
       await loadData();
@@ -688,9 +688,12 @@ function noDetailedAnalysis(analysisObj) {
           <div class="border-t border-slate-100 pt-6 space-y-3">
             <h2 class="font-bold text-xl text-slate-800">2. Lancement de l'Analyse</h2>
             <p class="text-sm text-slate-500">Une fois les fichiers importés, lancez l'analyse pour calculer les scores SMART et d'alignement pour tous les nouveaux objectifs.</p>
-            <button @click="handleAnalyze" :disabled="isAnalyzing" class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 text-base shadow-md disabled:opacity-60">
+            <button @click="handleAnalyze(false)" :disabled="isAnalyzing" class="w-full flex items-center justify-center gap-3 px-4 py-3 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 text-base shadow-md disabled:opacity-60">
               <template v-if="isAnalyzing"><Loader2 class="animate-spin" :size="20" />Analyse en cours...</template>
-              <template v-else><Sparkles :size="20" />Lancer l'analyse groupée</template>
+              <template v-else><Sparkles :size="20" />Lancer l'analyse groupée (nouveaux objectifs)</template>
+            </button>
+            <button @click="handleAnalyze(true)" :disabled="isAnalyzing" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-60" title="Régénère TOUTES les analyses (utile après une mise à jour des critères).">
+              <RefreshCw :size="16" />Ré-analyser tout
             </button>
             <div v-if="isAnalyzing && analysisProgress.total > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
               <div class="flex justify-between items-center text-sm font-semibold text-amber-800">

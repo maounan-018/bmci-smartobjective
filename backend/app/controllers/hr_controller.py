@@ -62,10 +62,13 @@ async def import_objectives_excel(
 @router.post("/analyze-batch")
 def analyze_batch(
     objective_ids: List[str] = Body(default=[]),
+    force: bool = False,
     current_user: dict = Depends(ai_rate_limited_user),
 ):
-    """Analyse batch d'objectifs RH (SMART + alignement) en streaming SSE (quota IA)."""
-    generator = hr_service.build_batch_generator(objective_ids, current_user)
+    """Analyse batch d'objectifs RH (SMART + alignement) en streaming SSE (quota IA).
+
+    `force=true` : ré-analyse TOUS les objectifs HR (régénère les analyses existantes)."""
+    generator = hr_service.build_batch_generator(objective_ids, current_user, force=force)
     return StreamingResponse(generator(), media_type="text/event-stream")
 
 

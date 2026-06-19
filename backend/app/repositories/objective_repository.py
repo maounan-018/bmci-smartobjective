@@ -155,3 +155,13 @@ def list_hr_by_ids(db: Session, obj_ids: Sequence[str]) -> List[Objective]:
         or_(Objective.data_scope == "HR", Objective.import_batch_id.like("obj-%")),
     )
     return list(db.scalars(stmt).all())
+
+
+def list_hr_all(db: Session, limit: int = 500) -> List[Objective]:
+    """TOUS les objectifs RH (pour une ré-analyse forcée), bornés."""
+    stmt = (
+        select(Objective)
+        .where(or_(Objective.data_scope == "HR", Objective.import_batch_id.like("obj-%")))
+        .limit(limit)
+    )
+    return list(db.scalars(stmt).all())
