@@ -15,16 +15,20 @@ DEPENDANCES
     pip install pypdf
 
 USAGE
-    python pdf_en_projet.py                  # _pdf_export/ -> _code_reconstruit/
-    python pdf_en_projet.py <src_pdf> <dest> # dossiers personnalises
+    python pdf_en_projet.py                       # _pdf_export/ -> _code_reconstruit/
+    python pdf_en_projet.py _pdf_export.zip        # depuis un ZIP directement
+    python pdf_en_projet.py <src_pdf|zip> <dest>   # source + destination
 
-    Sur VS Code : dezippe l'archive de PDF, ouvre un terminal dans le dossier,
-    puis lance cette commande : tout le code reapparait dans _code_reconstruit/.
+    Sur VS Code : depose l'archive .zip, ouvre un terminal, puis lance
+    `python pdf_en_projet.py mon_archive.zip` : tout le code reapparait dans
+    _code_reconstruit/ (l'archive n'a meme pas besoin d'etre dezippee).
 """
 
 import hashlib
+import io
 import os
 import sys
+import zipfile
 
 try:
     from pypdf import PdfReader
@@ -60,55 +64,66 @@ def safe_relpath(rel: str) -> str:
     return os.path.join(*parts) if parts else ""
 
 
+def iter_pdfs(src: str):
+    """Produit (label, octets_pdf) depuis un dossier OU une archive .zip."""
+    if os.path.isfile(src) and src.lower().endswith(".zip"):
+        with zipfile.ZipFile(src) as zf:
+            for info in zf.infolist():
+                if info.filename.lower().endswith(".pdf"):
+                    yield info.filename, zf.read(info)
+    elif os.path.isdir(src):
+        for dirpath, _dirs, files in os.walk(src):
+            for name in files:
+                if name.lower().endswith(".pdf"):
+                    full = os.path.join(dirpath, name)
+                    with open(full, "rb") as f:
+                        yield os.path.relpath(full, src), f.read()
+
+
 def main():
-    if not os.path.isdir(SRC):
-        print(f"[ERREUR] Dossier de PDF introuvable : {SRC}")
+    is_zip = os.path.isfile(SRC) and SRC.lower().endswith(".zip")
+    if not is_zip and not os.path.isdir(SRC):
+        print(f"[ERREUR] Source introuvable (dossier ou .zip) : {SRC}")
         return 1
 
     print("=" * 60)
     print("  PDF -> Projet (reconstruction du code)")
-    print(f"  Source : {SRC}")
+    print(f"  Source : {SRC}" + ("  [ZIP]" if is_zip else ""))
     print(f"  Sortie : {DEST}")
     print("=" * 60)
 
     done = failed = 0
-    for dirpath, _dirs, files in os.walk(SRC):
-        for name in files:
-            if not name.lower().endswith(".pdf"):
-                continue
-            pdf_path = os.path.join(dirpath, name)
-            try:
-                reader = PdfReader(pdf_path)
-                meta = reader.metadata or {}
+    for label, pdf_bytes in iter_pdfs(SRC):
+        try:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            meta = reader.metadata or {}
 
-                # Chemin relatif : metadonnee si presente, sinon deduit du nom du PDF.
-                rel = meta.get(META_PATH_KEY)
-                if not rel:
-                    rel = os.path.relpath(pdf_path, SRC)
-                    if rel.lower().endswith(".pdf"):
-                        rel = rel[:-4]
-                rel = safe_relpath(rel)
-                if not rel:
-                    raise ValueError("chemin relatif vide")
+            # Chemin relatif : metadonnee si presente, sinon deduit du nom du PDF.
+            rel = meta.get(META_PATH_KEY)
+            if not rel:
+                rel = label[:-4] if label.lower().endswith(".pdf") else label
+            rel = safe_relpath(rel)
+            if not rel:
+                raise ValueError("chemin relatif vide")
 
-                data = extract_attachment(reader)
-                if data is None:
-                    raise ValueError("aucune piece jointe (PDF non genere par projet_en_pdf.py ?)")
+            data = extract_attachment(reader)
+            if data is None:
+                raise ValueError("aucune piece jointe (PDF non genere par projet_en_pdf.py ?)")
 
-                # Verification d'integrite si le sha256 a ete stocke.
-                expected = meta.get(META_SHA_KEY)
-                if expected and hashlib.sha256(data).hexdigest() != expected:
-                    raise ValueError("sha256 different -> fichier corrompu")
+            # Verification d'integrite si le sha256 a ete stocke.
+            expected = meta.get(META_SHA_KEY)
+            if expected and hashlib.sha256(data).hexdigest() != expected:
+                raise ValueError("sha256 different -> fichier corrompu")
 
-                dest = os.path.join(DEST, rel)
-                os.makedirs(os.path.dirname(dest) or DEST, exist_ok=True)
-                with open(dest, "wb") as f:
-                    f.write(data)
-                done += 1
-                print(f"  [OK ] {rel}")
-            except Exception as e:
-                failed += 1
-                print(f"  [ERR] {name} -> {e}")
+            dest = os.path.join(DEST, rel)
+            os.makedirs(os.path.dirname(dest) or DEST, exist_ok=True)
+            with open(dest, "wb") as f:
+                f.write(data)
+            done += 1
+            print(f"  [OK ] {rel}")
+        except Exception as e:
+            failed += 1
+            print(f"  [ERR] {label} -> {e}")
 
     print("=" * 60)
     print(f"  Termine : {done} fichiers reconstruits, {failed} en echec.")

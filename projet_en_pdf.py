@@ -27,6 +27,7 @@ import hashlib
 import io
 import os
 import sys
+import zipfile
 
 try:
     from reportlab.lib.pagesizes import A4
@@ -164,10 +165,25 @@ def main():
             skipped += 1
             print(f"  [ERR ] {rel} -> {e}")
 
+    # --- Archive ZIP complete (arborescence des PDF preservee a l'identique) ---
+    zip_path = OUT + ".zip"
+    zipped = 0
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for dirpath, _dirs, files in os.walk(OUT):
+            for name in files:
+                if not name.lower().endswith(".pdf"):
+                    continue
+                full = os.path.join(dirpath, name)
+                arcname = os.path.relpath(full, OUT).replace("\\", "/")
+                zf.write(full, arcname)
+                zipped += 1
+
     print("=" * 60)
     print(f"  Termine : {done} PDF generes, {skipped} ignores.")
-    print(f"  -> Zippe le dossier '{os.path.basename(OUT)}' ; pour revenir au code :")
-    print("     python pdf_en_projet.py")
+    print(f"  Dossier PDF : {OUT}")
+    print(f"  Archive ZIP : {zip_path}  ({zipped} PDF, arborescence intacte)")
+    print("  -> Pour revenir au code (accepte le dossier OU le zip) :")
+    print(f"     python pdf_en_projet.py \"{zip_path}\"")
     print("=" * 60)
     return 0
 
