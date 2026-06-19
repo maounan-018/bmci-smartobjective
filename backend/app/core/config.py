@@ -51,9 +51,11 @@ class Settings:
         # Intelligence artificielle (Ollama)
         self.OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
         self.OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "smart-qwen8")
-        # Modele du Coach IA conversationnel (chat). Defaut = meme modele que
-        # l'analyse ; mettre OLLAMA_CHAT_MODEL=qwen3:8b pour un ton plus naturel.
-        self.OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", self.OLLAMA_MODEL)
+        # Modele du Coach IA conversationnel (chat). Defaut = qwen3:8b (modele de
+        # base : contexte large ~40k tokens, ton naturel) plutot que smart-qwen8,
+        # specialise pour des sorties JSON SMART et limite a 4096 tokens (l'historique
+        # du chat y serait tronque silencieusement).
+        self.OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "qwen3:8b")
         # Nombre d'essais d'appel au modele : il renvoie parfois {} (vide) ou du
         # texte non parsable ; un reessai evite l'analyse degradee "tout faux, sans
         # reformulation". 1 = aucun reessai (cf. ai_service.call_ollama).
@@ -66,6 +68,11 @@ class Settings:
         # Dimension des vecteurs du modele d'embedding (fixe le schema de la table
         # vec0). Doit correspondre au modele ci-dessus : bge-m3 = 1024.
         self.RAG_EMBEDDING_DIM = int(os.getenv("RAG_EMBEDDING_DIM", "1024"))
+        # Seuil de pertinence du RAG : au-dela de cette distance (L2, bge-m3) un
+        # passage est juge hors-sujet et ecarte -> le Coach repond SANS contexte
+        # plutot que d'injecter un passage non pertinent qui le ferait divaguer.
+        # Calibre sur bge-m3 : on-topic <= ~24, hors-sujet >= ~30 ; 28 = marge sure.
+        self.RAG_MAX_DISTANCE = float(os.getenv("RAG_MAX_DISTANCE", "28"))
 
         # KPI RH (seuils du tableau de bord, réglables sans toucher au code).
         self.KPI_SMART_THRESHOLD = int(os.getenv("KPI_SMART_THRESHOLD", "80"))        # objectif "conforme"

@@ -38,3 +38,6 @@ class ChatResponse(BaseModel):
     ready: bool = False
     final_objective: Optional[str] = None
     current_step: Optional[str] = None
+    # Revalidation SMART de l'objectif final par le pipeline d'analyse (S/M/A/R/T,
+    # overall, issues...) : présent uniquement quand un objectif final est produit.
+    smart_validation: Optional[dict] = None
