@@ -12,8 +12,10 @@ OBJECTIF
         reconstruction parfaite (au bit pres), l'extraction de texte d'un PDF
         etant elle-meme imprecise (indentation, caracteres speciaux).
 
-    L'arborescence est reproduite dans le dossier de sortie : main.py ->
-    _pdf_export/.../main.py.pdf. Le dossier de sortie ne contient que des .pdf.
+    L'arborescence est reproduite dans le dossier de sortie. L'extension d'origine
+    est REMPLACEE par .pdf (pas ajoutee) : backend/app/main.py -> backend/app/main.pdf
+    (et non main.py.pdf). Pour que l'operation inverse reste possible, un fichier
+    _MANIFESTE_PDF.txt note la correspondance « pdf -> fichier d'origine ».
 
 DEPENDANCES
     pip install reportlab pypdf      (deja dans requirements.txt du projet)
@@ -57,6 +59,7 @@ MAX_BYTES = 5 * 1024 * 1024  # on saute les fichiers > 5 Mo (rare en code source
 META_PATH_KEY = "/OsaRelPath"
 META_SHA_KEY = "/OsaSha256"
 ATTACH_NAME = "source.bin"  # nom de la piece jointe (octets originaux)
+MANIFEST_NAME = "_MANIFESTE_PDF.txt"  # correspondance pdf -> fichier d'origine (reversible)
 
 
 def is_binary(data: bytes) -> bool:
@@ -132,6 +135,24 @@ def iter_files(root: str):
             yield os.path.join(dirpath, name)
 
 
+def pdf_output_relpath(rel: str, used: set) -> str:
+    """Chemin du PDF de sortie : extension d'origine REMPLACEE par .pdf (pas ajoutee).
+
+    Ex : backend/app/main.py -> backend/app/main.pdf
+    En cas de collision dans un meme dossier (app.py + app.js -> app.pdf), on
+    suffixe (_2, _3...). La correspondance exacte est de toute facon consignee
+    dans le manifeste, donc l'operation inverse reste fidele.
+    """
+    base, _ext = os.path.splitext(rel)
+    candidate = base + ".pdf"
+    n = 2
+    while candidate.replace("\\", "/").lower() in used:
+        candidate = f"{base}_{n}.pdf"
+        n += 1
+    used.add(candidate.replace("\\", "/").lower())
+    return candidate
+
+
 def main():
     if not os.path.isdir(ROOT):
         print(f"[ERREUR] Dossier source introuvable : {ROOT}")
@@ -144,6 +165,8 @@ def main():
     print("=" * 60)
 
     done = skipped = 0
+    used: set = set()          # noms de PDF deja utilises (anti-collision)
+    manifest: list = []        # (pdf_relpath, fichier_origine_relpath)
     for path in iter_files(ROOT):
         rel = os.path.relpath(path, ROOT)
         try:
@@ -155,33 +178,46 @@ def main():
             with open(path, "rb") as f:
                 data = f.read()
             pdf_bytes = make_pdf(rel, data)
-            dest = os.path.join(OUT, rel + ".pdf")
+            pdf_rel = pdf_output_relpath(rel, used)   # extension REMPLACEE par .pdf
+            dest = os.path.join(OUT, pdf_rel)
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             with open(dest, "wb") as f:
                 f.write(pdf_bytes)
+            manifest.append((pdf_rel.replace("\\", "/"), rel.replace("\\", "/")))
             done += 1
-            print(f"  [PDF ] {rel}")
+            print(f"  [PDF ] {rel}  ->  {pdf_rel}")
         except Exception as e:
             skipped += 1
             print(f"  [ERR ] {rel} -> {e}")
 
-    # --- Archive ZIP complete (arborescence des PDF preservee a l'identique) ---
+    # --- Manifeste : correspondance PDF -> fichier d'origine (operation inverse) ---
+    manifest_path = os.path.join(OUT, MANIFEST_NAME)
+    with open(manifest_path, "w", encoding="utf-8") as mf:
+        mf.write("# Manifeste genere par projet_en_pdf.py — NE PAS SUPPRIMER / MODIFIER.\n")
+        mf.write("# Relu par pdf_en_projet.py pour restaurer les noms et extensions d'origine.\n")
+        mf.write("# Format (tabulation) : <pdf_relpath>\\t<fichier_origine_relpath>\n")
+        for pdf_rel, orig_rel in manifest:
+            mf.write(f"{pdf_rel}\t{orig_rel}\n")
+
+    # --- Archive ZIP (PDF + manifeste, arborescence preservee a l'identique) ---
     zip_path = OUT + ".zip"
     zipped = 0
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for dirpath, _dirs, files in os.walk(OUT):
             for name in files:
-                if not name.lower().endswith(".pdf"):
+                if not (name.lower().endswith(".pdf") or name == MANIFEST_NAME):
                     continue
                 full = os.path.join(dirpath, name)
                 arcname = os.path.relpath(full, OUT).replace("\\", "/")
                 zf.write(full, arcname)
-                zipped += 1
+                if name.lower().endswith(".pdf"):
+                    zipped += 1
 
     print("=" * 60)
     print(f"  Termine : {done} PDF generes, {skipped} ignores.")
     print(f"  Dossier PDF : {OUT}")
-    print(f"  Archive ZIP : {zip_path}  ({zipped} PDF, arborescence intacte)")
+    print(f"  Manifeste   : {manifest_path}")
+    print(f"  Archive ZIP : {zip_path}  ({zipped} PDF + manifeste, arborescence intacte)")
     print("  -> Pour revenir au code (accepte le dossier OU le zip) :")
     print(f"     python pdf_en_projet.py \"{zip_path}\"")
     print("=" * 60)

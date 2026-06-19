@@ -8,8 +8,9 @@ OBJECTIF
     embarquee dans chaque PDF (les octets exacts du fichier), pas du texte
     affiche : on ne « relit » donc jamais du texte deforme.
 
-    Pour chaque PDF : on lit le chemin relatif (metadonnee), on extrait la piece
-    jointe (octets originaux), on verifie le sha256, puis on ecrit le fichier.
+    Le nom/extension d'origine est restaure depuis le MANIFESTE (_MANIFESTE_PDF.txt)
+    genere a l'aller ; a defaut, depuis la metadonnee du PDF. Les octets viennent
+    de la piece jointe, et le sha256 est verifie.
 
 DEPENDANCES
     pip install pypdf
@@ -43,6 +44,34 @@ DEST = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else os.path.join(HERE,
 
 META_PATH_KEY = "/OsaRelPath"
 META_SHA_KEY = "/OsaSha256"
+MANIFEST_NAME = "_MANIFESTE_PDF.txt"
+
+
+def load_manifest(src: str) -> dict:
+    """Lit le manifeste (pdf_relpath -> fichier d'origine), depuis un dossier OU un .zip."""
+    raw = None
+    try:
+        if os.path.isfile(src) and src.lower().endswith(".zip"):
+            with zipfile.ZipFile(src) as zf:
+                for info in zf.infolist():
+                    if os.path.basename(info.filename) == MANIFEST_NAME:
+                        raw = zf.read(info).decode("utf-8", "replace")
+                        break
+        elif os.path.isdir(src):
+            p = os.path.join(src, MANIFEST_NAME)
+            if os.path.isfile(p):
+                with open(p, encoding="utf-8") as f:
+                    raw = f.read()
+    except Exception:
+        raw = None
+
+    mapping = {}
+    for line in (raw or "").splitlines():
+        if not line or line.startswith("#") or "\t" not in line:
+            continue
+        pdf_rel, orig_rel = line.split("\t", 1)
+        mapping[pdf_rel.strip().replace("\\", "/").lower()] = orig_rel.strip()
+    return mapping
 
 
 def extract_attachment(reader: PdfReader):
@@ -92,14 +121,20 @@ def main():
     print(f"  Sortie : {DEST}")
     print("=" * 60)
 
+    manifest = load_manifest(SRC)
+    if manifest:
+        print(f"  Manifeste : {len(manifest)} correspondance(s) chargee(s)")
+
     done = failed = 0
     for label, pdf_bytes in iter_pdfs(SRC):
         try:
             reader = PdfReader(io.BytesIO(pdf_bytes))
             meta = reader.metadata or {}
 
-            # Chemin relatif : metadonnee si presente, sinon deduit du nom du PDF.
-            rel = meta.get(META_PATH_KEY)
+            # Nom/extension d'origine : MANIFESTE d'abord, puis metadonnee du PDF,
+            # en dernier recours le nom du PDF (extension .pdf retiree).
+            key = label.replace("\\", "/").lower()
+            rel = manifest.get(key) or meta.get(META_PATH_KEY)
             if not rel:
                 rel = label[:-4] if label.lower().endswith(".pdf") else label
             rel = safe_relpath(rel)
