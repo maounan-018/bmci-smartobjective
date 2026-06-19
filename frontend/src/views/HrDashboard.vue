@@ -354,21 +354,43 @@ const hrModalAlignment = computed(() => parseJson(selectedHrAnalysis.value?.alig
 // Modaux : détail d'un objectif RH.
 const objModalSmart = computed(() => parseJson(selectedHRObjective.value?.smart_analysis));
 const objModalAlignment = computed(() => parseJson(selectedHRObjective.value?.alignment_analysis));
+const objModalConfidence = computed(() => {
+  const c = objModalSmart.value?.confidence;
+  return typeof c === 'number' ? c : null;
+});
 
-// E3 — « Objectifs à ajuster » : objectifs sous le seuil de conformité SMART.
-const detailsAdjustOnly = ref(false);
+// Filtres de la vue détails : E3 « à ajuster » (sous le seuil SMART) et
+// #2 « faible confiance IA » (le modèle s'est déclaré incertain -> relecture humaine).
+const detailsFilter = ref('all'); // 'all' | 'to-adjust' | 'low-confidence'
 const smartThreshold = computed(() => analytics.value?.thresholds?.smart ?? 80);
+const confidenceMin = computed(() => analytics.value?.thresholds?.ai_confidence_min ?? 0.6);
 const toAdjustCount = computed(() => {
   const r = analytics.value?.smart_rate;
   return r ? Math.max(0, (r.total || 0) - (r.ok || 0)) : 0;
 });
-const displayedObjectives = computed(() =>
-  detailsAdjustOnly.value
-    ? objectives.value.filter((o) => (o.smart_score ?? 0) < smartThreshold.value)
-    : objectives.value,
-);
+const lowConfidenceCount = computed(() => analytics.value?.low_confidence?.count ?? 0);
+
+// Confiance IA d'un objectif (0.0-1.0) ou null si non analysé.
+function objConfidence(o) {
+  const c = parseJson(o?.smart_analysis)?.confidence;
+  return typeof c === 'number' ? c : null;
+}
+const displayedObjectives = computed(() => {
+  if (detailsFilter.value === 'to-adjust')
+    return objectives.value.filter((o) => (o.smart_score ?? 0) < smartThreshold.value);
+  if (detailsFilter.value === 'low-confidence')
+    return objectives.value.filter((o) => {
+      const c = objConfidence(o);
+      return c !== null && c < confidenceMin.value;
+    });
+  return objectives.value;
+});
 function goToAdjust() {
-  detailsAdjustOnly.value = true;
+  detailsFilter.value = 'to-adjust';
+  view.value = 'details';
+}
+function goToLowConfidence() {
+  detailsFilter.value = 'low-confidence';
   view.value = 'details';
 }
 
@@ -421,6 +443,15 @@ function noDetailedAnalysis(analysisObj) {
                 <div class="text-3xl font-black text-amber-600">{{ selectedHRObjective.alignment_score?.toFixed(0) || 0 }}%</div>
                 <div class="text-sm text-amber-700 font-medium">Score Alignement</div>
               </div>
+            </div>
+
+            <!-- Confiance de l'IA (#2) : si faible, l'analyse est à relire par un humain. -->
+            <div v-if="objModalConfidence !== null" :class="['flex items-center justify-between gap-3 p-3 rounded-xl border text-sm', objModalConfidence < confidenceMin ? 'bg-violet-50 border-violet-200' : 'bg-slate-50 border-slate-200']">
+              <span class="font-semibold text-slate-700">Confiance de l'IA : {{ Math.round(objModalConfidence * 100) }}%</span>
+              <span v-if="objModalConfidence < confidenceMin" class="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-violet-600 text-white">
+                <Eye :size="14" /> À faire relire par un humain
+              </span>
+              <span v-else class="text-xs font-medium text-slate-500">Analyse fiable</span>
             </div>
 
             <div class="bg-white border rounded-xl p-4">
@@ -789,8 +820,8 @@ function noDetailedAnalysis(analysisObj) {
             </div>
           </div>
 
-          <!-- Taux conformes + objectifs à ajuster (E1 / E2 / E3 — seuils configurables) -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Taux conformes + à ajuster + faible confiance (E1 / E2 / E3 / #2 — seuils configurables) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div @click="goToAdjust" class="bg-gradient-to-br from-rose-50 to-red-50 p-5 rounded-xl border border-rose-200 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow">
               <div>
                 <p class="text-xs font-bold text-rose-700 uppercase">Objectifs à ajuster</p>
@@ -814,6 +845,14 @@ function noDetailedAnalysis(analysisObj) {
                 <p class="text-xs text-amber-600 mt-1">{{ analytics?.alignment_rate?.ok ?? 0 }} / {{ analytics?.alignment_rate?.total ?? 0 }} fortement alignés</p>
               </div>
               <Target :size="40" class="text-amber-400" />
+            </div>
+            <div @click="goToLowConfidence" class="bg-gradient-to-br from-violet-50 to-purple-50 p-5 rounded-xl border border-violet-200 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow">
+              <div>
+                <p class="text-xs font-bold text-violet-700 uppercase">Faible confiance IA</p>
+                <p class="text-4xl font-black text-violet-700 mt-1">{{ lowConfidenceCount }}</p>
+                <p class="text-xs text-violet-600 mt-1">à faire relire par un humain</p>
+              </div>
+              <Eye :size="40" class="text-violet-400" />
             </div>
           </div>
 
@@ -906,10 +945,15 @@ function noDetailedAnalysis(analysisObj) {
           <div class="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border">
             <Filter :size="16" class="text-slate-500" />
             <span class="text-sm font-bold text-slate-600 mr-2">Filtres :</span>
-            <button v-if="!detailsAdjustOnly" @click="detailsAdjustOnly = true" class="text-xs font-bold px-3 py-1 rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200">Objectifs à ajuster</button>
+            <button v-if="detailsFilter !== 'to-adjust'" @click="detailsFilter = 'to-adjust'" class="text-xs font-bold px-3 py-1 rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200">Objectifs à ajuster</button>
             <span v-else class="flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-rose-600 text-white">
               À ajuster ({{ displayedObjectives.length }})
-              <button @click="detailsAdjustOnly = false" class="hover:opacity-80">✕</button>
+              <button @click="detailsFilter = 'all'" class="hover:opacity-80">✕</button>
+            </span>
+            <button v-if="detailsFilter !== 'low-confidence'" @click="detailsFilter = 'low-confidence'" class="text-xs font-bold px-3 py-1 rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200">Faible confiance IA</button>
+            <span v-else class="flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-violet-600 text-white">
+              Faible confiance ({{ displayedObjectives.length }})
+              <button @click="detailsFilter = 'all'" class="hover:opacity-80">✕</button>
             </span>
           </div>
           <div class="overflow-x-auto">

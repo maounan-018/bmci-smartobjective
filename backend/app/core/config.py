@@ -71,6 +71,11 @@ class Settings:
         self.KPI_SMART_THRESHOLD = int(os.getenv("KPI_SMART_THRESHOLD", "80"))        # objectif "conforme"
         self.KPI_ALIGNMENT_STRONG = int(os.getenv("KPI_ALIGNMENT_STRONG", "75"))      # alignement "fort"
         self.KPI_AXIS_OVERCONCENTRATION = float(os.getenv("KPI_AXIS_OVERCONCENTRATION", "40"))  # % max sur un axe
+        # Confiance minimale de l'IA (0.0-1.0) en deçà de laquelle l'analyse est
+        # signalée pour RELECTURE HUMAINE. L'IA reste une aide à la décision : quand
+        # elle est elle-même incertaine (modèle indécis, défaut 0.5, ou échec 0.0),
+        # un humain doit valider. 0.6 capture incertitude réelle + défauts + échecs.
+        self.KPI_AI_CONFIDENCE_MIN = float(os.getenv("KPI_AI_CONFIDENCE_MIN", "0.6"))
 
         # Base de données
         self.DB_PATH = os.getenv("DATABASE_PATH", "objectifsmart.db")

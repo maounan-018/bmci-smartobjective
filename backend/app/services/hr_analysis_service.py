@@ -244,6 +244,29 @@ def _compute_axis_coverage(axes: list, objective_rows: list, over_threshold: flo
     }
 
 
+def _compute_low_confidence(objective_rows: list, threshold: float) -> dict:
+    """Analyses à FAIBLE CONFIANCE IA (#2) — à relire par un humain.
+
+    Compte les objectifs analysés dont le `confidence` du modèle (0.0-1.0) est
+    sous le seuil : le modèle s'est lui-même déclaré incertain (ou a échoué =>
+    confidence 0). L'IA est une aide à la décision : ces cas exigent une relecture.
+    """
+    count = 0
+    for o in objective_rows:
+        raw = o.get("smart_analysis")
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                raw = None
+        if not isinstance(raw, dict):
+            continue  # objectif non analysé -> hors périmètre relecture
+        conf = raw.get("confidence")
+        if isinstance(conf, (int, float)) and conf < threshold:
+            count += 1
+    return {"count": count, "threshold": threshold}
+
+
 def get_analytics(current_user: dict, entity=None, manager=None, period=None) -> dict:
     """Tableaux de bord analytiques RH (KPI V1 inclus : taux + couverture par axe)."""
     require_hr(current_user)
@@ -261,6 +284,10 @@ def get_analytics(current_user: dict, entity=None, manager=None, period=None) ->
     data["axis_coverage"] = _compute_axis_coverage(
         axes, objective_rows, settings.KPI_AXIS_OVERCONCENTRATION)
 
+    # Faible confiance IA (#2) : analyses à relire par un humain.
+    data["low_confidence"] = _compute_low_confidence(
+        objective_rows, settings.KPI_AI_CONFIDENCE_MIN)
+
     # Volumétrie (E5) : sur quel volume reposent les chiffres.
     g = data.get("global_stats", {}) or {}
     total = g.get("total", 0) or 0
@@ -272,6 +299,7 @@ def get_analytics(current_user: dict, entity=None, manager=None, period=None) ->
         "smart": settings.KPI_SMART_THRESHOLD,
         "alignment_strong": settings.KPI_ALIGNMENT_STRONG,
         "axis_over_concentration": settings.KPI_AXIS_OVERCONCENTRATION,
+        "ai_confidence_min": settings.KPI_AI_CONFIDENCE_MIN,
     }
 
     return data
