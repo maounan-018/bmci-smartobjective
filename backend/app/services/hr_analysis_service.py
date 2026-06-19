@@ -261,6 +261,13 @@ def get_analytics(current_user: dict, entity=None, manager=None, period=None) ->
     analyzed = g.get("analyzed", 0) or 0
     data["volumetry"] = {"total": total, "analyzed": analyzed, "not_analyzed": max(0, total - analyzed)}
 
+    # Seuils exposés au frontend (filtrage cohérent côté UI : « à ajuster » = < seuil SMART).
+    data["thresholds"] = {
+        "smart": settings.KPI_SMART_THRESHOLD,
+        "alignment_strong": settings.KPI_ALIGNMENT_STRONG,
+        "axis_over_concentration": settings.KPI_AXIS_OVERCONCENTRATION,
+    }
+
     return data
 
 

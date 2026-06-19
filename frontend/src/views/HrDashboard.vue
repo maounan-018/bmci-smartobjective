@@ -355,6 +355,23 @@ const hrModalAlignment = computed(() => parseJson(selectedHrAnalysis.value?.alig
 const objModalSmart = computed(() => parseJson(selectedHRObjective.value?.smart_analysis));
 const objModalAlignment = computed(() => parseJson(selectedHRObjective.value?.alignment_analysis));
 
+// E3 — « Objectifs à ajuster » : objectifs sous le seuil de conformité SMART.
+const detailsAdjustOnly = ref(false);
+const smartThreshold = computed(() => analytics.value?.thresholds?.smart ?? 80);
+const toAdjustCount = computed(() => {
+  const r = analytics.value?.smart_rate;
+  return r ? Math.max(0, (r.total || 0) - (r.ok || 0)) : 0;
+});
+const displayedObjectives = computed(() =>
+  detailsAdjustOnly.value
+    ? objectives.value.filter((o) => (o.smart_score ?? 0) < smartThreshold.value)
+    : objectives.value,
+);
+function goToAdjust() {
+  detailsAdjustOnly.value = true;
+  view.value = 'details';
+}
+
 function smartValid(analysisObj, item, key) {
   return analysisObj?.[key] || item?.[`${key.toLowerCase()}_score`];
 }
@@ -769,8 +786,16 @@ function noDetailedAnalysis(analysisObj) {
             </div>
           </div>
 
-          <!-- Taux conformes (E1 / E2 — seuils configurables) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Taux conformes + objectifs à ajuster (E1 / E2 / E3 — seuils configurables) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div @click="goToAdjust" class="bg-gradient-to-br from-rose-50 to-red-50 p-5 rounded-xl border border-rose-200 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow">
+              <div>
+                <p class="text-xs font-bold text-rose-700 uppercase">Objectifs à ajuster</p>
+                <p class="text-4xl font-black text-rose-700 mt-1">{{ toAdjustCount }}</p>
+                <p class="text-xs text-rose-600 mt-1">sous le seuil — cliquer pour voir la liste</p>
+              </div>
+              <AlertCircle :size="40" class="text-rose-400" />
+            </div>
             <div class="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-xl border border-emerald-200 flex items-center justify-between">
               <div>
                 <p class="text-xs font-bold text-emerald-700 uppercase">Taux d'objectifs SMART</p>
@@ -878,6 +903,11 @@ function noDetailedAnalysis(analysisObj) {
           <div class="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border">
             <Filter :size="16" class="text-slate-500" />
             <span class="text-sm font-bold text-slate-600 mr-2">Filtres :</span>
+            <button v-if="!detailsAdjustOnly" @click="detailsAdjustOnly = true" class="text-xs font-bold px-3 py-1 rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200">Objectifs à ajuster</button>
+            <span v-else class="flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-rose-600 text-white">
+              À ajuster ({{ displayedObjectives.length }})
+              <button @click="detailsAdjustOnly = false" class="hover:opacity-80">✕</button>
+            </span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
@@ -894,7 +924,7 @@ function noDetailedAnalysis(analysisObj) {
                 </tr>
               </thead>
               <tbody class="divide-y">
-                <tr v-for="obj in objectives" :key="obj.id" class="hover:bg-slate-50 cursor-pointer" @click="selectedHRObjective = obj">
+                <tr v-for="obj in displayedObjectives" :key="obj.id" class="hover:bg-slate-50 cursor-pointer" @click="selectedHRObjective = obj">
                   <td class="p-3 font-semibold">{{ obj.user_name || 'N/A' }}</td>
                   <td class="p-3 max-w-xs">
                     <p class="font-bold truncate">{{ obj.title }}</p>
