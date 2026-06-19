@@ -20,6 +20,12 @@ def _stub_coach(monkeypatch):
         ai_service, "call_ollama_chat",
         lambda messages, extra_context=None: "Bonjour ! Quel est votre objectif principal ?",
     )
+    # Revalidation SMART de l'objectif final neutralisée (sinon appel Ollama réel).
+    monkeypatch.setattr(
+        ai_service, "analyze_smart_internal",
+        lambda title, description="": {"S": True, "M": True, "A": True, "R": True,
+                                       "T": True, "overall": True, "confidence": 0.9, "issues": []},
+    )
 
 
 def _post(client, token, content="Je veux ameliorer la satisfaction client"):
@@ -73,3 +79,5 @@ def test_chat_coach_extracts_final_marker(client, make_user, auth_token, monkeyp
     assert "NPS" in data["final_objective"]
     # Le marqueur JSON ne doit pas rester dans le texte affiché.
     assert "final_objective" not in data["reply"]
+    # L'objectif final est revalidé par le pipeline SMART (présent dans la réponse).
+    assert data["smart_validation"] is not None and "overall" in data["smart_validation"]

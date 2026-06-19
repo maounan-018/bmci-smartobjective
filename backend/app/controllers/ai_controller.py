@@ -21,7 +21,8 @@ from app.controllers.dependencies import ai_rate_limited_user
 from app.schemas.analysis_schema import SmartRequest, AlignmentRequest
 from app.schemas.chat_schema import ChatRequest, ChatResponse
 from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal, run_chat_coach
-from app.services import excel_import_service, permission_service
+from app.services import excel_import_service, permission_service, audit_service
+from app.models.audit_log import AuditEventType
 
 router = APIRouter(prefix="/api", tags=["IA & Import"])
 
@@ -82,4 +83,19 @@ def chat_coach(request: ChatRequest, current_user: dict = Depends(ai_rate_limite
     connaissances (RAG) pour le contexte BMCI.
     """
     permission_service.require_role(current_user, ["MANAGER", "COLLAB"])
-    return run_chat_coach(request.messages)
+    response = run_chat_coach(request.messages)
+    # Traçabilité (conformité) : on journalise chaque tour de Coach — qui, quand, et
+    # l'objectif final produit le cas échéant — dans l'audit trail (no-throw, filtré).
+    detail = "Coach IA — tour de conversation"
+    if response.ready and response.final_objective:
+        detail += f" (objectif final : {response.final_objective})"
+    audit_service.log_event(
+        AuditEventType.AI_REQUEST_SENT,
+        description=detail,
+        user_id=current_user.get("id"),
+        username=current_user.get("username") or current_user.get("email"),
+        role=current_user.get("role"),
+        endpoint="/api/chat-coach",
+        http_method="POST",
+    )
+    return response
