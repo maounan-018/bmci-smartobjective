@@ -17,3 +17,7 @@ __pycache__/
 # Build frontend
 dist/
 .vite/
+
+# Sorties des outils PDF (projet_en_pdf.py / pdf_en_projet.py)
+_pdf_export/
+_code_reconstruit/
