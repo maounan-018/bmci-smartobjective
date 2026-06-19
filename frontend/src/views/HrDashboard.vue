@@ -769,6 +769,26 @@ function noDetailedAnalysis(analysisObj) {
             </div>
           </div>
 
+          <!-- Taux conformes (E1 / E2 — seuils configurables) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-xl border border-emerald-200 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-emerald-700 uppercase">Taux d'objectifs SMART</p>
+                <p class="text-4xl font-black text-emerald-700 mt-1">{{ analytics?.smart_rate?.rate ?? 0 }}%</p>
+                <p class="text-xs text-emerald-600 mt-1">{{ analytics?.smart_rate?.ok ?? 0 }} / {{ analytics?.smart_rate?.total ?? 0 }} objectifs conformes</p>
+              </div>
+              <CheckCircle2 :size="40" class="text-emerald-400" />
+            </div>
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-xl border border-amber-200 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-amber-700 uppercase">Alignement stratégique fort</p>
+                <p class="text-4xl font-black text-amber-700 mt-1">{{ analytics?.alignment_rate?.rate ?? 0 }}%</p>
+                <p class="text-xs text-amber-600 mt-1">{{ analytics?.alignment_rate?.ok ?? 0 }} / {{ analytics?.alignment_rate?.total ?? 0 }} fortement alignés</p>
+              </div>
+              <Target :size="40" class="text-amber-400" />
+            </div>
+          </div>
+
           <!-- Graphiques -->
           <div class="grid lg:grid-cols-2 gap-8">
             <div class="bg-slate-50/50 p-6 rounded-xl border h-full">
@@ -825,6 +845,31 @@ function noDetailedAnalysis(analysisObj) {
                 </table>
               </div>
             </div>
+          </div>
+
+          <!-- Couverture stratégique par axe (E4) -->
+          <div class="bg-slate-50/50 p-6 rounded-xl border">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-slate-800">Couverture stratégique par axe</h3>
+              <span class="text-xs text-slate-400">{{ analytics?.axis_coverage?.total_aligned ?? 0 }} objectif(s) rattaché(s)</span>
+            </div>
+            <div v-if="!analytics?.axis_coverage?.axes?.length" class="text-sm text-slate-400 text-center py-6">Aucun axe stratégique défini.</div>
+            <div v-else class="space-y-3">
+              <div v-for="ax in analytics.axis_coverage.axes" :key="ax.axis_id">
+                <div class="flex items-center justify-between text-sm mb-1 gap-2">
+                  <span class="font-semibold text-slate-700 truncate">{{ ax.axis_title }}</span>
+                  <span class="flex items-center gap-2 shrink-0">
+                    <span v-if="ax.orphan" class="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">Orphelin</span>
+                    <span v-if="ax.over_concentrated" class="text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-700">Sur-concentré</span>
+                    <span class="text-slate-500">{{ ax.count }} · {{ ax.share_pct }}%</span>
+                  </span>
+                </div>
+                <div class="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full" :class="ax.over_concentrated ? 'bg-red-500' : (ax.orphan ? 'bg-slate-300' : 'bg-emerald-500')" :style="{ width: (ax.orphan ? 2 : Math.max(ax.share_pct, 2)) + '%' }"></div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400 mt-3">Sur-concentration au-delà de {{ analytics?.axis_coverage?.over_concentration_threshold ?? 40 }}% des objectifs sur un seul axe.</p>
           </div>
         </div>
 

@@ -340,6 +340,30 @@ def distinct_values(db: Session, column: str) -> List[str]:
     return [r[0] for r in db.execute(sql).all()]
 
 
+def hr_score_rate(db: Session, score_col: str, threshold: float,
+                  entity=None, manager=None, period=None) -> dict:
+    """Taux d'objectifs dont le score atteint le seuil (E1 SMART / E2 alignement fort).
+
+    Renvoie {total, ok, rate} où rate = % d'objectifs analysés dont le score >= seuil.
+    `score_col` est validé contre une liste blanche (jamais d'entrée utilisateur en SQL).
+    """
+    if score_col not in {"smart_score", "alignment_score"}:
+        raise ValueError(f"Colonne de score non autorisée: {score_col}")
+    where, p = _hr_filters(entity, manager, period)
+    p = dict(p)
+    p["thr"] = threshold
+    sql = text(f"""
+        SELECT COUNT(*) AS total,
+               COUNT(CASE WHEN r.{score_col} >= :thr THEN 1 END) AS ok
+        FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
+        WHERE {where}
+    """)
+    row = db.execute(sql, p).mappings().first() or {}
+    total = int(row.get("total") or 0)
+    ok = int(row.get("ok") or 0)
+    return {"total": total, "ok": ok, "rate": round(ok / total * 100, 1) if total else 0.0}
+
+
 # ============================================================================
 # LISTE DÉTAILLÉE + EXPORTS RH
 # ============================================================================

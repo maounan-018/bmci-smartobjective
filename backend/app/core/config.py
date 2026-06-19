@@ -67,6 +67,11 @@ class Settings:
         # vec0). Doit correspondre au modele ci-dessus : bge-m3 = 1024.
         self.RAG_EMBEDDING_DIM = int(os.getenv("RAG_EMBEDDING_DIM", "1024"))
 
+        # KPI RH (seuils du tableau de bord, réglables sans toucher au code).
+        self.KPI_SMART_THRESHOLD = int(os.getenv("KPI_SMART_THRESHOLD", "80"))        # objectif "conforme"
+        self.KPI_ALIGNMENT_STRONG = int(os.getenv("KPI_ALIGNMENT_STRONG", "75"))      # alignement "fort"
+        self.KPI_AXIS_OVERCONCENTRATION = float(os.getenv("KPI_AXIS_OVERCONCENTRATION", "40"))  # % max sur un axe
+
         # Base de données
         self.DB_PATH = os.getenv("DATABASE_PATH", "objectifsmart.db")
 

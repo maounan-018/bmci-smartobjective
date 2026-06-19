@@ -27,6 +27,7 @@ from app.repositories import (
 from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
 from app.utils.helpers import smart_flags_score, smart_values
 from app.services.hr_common import require_hr
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -191,11 +192,76 @@ def build_batch_generator(objective_ids: List[str], current_user: dict):
 
 # ============= ANALYTICS / DÉTAILS / HISTORIQUE =============
 
+def _compute_axis_coverage(axes: list, objective_rows: list, over_threshold: float) -> dict:
+    """Couverture stratégique par axe (E4).
+
+    Chaque objectif est rattaché à son axe PRINCIPAL (le top_match le mieux noté).
+    On compte les objectifs par axe, on calcule la part (%), et on signale les axes
+    ORPHELINS (0 objectif) et SUR-CONCENTRÉS (part > seuil).
+    """
+    counts = {str(a["id"]): 0 for a in axes}
+    titles = {str(a["id"]): (a.get("title") or str(a["id"])) for a in axes}
+    total_aligned = 0
+
+    for o in objective_rows:
+        raw = o.get("alignment_analysis")
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                raw = None
+        if not isinstance(raw, dict):
+            continue
+        matches = [m for m in (raw.get("top_matches") or [])
+                   if isinstance(m, dict) and m.get("objective_id") is not None]
+        if not matches:
+            continue
+        primary = max(matches, key=lambda m: m.get("score") or 0)
+        axis_id = str(primary.get("objective_id"))
+        if axis_id in counts:
+            counts[axis_id] += 1
+            total_aligned += 1
+
+    coverage = []
+    for aid, cnt in counts.items():
+        share = round(cnt / total_aligned * 100, 1) if total_aligned else 0.0
+        coverage.append({
+            "axis_id": aid, "axis_title": titles.get(aid, aid),
+            "count": cnt, "share_pct": share,
+            "orphan": cnt == 0, "over_concentrated": share > over_threshold,
+        })
+    coverage.sort(key=lambda x: x["count"], reverse=True)
+    return {
+        "axes": coverage,
+        "total_aligned": total_aligned,
+        "over_concentration_threshold": over_threshold,
+    }
+
+
 def get_analytics(current_user: dict, entity=None, manager=None, period=None) -> dict:
-    """Tableaux de bord analytiques RH."""
+    """Tableaux de bord analytiques RH (KPI V1 inclus : taux + couverture par axe)."""
     require_hr(current_user)
     with db_session() as db:
-        return analysis_repository.hr_analytics(db, entity, manager, period)
+        data = analysis_repository.hr_analytics(db, entity, manager, period)
+        # Taux SMART conforme (E1) et alignement fort (E2) — seuils configurables.
+        data["smart_rate"] = analysis_repository.hr_score_rate(
+            db, "smart_score", settings.KPI_SMART_THRESHOLD, entity, manager, period)
+        data["alignment_rate"] = analysis_repository.hr_score_rate(
+            db, "alignment_score", settings.KPI_ALIGNMENT_STRONG, entity, manager, period)
+        # Couverture stratégique par axe (E4) : axes + objectifs (avec alignement).
+        axes = company_objective_repository.list_for_alignment(db)
+        objective_rows = analysis_repository.hr_objectives_details(db, entity, manager, period)
+
+    data["axis_coverage"] = _compute_axis_coverage(
+        axes, objective_rows, settings.KPI_AXIS_OVERCONCENTRATION)
+
+    # Volumétrie (E5) : sur quel volume reposent les chiffres.
+    g = data.get("global_stats", {}) or {}
+    total = g.get("total", 0) or 0
+    analyzed = g.get("analyzed", 0) or 0
+    data["volumetry"] = {"total": total, "analyzed": analyzed, "not_analyzed": max(0, total - analyzed)}
+
+    return data
 
 
 def get_objectives_details(
