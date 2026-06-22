@@ -37,8 +37,8 @@ try:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, KeepTogether
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
     PDF_SUPPORT = True
 except Exception as e:  # pragma: no cover
     PDF_SUPPORT = False
@@ -550,7 +550,6 @@ def generate_hr_comex_pdf(data, paragraphs, synthesis, period_label="Campagne en
     cover_sub = ParagraphStyle("ComexCoverSub", parent=styles["Normal"], fontSize=12, textColor=SLATE,
                                alignment=TA_CENTER)
 
-    g = data.get("global_stats", {}) or {}
     avg = data.get("avg_scores", {}) or {}
     sr = data.get("smart_rate", {}) or {}
     vol = data.get("volumetry", {}) or {}
