@@ -6,7 +6,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { ApiService } from '@/services/apiService';
-import { Line, Bar, Pie } from 'vue-chartjs';
+import { Bar, Pie } from 'vue-chartjs';
 import {
   Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale,
   LinearScale, PointElement, LineElement, ArcElement,
@@ -290,26 +290,8 @@ function parseJson(value) {
 }
 
 // ============ DONNÉES DES GRAPHIQUES (vue-chartjs) ============
-const lineChartData = computed(() => ({
-  labels: (analytics.value?.smart_evolution || []).map(d => d.month),
-  datasets: [
-    {
-      label: 'Score SMART',
-      data: (analytics.value?.smart_evolution || []).map(d => d.avg_smart),
-      borderColor: '#059669', backgroundColor: '#059669', tension: 0.3,
-    },
-    {
-      label: 'Alignement',
-      data: (analytics.value?.alignment_evolution || []).map(d => d.avg_alignment),
-      borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3,
-    },
-  ],
-}));
-const lineChartOptions = {
-  responsive: true, maintainAspectRatio: false,
-  scales: { y: { min: 0, max: 100, ticks: { callback: v => `${v}%` } } },
-};
-
+// Pas de graphique d'évolution dans le temps (choix métier : l'outil aide à la
+// décision, il ne suit/compare pas les personnes ni les périodes).
 const blockingChartData = computed(() => ({
   labels: (analytics.value?.blocking_points || []).map(d => d.criteria),
   datasets: [{
@@ -856,12 +838,8 @@ function noDetailedAnalysis(analysisObj) {
             </div>
           </div>
 
-          <!-- Graphiques -->
-          <div class="grid lg:grid-cols-2 gap-8">
-            <div class="bg-slate-50/50 p-6 rounded-xl border h-full">
-              <h3 class="font-bold text-slate-800 mb-4">Évolution des Scores Mensuels</h3>
-              <div class="h-[250px]"><Line :data="lineChartData" :options="lineChartOptions" /></div>
-            </div>
+          <!-- Graphiques (aucune comparaison entre personnes ni dans le temps) -->
+          <div class="grid grid-cols-1 gap-8">
             <div class="bg-slate-50/50 p-6 rounded-xl border h-full">
               <h3 class="font-bold text-slate-800 mb-4">Top 5 Points Bloquants (Critères SMART)</h3>
               <div class="h-[250px]"><Bar :data="blockingChartData" :options="blockingChartOptions" /></div>
@@ -875,42 +853,6 @@ function noDetailedAnalysis(analysisObj) {
             <div class="bg-slate-50/50 p-6 rounded-xl border h-full">
               <h3 class="font-bold text-slate-800 mb-4">Répartition Score SMART</h3>
               <div class="h-[200px]"><Pie :data="smartPieData" :options="pieOptions" /></div>
-            </div>
-          </div>
-
-          <!-- Tableaux comparatifs -->
-          <div class="grid lg:grid-cols-2 gap-8">
-            <div class="bg-slate-50/50 p-6 rounded-xl border">
-              <h3 class="font-bold text-slate-800 mb-4">Comparaison par Entité</h3>
-              <div class="max-h-60 overflow-y-auto">
-                <table class="w-full text-sm text-left">
-                  <thead><tr class="text-xs text-slate-500 border-b"><th class="pb-2">Entity</th><th class="pb-2 text-center">SMART</th><th class="pb-2 text-center">Alignement</th><th class="pb-2 text-center">Nb Obj.</th></tr></thead>
-                  <tbody class="divide-y divide-slate-200">
-                    <tr v-for="(item, i) in analytics?.entity_comparison" :key="i">
-                      <td class="py-2 font-semibold truncate max-w-xs">{{ item.entity }}</td>
-                      <td class="py-2 text-center font-bold text-emerald-700">{{ item.avg_smart?.toFixed(0) }}%</td>
-                      <td class="py-2 text-center font-bold text-amber-700">{{ item.avg_alignment?.toFixed(0) }}%</td>
-                      <td class="py-2 text-center text-slate-500">{{ item.count }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div class="bg-slate-50/50 p-6 rounded-xl border">
-              <h3 class="font-bold text-slate-800 mb-4">Comparaison par Manager</h3>
-              <div class="max-h-60 overflow-y-auto">
-                <table class="w-full text-sm text-left">
-                  <thead><tr class="text-xs text-slate-500 border-b"><th class="pb-2">Manager</th><th class="pb-2 text-center">SMART</th><th class="pb-2 text-center">Alignement</th><th class="pb-2 text-center">Nb Obj.</th></tr></thead>
-                  <tbody class="divide-y divide-slate-200">
-                    <tr v-for="(item, i) in analytics?.manager_comparison" :key="i">
-                      <td class="py-2 font-semibold truncate max-w-xs">{{ item.manager }}</td>
-                      <td class="py-2 text-center font-bold text-emerald-700">{{ item.avg_smart?.toFixed(0) }}%</td>
-                      <td class="py-2 text-center font-bold text-amber-700">{{ item.avg_alignment?.toFixed(0) }}%</td>
-                      <td class="py-2 text-center text-slate-500">{{ item.count }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
 
