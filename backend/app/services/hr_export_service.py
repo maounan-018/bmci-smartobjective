@@ -91,10 +91,10 @@ def export_pdf(current_user: dict, entity=None, manager=None, period=None):
                      f"{len(orphans)} axe(s) orphelin(s), {len(over)} axe(s) sur-concentre(s).",
     }
 
-    # Un paragraphe observationnel par indicateur (repli factuel géré côté rendu).
-    paragraphs = {k: ai_service.comex_paragraph(k, v) for k, v in facts.items()}
-    synthesis = ai_service.comex_synthesis(" ".join(
-        facts[k] for k in ("analyzed", "smart_rate", "avg_alignment", "to_adjust", "low_confidence", "coverage")))
+    # UN SEUL appel IA (constats par indicateur + synthèse) ; repli factuel côté rendu.
+    report = ai_service.comex_report(facts)
+    paragraphs = report.get("paragraphs", {})
+    synthesis = report.get("synthesis", "")
 
     period_label = period or "Campagne en cours"
     return export_service.generate_hr_comex_pdf(data, paragraphs, synthesis, period_label)
