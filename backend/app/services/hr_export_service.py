@@ -40,11 +40,18 @@ def export_excel(current_user: dict, entity=None, manager=None, period=None):
 
 
 def export_pdf(current_user: dict, entity=None, manager=None, period=None):
-    """Construit le rapport PDF synthétique RH."""
+    """Construit le rapport PDF Direction / COMEX (KPI GLOBAUX, front-loaded).
+
+    Réutilise les agrégats déjà calculés pour le tableau de bord RH
+    (hr_analysis_service.get_analytics : taux SMART, par critère, couverture par
+    axe, distributions...) et les restitue via comex_report_service.
+    """
     require_hr(current_user)
+    # Import local : évite tout souci d'ordre d'import entre services.
+    from app.services import hr_analysis_service, comex_report_service
+    analytics = hr_analysis_service.get_analytics(current_user, entity, manager, period)
+    # Lignes d'objectifs : nécessaires à la heatmap entité × axe du rapport.
     with db_session() as db:
-        objectives = analysis_repository.hr_export_pdf_rows(db, entity, manager, period)
-        total = analysis_repository.hr_count_objectives(db, entity, manager, period)
-        smart_count = analysis_repository.hr_pdf_smart_count(db, entity, manager, period)
-        avg_alignment = analysis_repository.hr_pdf_avg_alignment(db, entity, manager, period)
-    return export_service.generate_hr_pdf(objectives, total, smart_count, avg_alignment)
+        objective_rows = analysis_repository.hr_objectives_details(db, entity, manager, period)
+    meta = {"period": period or "Toutes périodes"}
+    return comex_report_service.generate(analytics, objective_rows, meta)

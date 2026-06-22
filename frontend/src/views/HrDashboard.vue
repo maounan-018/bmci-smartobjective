@@ -15,7 +15,7 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue';
 import {
   ShieldCheck, Upload, Download, ChevronRight, Loader2, Target, Users, BarChart3,
   CheckCircle2, AlertCircle, TrendingUp, FileSpreadsheet, Sparkles, RefreshCw, Eye,
-  Filter, FileCheck2, History,
+  Filter, FileCheck2, History, FileText,
 } from 'lucide-vue-next';
 
 // Enregistrement des éléments Chart.js nécessaires.
@@ -214,7 +214,7 @@ async function handleExport(format) {
       const a = document.createElement('a');
       a.href = url;
       const date = new Date().toISOString().split('T')[0];
-      a.download = format === 'excel' ? `Rapport_RH_BMCI_${date}.xlsx` : `Rapport_RH_BMCI_${date}.pdf`;
+      a.download = format === 'excel' ? `Rapport_RH_BMCI_${date}.xlsx` : `Rapport_COMEX_BMCI_${date}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -634,8 +634,8 @@ function noDetailedAnalysis(analysisObj) {
               Exporter
             </button>
             <div v-if="showExportMenu" class="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-50 min-w-[160px]">
-              <button @click="handleExport('excel')" class="w-full px-4 py-3 text-left text-sm hover:bg-emerald-50 flex items-center gap-2 text-slate-700"><FileSpreadsheet :size="16" class="text-emerald-600" />Export Excel</button>
-              <button @click="handleExport('pdf')" class="w-full px-4 py-3 text-left text-sm hover:bg-red-50 flex items-center gap-2 text-slate-700 border-t border-slate-100"><FileSpreadsheet :size="16" class="text-red-600" />Export PDF</button>
+              <button @click="handleExport('excel')" class="w-full px-4 py-3 text-left text-sm hover:bg-emerald-50 flex items-center gap-2 text-slate-700"><FileSpreadsheet :size="16" class="text-emerald-600" />Export Excel (détaillé)</button>
+              <button @click="handleExport('pdf')" class="w-full px-4 py-3 text-left text-sm hover:bg-red-50 flex items-center gap-2 text-slate-700 border-t border-slate-100"><FileText :size="16" class="text-red-600" />Rapport COMEX (PDF)</button>
             </div>
           </div>
           <button @click="loadData" class="p-3 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50" title="Rafraîchir"><RefreshCw :size="18" /></button>
