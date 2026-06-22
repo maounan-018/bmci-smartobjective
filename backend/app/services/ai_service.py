@@ -606,3 +606,65 @@ def run_chat_coach(messages: List[ChatMessage]) -> ChatResponse:
         current_step=_coach_step(messages, ready),
         smart_validation=smart_validation,
     )
+
+
+# ============= RAPPORT COMEX : PARAGRAPHES OBSERVATIONNELS =============
+# Génère des constats EN TEXTE LIBRE pour le rapport Direction/COMEX. Règles dures
+# (banque + demande explicite) : aucun jugement de valeur, aucune personne nommée,
+# aucune comparaison (entre personnes, entités ou dans le temps). Le modèle ne
+# reçoit QUE des chiffres agrégés -> il ne PEUT PAS juger ou nommer quelqu'un.
+# Si le modèle est indisponible, on renvoie "" : l'appelant fournit un repli
+# factuel, donc le PDF se génère toujours.
+
+_COMEX_SYSTEM = """Tu es analyste RH. Tu rédiges des CONSTATS OBSERVATIONNELS pour un comité de direction (COMEX) d'une banque, à partir de chiffres agrégés.
+
+RÈGLES ABSOLUES :
+- AUCUN jugement de valeur : jamais de mots comme « bon », « mauvais », « faible niveau », « préoccupant », « satisfaisant », « insuffisant ».
+- AUCUNE personne, AUCUN manager, AUCUNE entité nommée. AUCUN classement de personnes.
+- AUCUNE comparaison dans le temps (pas de « en hausse », « par rapport à l'an dernier »).
+- AUCUNE recommandation de sanction.
+- Tu DÉCRIS uniquement les faits chiffrés fournis. Tu peux situer une valeur par rapport à une cible chiffrée donnée (fait objectif), sans la qualifier.
+- Style : 2 à 3 phrases sobres, en français, au présent. Pas de titre, pas de puces."""
+
+
+def _comex_generate(prompt: str) -> str:
+    """Texte libre observationnel via Ollama. Retourne '' si indisponible (repli appelant)."""
+    try:
+        resp = requests.post(
+            settings.OLLAMA_URL,
+            json={
+                "model": settings.OLLAMA_MODEL,
+                "system": _COMEX_SYSTEM,
+                "prompt": f"/no_think\n{prompt}",
+                "stream": False,
+                "options": {"temperature": settings.AI_TEMPERATURE, "seed": settings.AI_SEED},
+            },
+            timeout=600,
+        )
+        resp.raise_for_status()
+        text = (resp.json().get("response") or "").strip()
+        text = _THINK_RE.sub("", text)
+        text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+        return text
+    except Exception as e:  # modèle absent/lent : l'appelant gère le repli factuel
+        logger.warning("Paragraphe COMEX IA indisponible: %s", e)
+        return ""
+
+
+def comex_paragraph(topic: str, facts: str) -> str:
+    """Constat observationnel pour UN indicateur (ou '' si modèle indisponible)."""
+    return _comex_generate(
+        f"Indicateur : {topic}\n"
+        f"Chiffres agrégés : {facts}\n"
+        f"Rédige le constat observationnel (2-3 phrases)."
+    )
+
+
+def comex_synthesis(facts: str) -> str:
+    """Synthèse générale observationnelle de la campagne (ou '' si indisponible)."""
+    return _comex_generate(
+        "Indicateurs agrégés de la campagne :\n"
+        f"{facts}\n"
+        "Rédige une synthèse générale observationnelle de 4 à 6 phrases, "
+        "strictement factuelle, sans jugement ni comparaison."
+    )
