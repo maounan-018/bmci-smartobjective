@@ -606,3 +606,87 @@ def run_chat_coach(messages: List[ChatMessage]) -> ChatResponse:
         current_step=_coach_step(messages, ready),
         smart_validation=smart_validation,
     )
+
+
+# ============= RAPPORT COMEX : PARAGRAPHES OBSERVATIONNELS =============
+# Génère des constats EN TEXTE LIBRE pour le rapport Direction/COMEX. Règles dures
+# (banque + demande explicite) : aucun jugement de valeur, aucune personne nommée,
+# aucune comparaison (entre personnes, entités ou dans le temps). Le modèle ne
+# reçoit QUE des chiffres agrégés -> il ne PEUT PAS juger ou nommer quelqu'un.
+# Si le modèle est indisponible, on renvoie "" : l'appelant fournit un repli
+# factuel, donc le PDF se génère toujours.
+
+_COMEX_SYSTEM = """Tu es analyste RH. Tu rédiges des CONSTATS OBSERVATIONNELS pour un comité de direction (COMEX) d'une banque, à partir de chiffres agrégés.
+
+RÈGLES ABSOLUES :
+- AUCUN jugement de valeur : jamais de mots comme « bon », « mauvais », « faible niveau », « préoccupant », « satisfaisant », « insuffisant ».
+- AUCUNE personne, AUCUN manager, AUCUNE entité nommée. AUCUN classement de personnes.
+- AUCUNE comparaison dans le temps (pas de « en hausse », « par rapport à l'an dernier »).
+- AUCUNE recommandation de sanction.
+- Tu DÉCRIS uniquement les faits chiffrés fournis. Tu peux situer une valeur par rapport à une cible chiffrée donnée (fait objectif), sans la qualifier.
+- Style : 2 à 3 phrases sobres, en français, au présent. Pas de titre, pas de puces."""
+
+
+def _comex_generate(prompt: str, want_json: bool = False, timeout: int = 120) -> str:
+    """Texte observationnel via Ollama. Retourne '' si indisponible (repli appelant).
+
+    Le `timeout` est BORNÉ (défaut 120 s) : un modèle lent ou bloqué ne doit jamais
+    figer la génération du rapport — le repli factuel prend alors le relais.
+    """
+    payload = {
+        "model": settings.OLLAMA_MODEL,
+        "system": _COMEX_SYSTEM,
+        "prompt": f"/no_think\n{prompt}",
+        "stream": False,
+        "options": {"temperature": settings.AI_TEMPERATURE, "seed": settings.AI_SEED},
+    }
+    if want_json:
+        payload["format"] = "json"
+    try:
+        resp = requests.post(settings.OLLAMA_URL, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        text = (resp.json().get("response") or "").strip()
+        text = _THINK_RE.sub("", text)
+        text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+        return text
+    except Exception as e:  # modèle absent/lent : l'appelant gère le repli factuel
+        logger.warning("Texte COMEX IA indisponible: %s", e)
+        return ""
+
+
+def comex_report(facts: dict) -> dict:
+    """UN SEUL appel IA : un constat observationnel par indicateur + une synthèse.
+
+    Remplace les ~10 appels séquentiels (trop lents, risque de timeout en prod) par
+    un unique appel renvoyant du JSON. Reçoit UNIQUEMENT des chiffres AGRÉGÉS et
+    ANONYMES (impossible de nommer/juger une personne). Retourne
+    {"paragraphs": {clé: constat}, "synthesis": texte} ; dict vide si indisponible
+    ou JSON invalide → l'appelant utilise alors son repli factuel.
+    """
+    if not isinstance(facts, dict) or not facts:
+        return {}
+    lignes = "\n".join(f"- {k} : {v}" for k, v in facts.items())
+    prompt = (
+        "Pour CHAQUE indicateur ci-dessous, rédige un constat observationnel de 2 à 3 "
+        "phrases. Rédige aussi une synthèse générale de 4 à 6 phrases.\n"
+        "Réponds STRICTEMENT par un objet JSON, sans texte autour, de la forme :\n"
+        '{"paragraphs": {"<clé_indicateur>": "<constat>"}, "synthesis": "<synthèse>"}\n'
+        "Utilise EXACTEMENT les mêmes clés d'indicateur que ci-dessous.\n\n"
+        f"Indicateurs (chiffres agrégés, anonymes) :\n{lignes}"
+    )
+    raw = _comex_generate(prompt, want_json=True)
+    if not raw:
+        return {}
+    try:
+        data = extract_json_from_text(raw)
+    except Exception as e:
+        logger.warning("Rapport COMEX IA : JSON invalide (%s)", e)
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    paras = data.get("paragraphs")
+    syn = data.get("synthesis")
+    return {
+        "paragraphs": {str(k): str(v) for k, v in paras.items()} if isinstance(paras, dict) else {},
+        "synthesis": str(syn) if isinstance(syn, str) else "",
+    }

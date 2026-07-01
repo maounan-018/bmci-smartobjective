@@ -38,7 +38,7 @@ try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import cm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
     PDF_SUPPORT = True
 except Exception as e:  # pragma: no cover
     PDF_SUPPORT = False
@@ -508,6 +508,236 @@ def generate_hr_pdf(objectives, total, smart_count, avg_alignment) -> StreamingR
     doc.build(elements)
     output.seek(0)
     filename = f"Rapport_RH_BMCI_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _esc(s) -> str:
+    """Échappe le texte destiné à un Paragraph reportlab (XML)."""
+    return str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def generate_hr_comex_pdf(data, paragraphs, synthesis, period_label="Campagne en cours") -> StreamingResponse:
+    """Rapport COMEX (Direction) : photo de la campagne, KPI + paragraphes
+    observationnels. AUCUNE comparaison (personnes, entités, périodes), AUCUN nom.
+
+    `data` = agrégats de hr_analysis_service.get_analytics.
+    `paragraphs` = dict clé->texte IA observationnel (repli factuel si vide).
+    `synthesis` = synthèse générale IA (repli factuel si vide).
+    """
+    if not PDF_SUPPORT:
+        raise HTTPException(status_code=500, detail="reportlab non installé. Exécutez: pip install reportlab")
+
+    EMERALD = colors.HexColor("#059669")
+    SLATE = colors.HexColor("#334155")
+    GREY = colors.HexColor("#64748b")
+    LIGHT = colors.HexColor("#f1f5f9")
+    ROSE = colors.HexColor("#e11d48")
+    VIOLET = colors.HexColor("#7c3aed")
+
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("ComexH1", parent=styles["Heading1"], fontSize=16, textColor=EMERALD, spaceAfter=1)
+    h1sub = ParagraphStyle("ComexH1sub", parent=styles["Normal"], fontSize=9, textColor=GREY, spaceAfter=10)
+    kpilbl = ParagraphStyle("ComexLbl", parent=styles["Normal"], fontSize=9, textColor=GREY, spaceAfter=3)
+    body = ParagraphStyle("ComexBody", parent=styles["Normal"], fontSize=9.5, textColor=SLATE,
+                          leading=13, alignment=TA_JUSTIFY, spaceAfter=4)
+    small = ParagraphStyle("ComexSmall", parent=styles["Normal"], fontSize=8, textColor=GREY)
+    cover_title = ParagraphStyle("ComexCover", parent=styles["Heading1"], fontSize=22, textColor=EMERALD,
+                                 alignment=TA_CENTER, leading=26)
+    cover_sub = ParagraphStyle("ComexCoverSub", parent=styles["Normal"], fontSize=12, textColor=SLATE,
+                               alignment=TA_CENTER)
+
+    avg = data.get("avg_scores", {}) or {}
+    sr = data.get("smart_rate", {}) or {}
+    vol = data.get("volumetry", {}) or {}
+    lc = data.get("low_confidence", {}) or {}
+    cov = data.get("axis_coverage", {}) or {}
+    thr = data.get("thresholds", {}) or {}
+    axes = cov.get("axes") or []
+
+    def pctv(x):
+        return f"{round(x or 0)}%"
+
+    to_adjust = max(0, (sr.get("total", 0) or 0) - (sr.get("ok", 0) or 0))
+    orphans = len([a for a in axes if a.get("orphan")])
+    over = len([a for a in axes if a.get("over_concentrated")])
+
+    def para(key, fallback):
+        txt = (paragraphs or {}).get(key) or ""
+        return Paragraph(_esc(txt or fallback), body)
+
+    def kpi_cell(num, label, key, fallback, color=SLATE):
+        numstyle = ParagraphStyle(f"num_{key}", parent=styles["Normal"], fontSize=21,
+                                  textColor=color, leading=23)
+        return [Paragraph(_esc(num), numstyle), Paragraph(_esc(label), kpilbl),
+                para(key, fallback)]
+
+    def table(rows, widths, header=EMERALD):
+        t = Table(rows, colWidths=widths)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), header),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        return t
+
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm,
+                            topMargin=2 * cm, bottomMargin=2 * cm)
+    elements = []
+
+    # ===== PAGE 1 — Couverture =====
+    elements.append(Spacer(1, 4.5 * cm))
+    elements.append(Paragraph("Rapport de pilotage des objectifs", cover_title))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(Paragraph("Synthèse SMART &amp; alignement stratégique — Direction / COMEX", cover_sub))
+    elements.append(Spacer(1, 1.2 * cm))
+    cover = Table([
+        ["Période", period_label],
+        ["Périmètre", "Groupe BMCI"],
+        ["Édité le", datetime.now().strftime("%d/%m/%Y")],
+        ["Préparé par", "Direction des Ressources Humaines"],
+    ], colWidths=[5 * cm, 9 * cm])
+    cover.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 11),
+        ("TEXTCOLOR", (0, 0), (0, -1), GREY),
+        ("TEXTCOLOR", (1, 0), (1, -1), SLATE),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#e2e8f0")),
+    ]))
+    elements.append(cover)
+    elements.append(Spacer(1, 1.5 * cm))
+    elements.append(Paragraph(
+        "Confidentiel — diffusion restreinte. Document d'aide à la décision : "
+        "les décisions restent prises par les personnes habilitées.", small))
+    elements.append(PageBreak())
+
+    # ===== PAGE 2 — Vue d'ensemble =====
+    elements.append(Paragraph("1. Vue d'ensemble", h1))
+    elements.append(Paragraph("État de la campagne — indicateurs clés", h1sub))
+    c = [
+        kpi_cell(f"{vol.get('analyzed', 0)} / {vol.get('total', 0)}", "Objectifs analysés", "analyzed",
+                 f"{vol.get('analyzed', 0)} objectifs ont été analysés sur {vol.get('total', 0)} importés."),
+        kpi_cell(pctv(sr.get("rate")), f"Taux d'objectifs SMART (cible {thr.get('smart', 80)}%)", "smart_rate",
+                 f"{sr.get('ok', 0)} objectifs sur {sr.get('total', 0)} atteignent le seuil de conformité SMART.", EMERALD),
+        kpi_cell(pctv(avg.get("avg_smart")), "Score SMART moyen", "avg_smart",
+                 f"Le score SMART moyen s'établit à {pctv(avg.get('avg_smart'))}."),
+        kpi_cell(pctv(avg.get("avg_alignment")), "Alignement stratégique moyen", "avg_alignment",
+                 f"L'alignement stratégique moyen s'établit à {pctv(avg.get('avg_alignment'))}."),
+        kpi_cell(to_adjust, "Objectifs à ajuster", "to_adjust",
+                 f"{to_adjust} objectifs se situent sous le seuil de conformité SMART.", ROSE),
+        kpi_cell(lc.get("count", 0), "Analyses à faible confiance IA", "low_confidence",
+                 f"{lc.get('count', 0)} analyses présentent une confiance IA inférieure à "
+                 f"{thr.get('ai_confidence_min', 0.6)} et appellent une relecture humaine.", VIOLET),
+    ]
+    grid = Table([[c[0], c[1]], [c[2], c[3]], [c[4], c[5]]], colWidths=[8.4 * cm, 8.4 * cm])
+    grid.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+    ]))
+    elements.append(grid)
+    elements.append(PageBreak())
+
+    # ===== PAGE 3 — Qualité SMART =====
+    elements.append(Paragraph("2. Qualité SMART", h1))
+    elements.append(Paragraph("Conformité des objectifs aux 5 critères", h1sub))
+    fails = {}
+    for bp in (data.get("blocking_points") or []):
+        crit = (bp.get("criteria") or "")
+        fails[crit[:1].upper()] = int(bp.get("failures") or 0)
+    rows = [["Critère", "Taux de conformité", "Objectifs en échec"]]
+    for label, key in [("S — Spécifique", "avg_s"), ("M — Mesurable", "avg_m"), ("A — Atteignable", "avg_a"),
+                       ("R — Réaliste", "avg_r"), ("T — Temporel", "avg_t")]:
+        rows.append([label, pctv((avg.get(key) or 0) * 100), str(fails.get(label[0], 0))])
+    elements.append(table(rows, [7 * cm, 5 * cm, 4.6 * cm]))
+    elements.append(Spacer(1, 0.4 * cm))
+    sd = data.get("smart_distribution") or []
+    if sd:
+        elements.append(Paragraph("Répartition des scores SMART", kpilbl))
+        elements.append(table([["Niveau", "Objectifs"]] + [[d.get("level", ""), str(d.get("count", 0))] for d in sd],
+                              [11.6 * cm, 5 * cm]))
+        elements.append(Spacer(1, 0.4 * cm))
+    top = max(fails, key=fails.get) if fails else None
+    elements.append(para("quality",
+                         f"Le critère le plus souvent non satisfait est « {top} » avec {fails.get(top, 0)} objectifs en échec."
+                         if top else "Les cinq critères SMART sont évalués sur l'ensemble des objectifs analysés."))
+    elements.append(PageBreak())
+
+    # ===== PAGE 4 — Alignement & couverture stratégique =====
+    elements.append(Paragraph("3. Alignement &amp; couverture stratégique", h1))
+    elements.append(Paragraph("Répartition des objectifs sur les axes stratégiques", h1sub))
+    rows = [["Axe stratégique", "Objectifs", "Part (%)", "Signal"]]
+    for ax in axes:
+        signal = "Orphelin" if ax.get("orphan") else ("Sur-concentré" if ax.get("over_concentrated") else "—")
+        rows.append([ax.get("axis_title", ""), str(ax.get("count", 0)), f"{ax.get('share_pct', 0)}%", signal])
+    elements.append(table(rows, [8.6 * cm, 2.6 * cm, 2.6 * cm, 2.8 * cm]))
+    elements.append(Spacer(1, 0.4 * cm))
+    ad = data.get("alignment_distribution") or []
+    if ad:
+        elements.append(Paragraph("Niveaux d'alignement", kpilbl))
+        elements.append(table([["Niveau", "Objectifs"]] + [[d.get("level", ""), str(d.get("count", 0))] for d in ad],
+                              [11.6 * cm, 5 * cm]))
+        elements.append(Spacer(1, 0.4 * cm))
+    elements.append(para("coverage",
+                         f"Les objectifs analysés se répartissent sur {len([a for a in axes if a.get('count')])} axe(s) ; "
+                         f"le seuil de sur-concentration est fixé à {thr.get('axis_over_concentration', 40)}%."))
+    elements.append(PageBreak())
+
+    # ===== PAGE 5 — Points d'attention =====
+    elements.append(Paragraph("4. Points d'attention", h1))
+    elements.append(Paragraph("Signaux à surveiller — formulés en constats factuels", h1sub))
+    elements.append(table([
+        ["Signal", "Valeur"],
+        ["Objectifs à ajuster", str(to_adjust)],
+        ["Analyses à faible confiance IA", str(lc.get("count", 0))],
+        ["Axes stratégiques orphelins", str(orphans)],
+        ["Axes sur-concentrés", str(over)],
+    ], [11.6 * cm, 5 * cm]))
+    elements.append(Spacer(1, 0.4 * cm))
+    elements.append(para("attention",
+                         f"{to_adjust} objectifs sont à ajuster, {lc.get('count', 0)} analyses appellent une "
+                         f"relecture humaine, et {orphans} axe(s) stratégique(s) ne reçoivent aucun objectif."))
+    elements.append(PageBreak())
+
+    # ===== PAGE 6 — Synthèse générale + annexes =====
+    elements.append(Paragraph("5. Synthèse générale", h1))
+    fallback_syn = (
+        f"Sur {vol.get('total', 0)} objectifs importés, {vol.get('analyzed', 0)} ont été analysés. "
+        f"Le taux d'objectifs SMART atteint {pctv(sr.get('rate'))} (cible {thr.get('smart', 80)}%) "
+        f"et l'alignement moyen {pctv(avg.get('avg_alignment'))}. "
+        f"{to_adjust} objectifs sont à ajuster et {lc.get('count', 0)} analyses appellent une relecture humaine.")
+    elements.append(Paragraph(_esc(synthesis or fallback_syn), body))
+    elements.append(Spacer(1, 0.7 * cm))
+    elements.append(Paragraph("Annexes — disponibles sur demande auprès de la RH", h1sub))
+    for a in [
+        "Liste détaillée des objectifs à ajuster (sans KPI, sans échéance, flous, désalignés).",
+        "Propositions de reformulation IA (avant / après), soumises à validation humaine.",
+        "Méthodologie de calcul des scores SMART et d'alignement, et seuils appliqués.",
+    ]:
+        elements.append(Paragraph(f"• {a}", small))
+        elements.append(Spacer(1, 0.15 * cm))
+    elements.append(Spacer(1, 0.7 * cm))
+    elements.append(Paragraph(
+        "Confidentiel — diffusion restreinte · Éléments fournis à titre d'aide à la décision.", small))
+
+    doc.build(elements)
+    output.seek(0)
+    filename = f"Rapport_COMEX_BMCI_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return StreamingResponse(
         output,
         media_type="application/pdf",
