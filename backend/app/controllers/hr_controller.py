@@ -15,6 +15,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, UploadFile, File, Body
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 from app.controllers.auth_controller import get_current_user
 from app.controllers.dependencies import ai_rate_limited_user
@@ -46,7 +47,9 @@ async def import_strategy_excel(
 ):
     """Import Excel des objectifs stratégiques."""
     content = await file.read()
-    return hr_service.import_strategy(file.filename, content, current_user)
+    # Travail bloquant (parsing + hachages PBKDF2 + DB) déporté dans un threadpool :
+    # sinon la boucle asyncio est monopolisée et TOUT le serveur gèle pendant l'import.
+    return await run_in_threadpool(hr_service.import_strategy, file.filename, content, current_user)
 
 
 @router.post("/import-objectives")
@@ -56,7 +59,9 @@ async def import_objectives_excel(
 ):
     """Import Excel des objectifs collaborateurs (crée les comptes manquants)."""
     content = await file.read()
-    return hr_service.import_objectives(file.filename, content, current_user)
+    # Travail bloquant (parsing + hachages PBKDF2 + DB) déporté dans un threadpool :
+    # sinon la boucle asyncio est monopolisée et TOUT le serveur gèle pendant l'import.
+    return await run_in_threadpool(hr_service.import_objectives, file.filename, content, current_user)
 
 
 @router.post("/analyze-batch")
