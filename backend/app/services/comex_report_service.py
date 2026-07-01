@@ -362,7 +362,7 @@ def _derive(a):
         "smart_rate": round(float(sr.get("rate") or 0)), "smart_ok": smart_ok,
         "avg_smart": round(float(avg.get("avg_smart") or 0)),
         "avg_align": round(float(avg.get("avg_alignment") or 0)),
-        "a_ajuster": max(0, analyzed - smart_ok),
+        "a_ajuster": max(0, int(sr.get("total") or 0) - smart_ok),
         "sans_kpi": fmap.get("M - Mesurable", 0), "sans_echeance": fmap.get("T - Temporel", 0),
         "flous": fmap.get("S - Spécifique", 0),
         "worst": bp[0].get("criteria") if bp else "—",
@@ -375,6 +375,8 @@ def _derive(a):
         "total_aligned": int(ac.get("total_aligned") or 0),
         "over_threshold": ac.get("over_concentration_threshold") or 40,
         "low_confidence": int((a.get("low_confidence") or {}).get("count") or 0),
+        "validated": int((a.get("global_stats") or {}).get("validated") or 0),
+        "align_rate": round(float((a.get("alignment_rate") or {}).get("rate") or 0)),
         "smart_thr": smart_thr, "faible_align": faible,
         "alignment_distribution": a.get("alignment_distribution") or [],
         "entities": ent, "managers": mgr,
@@ -428,12 +430,18 @@ def _p_synthese(d):
             f"{d['analyzed']} objectifs analysés sur {d['total']} importés ({pct} %). "
             f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %). "
             f"Critère le plus souvent non validé : {d['worst']}.")
-    _kpi_row(f, [(f"{d['smart_rate']} %", "Taux d'objectifs SMART", None, d["smart_rate"] >= d["smart_thr"], "◎"),
-                 (f"{d['avg_align']} %", "Alignement stratégique moyen", None, d["avg_align"] >= 60, "◆"),
-                 (f"{d['covered']}/{d['naxes']}", "Axes stratégiques couverts", None, not d["orphans"], "◇")], y=0.770)
-    _kpi_row(f, [(f"{d['analyzed']}", f"Objectifs analysés (sur {d['total']})", None, True, "▤"),
-                 (f"{d['a_ajuster']}", "Objectifs à ajuster", None, d["a_ajuster"] == 0, "!"),
-                 (f"{d['low_confidence']}", "Faible confiance IA", None, d["low_confidence"] == 0, "?")], y=0.672)
+    # Les 8 KPI EXACTEMENT identiques au tableau de bord RH (même source get_analytics,
+    # mêmes libellés, mêmes valeurs) : le rapport COMEX = photo fidèle du dashboard.
+    _kpi_row(f, [(f"{d['analyzed']} / {d['total']}", "Objectifs analysés", None, True, "▤"),
+                 (f"{d['avg_smart']} %", "Score SMART moyen", None, d["avg_smart"] >= 70, "★"),
+                 (f"{d['avg_align']} %", "Alignement moyen", None, d["avg_align"] >= 60, "◆"),
+                 (f"{d['validated']}", "Objectifs validés", None, True, "●")],
+             y=0.775, w=0.218, gap=0.012)
+    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", None, d["a_ajuster"] == 0, "!"),
+                 (f"{d['smart_rate']} %", "Taux d'objectifs SMART", None, d["smart_rate"] >= d["smart_thr"], "◎"),
+                 (f"{d['align_rate']} %", "Alignement stratégique fort", None, d["align_rate"] >= 50, "◇"),
+                 (f"{d['low_confidence']}", "Faible confiance IA", None, d["low_confidence"] == 0, "?")],
+             y=0.672, w=0.218, gap=0.012)
     fr = _text_card(f, (0.045, 0.075, 0.91, 0.520), "3 points d'attention (constats factuels)", RED)
     pts = []
     if d["worst"] != "—":
