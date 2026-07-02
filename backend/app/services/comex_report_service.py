@@ -25,6 +25,7 @@ EMPLACEMENT MVC
 import io
 import json
 import logging
+import textwrap
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -72,13 +73,16 @@ except Exception as e:  # pragma: no cover
 # ===========================================================================
 # Primitives graphiques (portées des maquettes ; signatures inchangées)
 # ===========================================================================
-def _card_ax(fig, rect, title=None, title_color=None):
+def _card_ax(fig, rect, title=None, title_color=None, left=0.07):
+    """Carte blanche + axes internes. `left` = marge gauche interne (fraction de la
+    largeur) : à augmenter quand le graphique a des libellés d'axe Y longs, sinon
+    ils débordent hors de la page."""
     x, y, w, h = rect
-    for k, a in ((0.014, 0.05), (0.009, 0.06), (0.004, 0.07)):
-        sh = fig.add_axes([x + 0.0016, y - k, w, h])
-        sh.axis("off")
-        sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
-                     boxstyle="round,pad=0.005,rounding_size=0.05", fc="#1f2733", ec="none", alpha=a))
+    # Ombre douce unique (évite l'effet « escalier / griffe » de l'ancien empilement).
+    sh = fig.add_axes([x + 0.002, y - 0.006, w, h])
+    sh.axis("off")
+    sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
+                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#0f172a", ec="none", alpha=0.06))
     fr = fig.add_axes([x, y, w, h])
     fr.axis("off")
     fr.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=fr.transAxes,
@@ -89,28 +93,41 @@ def _card_ax(fig, rect, title=None, title_color=None):
         fr.text(0.075, 0.93, title, transform=fr.transAxes, fontsize=9.5,
                 fontweight="bold", color=title_color or INK, va="center")
     pad_top = 0.17 if title else 0.06
-    inner = fig.add_axes([x + w * 0.07, y + h * 0.10, w * 0.86, h * (0.92 - pad_top - 0.06)])
+    right = 0.06
+    inner = fig.add_axes([x + w * left, y + h * 0.10, w * (1 - left - right), h * (0.92 - pad_top - 0.06)])
     inner.set_facecolor(CARD)
     return inner
 
 
-def _kpi_card(fig, rect, value, label, delta=None, good=True, icon=""):
+# Tonalités des cartes KPI (fond, bordure, couleur du chiffre, couleur icône) —
+# alignées sur la palette du tableau de bord RH web.
+_TONES = {
+    "neutral": ("#f1f5f9", "#e2e8f0", "#0f766e", "#94a3b8"),
+    "emerald": ("#ecfdf5", "#a7f3d0", "#047857", "#34d399"),
+    "rose":    ("#fff1f2", "#fecdd3", "#be123c", "#fb7185"),
+    "amber":   ("#fffbeb", "#fde68a", "#b45309", "#f59e0b"),
+    "violet":  ("#f5f3ff", "#ddd6fe", "#6d28d9", "#a78bfa"),
+}
+
+
+def _kpi_card(fig, rect, value, label, tone="neutral", icon=""):
+    """Carte KPI colorée, plate (sans ombre empilée ni barre d'accent saillante)."""
     x, y, w, h = rect
+    bg, border, valcol, iconcol = _TONES.get(tone, _TONES["neutral"])
     ax = fig.add_axes([x, y, w, h])
     ax.axis("off")
-    for k, a in ((0.012, 0.05), (0.006, 0.07)):
-        ax.add_patch(FancyBboxPatch((0.004, -k + 0.004), 0.992, 0.992, transform=ax.transAxes,
-                     boxstyle="round,pad=0.005,rounding_size=0.10", fc="#1f2733", ec="none", alpha=a))
+    ax.add_patch(FancyBboxPatch((0.01, -0.015), 0.98, 0.985, transform=ax.transAxes,
+                 boxstyle="round,pad=0.006,rounding_size=0.12", fc="#0f172a", ec="none", alpha=0.05))
     ax.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=ax.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.10", fc=CARD, ec=CARD_BORDER, lw=1.1))
-    ax.add_patch(FancyBboxPatch((0.0, 0.10), 0.022, 0.80, transform=ax.transAxes,
-                 boxstyle="round,pad=0,rounding_size=0.2", fc=GREEN if good else RED, ec="none"))
-    ax.text(0.10, 0.68, str(value), transform=ax.transAxes, fontsize=21,
-            fontweight="bold", color=INK, va="center")
+                 boxstyle="round,pad=0.006,rounding_size=0.12", fc=bg, ec=border, lw=1.2))
+    ax.text(0.085, 0.63, str(value), transform=ax.transAxes, fontsize=19,
+            fontweight="bold", color=valcol, va="center")
     if icon:
-        ax.add_patch(plt.Circle((0.90, 0.71), 0.085, transform=ax.transAxes, fc="#eef2f7", ec="none"))
-        ax.text(0.90, 0.71, icon, transform=ax.transAxes, fontsize=11, color=MUTED, va="center", ha="center")
-    ax.text(0.10, 0.30, label, transform=ax.transAxes, fontsize=8.0, color=MUTED, va="center", wrap=True)
+        ax.text(0.90, 0.68, icon, transform=ax.transAxes, fontsize=10.5,
+                color=iconcol, va="center", ha="center")
+    for j, ln in enumerate(textwrap.wrap(label, 24)[:2]):
+        ax.text(0.085, 0.27 - j * 0.155, ln, transform=ax.transAxes,
+                fontsize=7.3, color="#475569", va="center")
     return ax
 
 
@@ -274,11 +291,10 @@ def _new_panel(title, subtitle=""):
 
 def _text_card(fig, rect, title=None, tcolor=None):
     x, y, w, h = rect
-    for k, a in ((0.012, 0.05), (0.007, 0.06), (0.003, 0.07)):
-        sh = fig.add_axes([x + 0.0014, y - k, w, h])
-        sh.axis("off")
-        sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
-                     boxstyle="round,pad=0.005,rounding_size=0.05", fc="#1f2733", ec="none", alpha=a))
+    sh = fig.add_axes([x + 0.002, y - 0.006, w, h])
+    sh.axis("off")
+    sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
+                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#0f172a", ec="none", alpha=0.06))
     fr = fig.add_axes([x, y, w, h])
     fr.axis("off")
     fr.set_xlim(0, 1)
@@ -298,19 +314,21 @@ def _kpi_row(fig, cards, y, w=0.292, h=0.075, x0=0.045, gap=0.017):
         x += w + gap
 
 
-def _numbered(fr, items, y0=0.84, dy=0.30, fs=9.8):
+def _numbered(fr, items, y0=0.84, dy=0.30, fs=9.8, width=90):
     for i, (c, txt) in enumerate(items):
         y = y0 - i * dy
         fr.scatter([0.05], [y], s=210, color=c, zorder=3, edgecolor="white", lw=1)
         fr.text(0.05, y, str(i + 1), ha="center", va="center", fontsize=8.5, color="white", fontweight="bold", zorder=4)
-        fr.text(0.105, y, txt, va="center", fontsize=fs, color=INK, wrap=True)
+        for j, ln in enumerate(textwrap.wrap(txt, width) or [txt]):
+            fr.text(0.105, y - j * 0.058, ln, va="center", fontsize=fs, color=INK)
 
 
-def _dotted(fr, items, y0=0.82, dy=0.20, fs=8.6):
+def _dotted(fr, items, y0=0.82, dy=0.20, fs=8.6, width=88):
     for i, txt in enumerate(items):
         y = y0 - i * dy
         fr.scatter([0.04], [y], s=42, color=GREEN, zorder=3)
-        fr.text(0.085, y, txt, va="center", fontsize=fs, color=INK, wrap=True)
+        for j, ln in enumerate(textwrap.wrap(txt, width) or [txt]):
+            fr.text(0.085, y - j * 0.052, ln, va="center", fontsize=fs, color=INK)
 
 
 def _ia_box(fig, rect, text):
@@ -432,15 +450,15 @@ def _p_synthese(d):
             f"Critère le plus souvent non validé : {d['worst']}.")
     # Les 8 KPI EXACTEMENT identiques au tableau de bord RH (même source get_analytics,
     # mêmes libellés, mêmes valeurs) : le rapport COMEX = photo fidèle du dashboard.
-    _kpi_row(f, [(f"{d['analyzed']} / {d['total']}", "Objectifs analysés", None, True, "▤"),
-                 (f"{d['avg_smart']} %", "Score SMART moyen", None, d["avg_smart"] >= 70, "★"),
-                 (f"{d['avg_align']} %", "Alignement moyen", None, d["avg_align"] >= 60, "◆"),
-                 (f"{d['validated']}", "Objectifs validés", None, True, "●")],
+    _kpi_row(f, [(f"{d['analyzed']} / {d['total']}", "Objectifs analysés", "neutral", "▤"),
+                 (f"{d['avg_smart']} %", "Score SMART moyen", "neutral", "★"),
+                 (f"{d['avg_align']} %", "Alignement moyen", "neutral", "◆"),
+                 (f"{d['validated']}", "Objectifs validés", "neutral", "●")],
              y=0.775, w=0.218, gap=0.012)
-    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", None, d["a_ajuster"] == 0, "!"),
-                 (f"{d['smart_rate']} %", "Taux d'objectifs SMART", None, d["smart_rate"] >= d["smart_thr"], "◎"),
-                 (f"{d['align_rate']} %", "Alignement stratégique fort", None, d["align_rate"] >= 50, "◇"),
-                 (f"{d['low_confidence']}", "Faible confiance IA", None, d["low_confidence"] == 0, "?")],
+    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
+                 (f"{d['smart_rate']} %", "Taux d'objectifs SMART", "emerald", "◎"),
+                 (f"{d['align_rate']} %", "Alignement stratégique fort", "amber", "◇"),
+                 (f"{d['low_confidence']}", "Faible confiance IA", "violet", "?")],
              y=0.672, w=0.218, gap=0.012)
     fr = _text_card(f, (0.045, 0.075, 0.91, 0.520), "3 points d'attention (constats factuels)", RED)
     pts = []
@@ -462,8 +480,8 @@ def _p_pilotage(d, ent_axis):
                    f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique")
     ax = _card_ax(f, (0.045, 0.560, 0.45, 0.345), "Poids des axes — treemap (rouge = sur-concentré)")
     _treemap(ax, [(x.get("axis_title", "")[:10], int(x.get("count") or 0), _axis_color(x)) for x in d["axes"]])
-    ax = _card_ax(f, (0.505, 0.560, 0.45, 0.345), "Couverture par axe (% des objectifs)")
-    _hbar(ax, [(x.get("axis_title", "")[:12], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:7]],
+    ax = _card_ax(f, (0.505, 0.560, 0.45, 0.345), "Couverture par axe (% des objectifs)", left=0.30)
+    _hbar(ax, [(x.get("axis_title", "")[:14], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:7]],
           pct=True, vmax=max(50, d["over_threshold"] + 10))
     ax.axvline(d["over_threshold"], color=INK, lw=1.2, ls="--")
     if ent_axis:
@@ -491,10 +509,10 @@ def _p_pilotage(d, ent_axis):
 def _p_qualite(d):
     f = _new_panel("3.  Qualité SMART",
                    "Niveau de conformité des objectifs aux 5 critères de la méthode SMART")
-    _kpi_row(f, [(f"{d['sans_kpi']}", "Objectifs sans KPI", None, d["sans_kpi"] == 0, "M"),
-                 (f"{d['sans_echeance']}", "Sans échéance", None, d["sans_echeance"] == 0, "T"),
-                 (f"{d['flous']}", "Objectifs flous", None, d["flous"] == 0, "S"),
-                 (f"{d['avg_smart']}/100", "Score SMART moyen", None, d["avg_smart"] >= 70, "★")],
+    _kpi_row(f, [(f"{d['sans_kpi']}", "Objectifs sans KPI", "amber", "M"),
+                 (f"{d['sans_echeance']}", "Sans échéance", "amber", "T"),
+                 (f"{d['flous']}", "Objectifs flous", "amber", "S"),
+                 (f"{d['avg_smart']} / 100", "Score SMART moyen", "emerald", "★")],
              y=0.815, w=0.218, gap=0.013)
     ax = _card_ax(f, (0.045, 0.430, 0.55, 0.340), "Taux de conformité par critère SMART (cible 70 %)")
     _taux_par_critere(ax, [("S", d["crit"]["S"]), ("M", d["crit"]["M"]), ("A", d["crit"]["A"]),
@@ -509,9 +527,8 @@ def _p_qualite(d):
     _dotted(fr, [
         f"Point fort : critère « {d['best']} » ({d['crit'].get(d['best'][:1], '')} %).",
         f"Point faible : critère « {d['worst']} » ({d['crit'].get(d['worst'][:1], '')} %).",
-        f"{d['a_ajuster']} objectif(s) à retravailler pour atteindre",
-        f"   le seuil SMART de {d['smart_thr']} %.",
-    ], y0=0.80, dy=0.165, fs=8.4)
+        f"{d['a_ajuster']} objectif(s) à retravailler pour atteindre le seuil SMART de {d['smart_thr']} %.",
+    ], y0=0.80, dy=0.235, fs=8.4, width=46)
     return _png(f)
 
 
@@ -519,9 +536,9 @@ def _p_comparatifs(d):
     f = _new_panel("4.  Comparatifs par périmètre",
                    "Lecture comparative, sans objectif de sanction : repérer où un appui serait le plus utile")
     ent = sorted(d["entities"], key=lambda e: float(e.get("avg_smart") or 0), reverse=True)[:6]
-    ax = _card_ax(f, (0.045, 0.470, 0.91, 0.400), "Score SMART moyen par entité (cible 80)")
+    ax = _card_ax(f, (0.045, 0.470, 0.91, 0.400), "Score SMART moyen par entité (cible 80)", left=0.19)
     if ent:
-        _bullet(ax, [((e.get("entity") or "—")[:16], round(float(e.get("avg_smart") or 0))) for e in ent])
+        _bullet(ax, [((e.get("entity") or "—")[:18], round(float(e.get("avg_smart") or 0))) for e in ent])
     else:
         ax.axis("off")
         ax.text(0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED)
@@ -529,7 +546,7 @@ def _p_comparatifs(d):
     top = mgr[:3]
     flop = mgr[-3:] if len(mgr) > 3 else []
     sel = top + [m for m in flop if m not in top]
-    ax = _card_ax(f, (0.045, 0.070, 0.91, 0.370), "Managers — Top 3 / Flop 3 (score SMART moyen)")
+    ax = _card_ax(f, (0.045, 0.070, 0.91, 0.370), "Managers — Top 3 / Flop 3 (score SMART moyen)", left=0.17)
     if sel:
         rows = []
         for m in sel:
@@ -545,14 +562,14 @@ def _p_comparatifs(d):
 def _p_attention(d):
     f = _new_panel("5.  Points d'attention",
                    "Signaux à surveiller, formulés en constats — chaque chiffre renvoie aux listes dans l'app")
-    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", None, d["a_ajuster"] == 0, "!"),
-                 (f"{d['faible_align']}", "Objectifs faiblement alignés", None, d["faible_align"] == 0, "◇"),
-                 (f"{d['low_confidence']}", "Analyses à faible confiance IA", None, d["low_confidence"] == 0, "?")], y=0.780)
-    _kpi_row(f, [(f"{len(d['orphans'])}", "Axe(s) stratégique(s) orphelin(s)", None, not d["orphans"], "○"),
-                 (f"{d['entities_below']}", f"Entités sous la cible ({d['smart_thr']} %)", None, d["entities_below"] == 0, "▤"),
-                 (f"{len(d['over'])}", "Axe(s) sur-concentré(s)", None, not d["over"], "▣")], y=0.692)
+    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
+                 (f"{d['faible_align']}", "Objectifs faiblement alignés", "amber", "◇"),
+                 (f"{d['low_confidence']}", "Analyses à faible confiance IA", "violet", "?")], y=0.780)
+    _kpi_row(f, [(f"{len(d['orphans'])}", "Axe(s) stratégique(s) orphelin(s)", "rose", "○"),
+                 (f"{d['entities_below']}", f"Entités sous la cible ({d['smart_thr']} %)", "amber", "▤"),
+                 (f"{len(d['over'])}", "Axe(s) sur-concentré(s)", "rose", "▣")], y=0.692)
     ent = sorted(d["entities"], key=lambda e: float(e.get("avg_smart") or 0))[:5]
-    ax = _card_ax(f, (0.045, 0.330, 0.55, 0.300), "Périmètres les plus éloignés de la cible (score SMART)")
+    ax = _card_ax(f, (0.045, 0.330, 0.55, 0.300), "Périmètres les plus éloignés de la cible (score SMART)", left=0.27)
     if ent:
         rows = []
         for e in ent:
@@ -565,16 +582,16 @@ def _p_attention(d):
     fr = _text_card(f, (0.620, 0.330, 0.335, 0.300), "Lecture", GREEN_D)
     lect = []
     if d["worst"] != "—":
-        lect.append(f"Critère « {d['worst']} » fréquemment")
-        lect.append("   non validé.")
+        lect.append(f"Critère « {d['worst']} » fréquemment non validé.")
     for x in d["orphans"][:1]:
-        lect.append(f"Axe « {x.get('axis_title','')[:14]} » orphelin.")
+        lect.append(f"Axe « {x.get('axis_title','')[:16]} » orphelin.")
     lect.append(f"{d['entities_below']} entité(s) sous la cible.")
-    _dotted(fr, lect[:5], y0=0.82, dy=0.16, fs=8.4)
+    _dotted(fr, lect[:4], y0=0.80, dy=0.255, fs=8.2, width=30)
     fr = _text_card(f, (0.045, 0.055, 0.91, 0.215), "Constat de synthèse", RED)
-    fr.text(0.04, 0.60, f"{d['a_ajuster']} objectif(s) à ajuster et {d['faible_align']} objectif(s) faiblement alignés "
-            f"constituent", fontsize=9, color=INK, va="center")
-    fr.text(0.04, 0.34, "les principaux leviers d'amélioration de la campagne.", fontsize=9, color=INK, va="center")
+    _syn = (f"{d['a_ajuster']} objectif(s) à ajuster et {d['faible_align']} objectif(s) faiblement "
+            f"alignés constituent les principaux leviers d'amélioration de la campagne.")
+    for j, ln in enumerate(textwrap.wrap(_syn, 98)):
+        fr.text(0.04, 0.60 - j * 0.24, ln, fontsize=9, color=INK, va="center")
     return _png(f)
 
 
