@@ -355,11 +355,12 @@ def _ia_box(fig, rect, text):
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=ax.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#f8fafc", ec="#dbe3ea", lw=1.1))
-    ax.add_patch(Rectangle((0.020, 0.64), 0.009, 0.26, transform=ax.transAxes, fc=GREEN, ec="none"))
-    ax.text(0.044, 0.78, "Synthèse", fontsize=9, fontweight="bold", color=GREEN_D, va="center")
-    for j, ln in enumerate(textwrap.wrap(text, 118)[:2]):
-        ax.text(0.044, 0.40 - j * 0.30, ln, fontsize=8.4, color=INK, va="center")
+                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#e9f7f1", ec=GREEN, lw=1.2))
+    ax.add_patch(Rectangle((0.020, 0.70), 0.009, 0.22, transform=ax.transAxes, fc=GREEN, ec="none"))
+    ax.text(0.044, 0.81, "Synthèse", fontsize=9, fontweight="bold", color=GREEN_D, va="center")
+    lines = textwrap.wrap(text, 110)[:3]
+    for j, ln in enumerate(lines):
+        ax.text(0.044, 0.55 - j * 0.21, ln, fontsize=8.4, color=INK, va="center")
 
 
 def _png(fig):
@@ -373,10 +374,6 @@ def _png(fig):
 # ===========================================================================
 # Préparation des données réelles
 # ===========================================================================
-def _axis_color(x):
-    return RED if x.get("over_concentrated") else (SLATE if x.get("orphan") else GREEN)
-
-
 def _derive(a):
     vol = a.get("volumetry") or {}
     total, analyzed = int(vol.get("total") or 0), int(vol.get("analyzed") or 0)
@@ -486,7 +483,7 @@ def _p_synthese(d):
     f = _new_panel("1.  Synthèse exécutive",
                    "Vue suffisante pour comprendre l'état global des objectifs")
     pct = round(d["analyzed"] / d["total"] * 100) if d["total"] else 0
-    _ia_box(f, (0.03, 0.838, 0.94, 0.085),
+    _ia_box(f, (0.03, 0.822, 0.94, 0.102),
             f"{d['analyzed']} objectifs analysés sur {d['total']} importés ({pct} %). "
             f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %). "
             f"Critère le plus souvent non validé : {d['worst']}.")
@@ -510,13 +507,26 @@ def _p_synthese(d):
     return _png(f)
 
 
+# Une couleur DISTINCTE par axe (rouge réservé à la sur-concentration) : le même
+# axe garde la même couleur entre le treemap et le graphique de couverture.
+_AXIS_PALETTE = [GREEN, SKY, VIOLET, TEAL, "#6366f1", "#ec4899", "#84cc16", "#06b6d4", "#f97316", SLATE]
+
+
+def _axis_palette(axes):
+    return [RED if x.get("over_concentrated") else _AXIS_PALETTE[i % len(_AXIS_PALETTE)]
+            for i, x in enumerate(axes)]
+
+
 def _p_pilotage_a(d):
     f = _new_panel("2.  Pilotage stratégique  (1/2) — couverture des axes",
-                   f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique")
-    ax = _card_ax(f, (0.03, 0.515, 0.94, 0.380), "Poids des axes stratégiques (rouge = sur-concentré)", left=0.04)
-    _treemap(ax, [(x.get("axis_title", ""), int(x.get("count") or 0), _axis_color(x)) for x in d["axes"]])
+                   f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique "
+                   f"(une couleur par axe ; rouge = sur-concentré)")
+    cols = _axis_palette(d["axes"])
+    ax = _card_ax(f, (0.03, 0.515, 0.94, 0.380), "Poids des axes stratégiques (nombre d'objectifs)", left=0.04)
+    _treemap(ax, [(x.get("axis_title", ""), int(x.get("count") or 0), c) for x, c in zip(d["axes"], cols)])
     ax = _card_ax(f, (0.03, 0.070, 0.94, 0.380), "Couverture par axe (% des objectifs)", left=0.24)
-    _hbar(ax, [(x.get("axis_title", "")[:30], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:8]],
+    _hbar(ax, [(x.get("axis_title", "")[:30], round(float(x.get("share_pct") or 0)), c)
+               for x, c in zip(d["axes"][:8], cols[:8])],
           pct=True, vmax=max(50, d["over_threshold"] + 10))
     ax.axvline(d["over_threshold"], color=INK, lw=1.2, ls="--")
     return _png(f)
@@ -527,23 +537,34 @@ def _p_pilotage_b(d, ent_axis):
                    "Alignement moyen des objectifs sur les axes stratégiques, par entité")
     if ent_axis:
         matrix, rows, cols = ent_axis
-        ax = _card_ax(f, (0.03, 0.500, 0.94, 0.395), "Alignement moyen par entité × axe", left=0.15)
+        ax = _card_ax(f, (0.03, 0.500, 0.94, 0.395),
+                      "Alignement moyen par entité × axe (score d'alignement sur 100)", left=0.15)
         _heatmap(ax, matrix, rows, cols)
     else:
         fr = _text_card(f, (0.03, 0.500, 0.94, 0.395), "Alignement par entité × axe")
         fr.text(0.5, 0.5, "Données insuffisantes (axes non rattachés)", ha="center", va="center", fontsize=9, color=MUTED)
-    ax = _card_ax(f, (0.03, 0.075, 0.44, 0.375), "Niveaux d'alignement")
+    ax = _card_ax(f, (0.03, 0.075, 0.44, 0.375), "Niveaux d'alignement (% des objectifs)")
     dist = d["alignment_distribution"] or [{"level": "—", "count": 1}]
     _donut(ax, [int(r.get("count") or 0) for r in dist], [r.get("level", "").split(" (")[0] for r in dist],
-           [GREEN, AMBER, RED], f"{d['avg_align']} %", "alignement")
+           [GREEN, AMBER, RED], f"{d['avg_align']} %", "alignement moyen")
     fr = _text_card(f, (0.49, 0.075, 0.48, 0.375), "Constats", GREEN_D)
+    # Toujours au moins 3 constats pertinents, déduits des données.
     cons = []
     for x in d["over"]:
         cons.append(f"Sur-concentration : « {x.get('axis_title', '')} » capte {x.get('share_pct', 0)} % des objectifs.")
     for x in d["orphans"]:
         cons.append(f"Axe orphelin : « {x.get('axis_title', '')} » ne reçoit aucun objectif.")
-    cons.append(f"{d['covered']} axe(s) couvert(s) sur {d['naxes']}.")
-    _dotted(fr, cons[:4], y0=0.84, dy=0.205, fs=8.2, width=40)
+    actifs = [a for a in d["axes"] if (a.get("count") or 0) > 0]
+    if actifs:
+        top = actifs[0]
+        cons.append(f"Axe le plus investi : « {top.get('axis_title', '')} » "
+                    f"({top.get('count')} objectifs, {top.get('share_pct')} %).")
+        low = actifs[-1]
+        if low is not top:
+            cons.append(f"Axe le moins investi : « {low.get('axis_title', '')} » "
+                        f"({low.get('count')} objectif(s), {low.get('share_pct')} %).")
+    cons.append(f"{d['covered']} axe(s) couvert(s) sur {d['naxes']} ; alignement moyen : {d['avg_align']} / 100.")
+    _dotted(fr, cons[:4], y0=0.86, dy=0.20, fs=8.2, width=42)
     return _png(f)
 
 
@@ -621,12 +642,17 @@ def _p_attention(d):
         ax.axis("off")
         ax.text(0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED)
     fr = _text_card(f, (0.61, 0.330, 0.36, 0.300), "Lecture", GREEN_D)
+    # Toujours au moins 3 éléments de lecture, déduits des données.
     lect = []
     if d["worst"] != "—":
         lect.append(f"Critère « {d['worst']} » fréquemment non validé.")
     for x in d["orphans"][:1]:
         lect.append(f"Axe « {x.get('axis_title','')[:16]} » orphelin.")
     lect.append(f"{d['entities_below']} entité(s) sous la cible.")
+    if len(lect) < 3:
+        lect.append(f"{d['low_confidence']} analyse(s) à faible confiance IA.")
+    if len(lect) < 3:
+        lect.append(f"Alignement moyen : {d['avg_align']} / 100.")
     _dotted(fr, lect[:4], y0=0.80, dy=0.255, fs=8.2, width=30)
     fr = _text_card(f, (0.03, 0.055, 0.94, 0.215), "Constat de synthèse", RED)
     _syn = (f"{d['a_ajuster']} objectif(s) à ajuster et {d['faible_align']} objectif(s) faiblement "
@@ -773,7 +799,7 @@ def _assemble(story, when, period, scope):
         else:
             canvas.setFillColor(rl.HexColor(GREEN_D))
             canvas.setFont("Helvetica-Bold", 8.5)
-            canvas.drawString(L, A4[1] - 0.85 * cm, "BMCI Smart Objectif — Rapport Direction / COMEX")
+            canvas.drawString(L, A4[1] - 0.85 * cm, "BMCI Smart Objectives — Rapport Direction / COMEX")
             canvas.setFillColor(rl.HexColor(RED_BMCI))
             canvas.setFont("Helvetica", 8)
             canvas.drawRightString(A4[0] - L, A4[1] - 0.85 * cm, "Confidentiel")
