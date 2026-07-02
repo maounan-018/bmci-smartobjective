@@ -162,7 +162,8 @@ def _hbar(ax, items, color=GREEN, vmax=None, pct=False):
         if v <= 0:
             continue
         ax.text(v + vmax * 0.015, i, (f"{v}%" if pct else f"{v}"), va="center",
-                fontsize=7.6, fontweight="bold", color=INK, zorder=4)
+                fontsize=7.6, fontweight="bold", color=INK, zorder=5,
+                bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none"))
     ax.set_xticks([])
     ax.tick_params(labelsize=7, colors=MUTED, length=0)
     for s in ("top", "right", "left", "bottom"):
@@ -242,13 +243,22 @@ def _treemap(ax, data):
     for (lab, val, col), (x, y, w, h) in zip(data, rects):
         ax.add_patch(FancyBboxPatch((x + 0.006, y + 0.008), w - 0.012, h - 0.016,
                      boxstyle="round,pad=0,rounding_size=0.012", fc=col, ec="white", lw=2.4))
+        # Largeur en caractères proportionnelle au rectangle : le nom complet est
+        # enroulé sur 2 lignes plutôt que tronqué.
+        chars = max(7, int(w * 34))
+        # break_long_words=False : jamais de coupure au milieu d'un mot.
+        lines = textwrap.wrap(lab, chars, break_long_words=False)[:2] or [lab]
+        if len(lines) == 2 and len(lines[1]) > chars + 4:
+            lines[1] = lines[1][:chars + 3] + "…"
         if w * h > 0.04:
-            ax.text(x + w / 2, y + h / 2 + 0.035, lab, ha="center", va="center",
-                    fontsize=min(11, 5.5 + 26 * w * h), color="white", fontweight="bold")
-            ax.text(x + w / 2, y + h / 2 - 0.055, f"{val}", ha="center", va="center",
-                    fontsize=min(10, 4.5 + 20 * w * h), color="white", alpha=0.92)
+            fs = min(10.5, 5.2 + 22 * w * h)
+            for j, ln in enumerate(lines):
+                ax.text(x + w / 2, y + h / 2 + 0.052 - j * 0.062, ln, ha="center", va="center",
+                        fontsize=fs, color="white", fontweight="bold")
+            ax.text(x + w / 2, y + h / 2 + 0.052 - len(lines) * 0.062, f"{val}", ha="center", va="center",
+                    fontsize=min(9.5, 4.5 + 18 * w * h), color="white", alpha=0.92)
         elif w * h > 0.012:
-            ax.text(x + w / 2, y + h / 2, f"{lab}\n{val}", ha="center", va="center", fontsize=5.8, color="white")
+            ax.text(x + w / 2, y + h / 2, f"{lines[0]}\n{val}", ha="center", va="center", fontsize=5.8, color="white")
 
 
 def _heatmap(ax, data, rows, cols):
@@ -278,13 +288,13 @@ def _heatmap(ax, data, rows, cols):
 def _new_panel(title, subtitle=""):
     fig = plt.figure(figsize=(7.6, 10.0), dpi=150)
     fig.patch.set_facecolor(BG)
-    acc = fig.add_axes([0.045, 0.957, 0.016, 0.020])
+    acc = fig.add_axes([0.03, 0.957, 0.016, 0.020])
     acc.axis("off")
     acc.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=acc.transAxes,
                   boxstyle="round,pad=0,rounding_size=0.35", fc=GREEN, ec="none"))
-    fig.text(0.072, 0.963, title, fontsize=16, fontweight="bold", color=INK, va="center")
+    fig.text(0.057, 0.963, title, fontsize=16, fontweight="bold", color=INK, va="center")
     if subtitle:
-        fig.text(0.072, 0.940, subtitle, fontsize=8.6, color=MUTED, va="center")
+        fig.text(0.057, 0.940, subtitle, fontsize=8.6, color=MUTED, va="center")
     sep = fig.add_axes([0.0, 0.927, 1.0, 0.002])
     sep.axis("off")
     sep.axhline(0.5, color="#e2e8f1", lw=1)
@@ -309,7 +319,7 @@ def _text_card(fig, rect, title=None, tcolor=None):
     return fr
 
 
-def _kpi_row(fig, cards, y, w=0.292, h=0.075, x0=0.045, gap=0.017):
+def _kpi_row(fig, cards, y, w=0.302, h=0.075, x0=0.03, gap=0.017):
     x = x0
     for c in cards:
         _kpi_card(fig, (x, y, w, h), *c)
@@ -412,7 +422,7 @@ def _derive(a):
 
 def _entity_axis(objective_rows, axes, max_entities=5):
     """Matrice alignement moyen entité × axe (depuis les top_matches), ou None."""
-    titles = {str(a.get("axis_id")): (a.get("axis_title") or str(a.get("axis_id")))[:9] for a in axes}
+    titles = {str(a.get("axis_id")): (a.get("axis_title") or str(a.get("axis_id")))[:20] for a in axes}
     by_ent = {}
     ent_count = {}
     for o in objective_rows:
@@ -442,7 +452,7 @@ def _entity_axis(objective_rows, axes, max_entities=5):
         return None
     matrix = [[(sum(by_ent[e].get(aid, [])) / len(by_ent[e][aid]) if by_ent[e].get(aid) else 0)
                for aid in axis_ids] for e in top_ents]
-    return matrix, [e[:11] for e in top_ents], [titles[a] for a in axis_ids]
+    return matrix, [e[:22] for e in top_ents], [titles[a] for a in axis_ids]
 
 
 # ===========================================================================
@@ -476,7 +486,7 @@ def _p_synthese(d):
     f = _new_panel("1.  Synthèse exécutive",
                    "Vue suffisante pour comprendre l'état global des objectifs")
     pct = round(d["analyzed"] / d["total"] * 100) if d["total"] else 0
-    _ia_box(f, (0.05, 0.838, 0.90, 0.085),
+    _ia_box(f, (0.03, 0.838, 0.94, 0.085),
             f"{d['analyzed']} objectifs analysés sur {d['total']} importés ({pct} %). "
             f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %). "
             f"Critère le plus souvent non validé : {d['worst']}.")
@@ -485,17 +495,17 @@ def _p_synthese(d):
                  (f"{d['avg_smart']} %", "Score SMART moyen", "emerald", "★"),
                  (f"{d['avg_align']} %", "Alignement moyen", "teal", "◆"),
                  (f"{d['validated']}", "Objectifs validés", "violet", "●")],
-             y=0.728, w=0.206, gap=0.026, x0=0.05)
+             y=0.728, w=0.223, gap=0.016, x0=0.03)
     _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
                  (f"{d['smart_rate']} %", "Taux d'objectifs SMART", "emerald", "◎"),
                  (f"{d['align_rate']} %", "Alignement stratégique fort", "amber", "◇"),
                  (f"{d['low_confidence']}", "Faible confiance IA", "violet", "?")],
-             y=0.618, w=0.206, gap=0.026, x0=0.05)
+             y=0.618, w=0.223, gap=0.016, x0=0.03)
     pts = _attention_points(d) or [(GREEN, "Aucun point d'attention majeur sur le périmètre analysé.")]
     n = len(pts)
     titre = f"{n} point d'attention" if n == 1 else f"{n} points d'attention"
     card_h = max(0.30, min(0.52, 0.11 + n * 0.064))
-    fr = _text_card(f, (0.05, 0.565 - card_h, 0.90, card_h), titre, RED)
+    fr = _text_card(f, (0.03, 0.565 - card_h, 0.94, card_h), titre, RED)
     _numbered(fr, pts, y0=0.87, dy=min(0.17, 0.80 / max(n, 1)), fs=8.8, width=104)
     return _png(f)
 
@@ -503,10 +513,10 @@ def _p_synthese(d):
 def _p_pilotage_a(d):
     f = _new_panel("2.  Pilotage stratégique  (1/2) — couverture des axes",
                    f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique")
-    ax = _card_ax(f, (0.05, 0.515, 0.90, 0.380), "Poids des axes stratégiques (rouge = sur-concentré)")
-    _treemap(ax, [(x.get("axis_title", "")[:16], int(x.get("count") or 0), _axis_color(x)) for x in d["axes"]])
-    ax = _card_ax(f, (0.05, 0.070, 0.90, 0.380), "Couverture par axe (% des objectifs)", left=0.22)
-    _hbar(ax, [(x.get("axis_title", "")[:24], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:8]],
+    ax = _card_ax(f, (0.03, 0.515, 0.94, 0.380), "Poids des axes stratégiques (rouge = sur-concentré)", left=0.04)
+    _treemap(ax, [(x.get("axis_title", ""), int(x.get("count") or 0), _axis_color(x)) for x in d["axes"]])
+    ax = _card_ax(f, (0.03, 0.070, 0.94, 0.380), "Couverture par axe (% des objectifs)", left=0.24)
+    _hbar(ax, [(x.get("axis_title", "")[:30], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:8]],
           pct=True, vmax=max(50, d["over_threshold"] + 10))
     ax.axvline(d["over_threshold"], color=INK, lw=1.2, ls="--")
     return _png(f)
@@ -517,16 +527,16 @@ def _p_pilotage_b(d, ent_axis):
                    "Alignement moyen des objectifs sur les axes stratégiques, par entité")
     if ent_axis:
         matrix, rows, cols = ent_axis
-        ax = _card_ax(f, (0.05, 0.500, 0.90, 0.395), "Alignement moyen par entité × axe", left=0.16)
+        ax = _card_ax(f, (0.03, 0.500, 0.94, 0.395), "Alignement moyen par entité × axe", left=0.15)
         _heatmap(ax, matrix, rows, cols)
     else:
-        fr = _text_card(f, (0.05, 0.500, 0.90, 0.395), "Alignement par entité × axe")
+        fr = _text_card(f, (0.03, 0.500, 0.94, 0.395), "Alignement par entité × axe")
         fr.text(0.5, 0.5, "Données insuffisantes (axes non rattachés)", ha="center", va="center", fontsize=9, color=MUTED)
-    ax = _card_ax(f, (0.05, 0.075, 0.42, 0.375), "Niveaux d'alignement")
+    ax = _card_ax(f, (0.03, 0.075, 0.44, 0.375), "Niveaux d'alignement")
     dist = d["alignment_distribution"] or [{"level": "—", "count": 1}]
-    _donut(ax, [int(r.get("count") or 0) for r in dist], [r.get("level", "")[:6] for r in dist],
+    _donut(ax, [int(r.get("count") or 0) for r in dist], [r.get("level", "").split(" (")[0] for r in dist],
            [GREEN, AMBER, RED], f"{d['avg_align']} %", "alignement")
-    fr = _text_card(f, (0.50, 0.075, 0.45, 0.375), "Constats", GREEN_D)
+    fr = _text_card(f, (0.49, 0.075, 0.48, 0.375), "Constats", GREEN_D)
     cons = []
     for x in d["over"]:
         cons.append(f"Sur-concentration : « {x.get('axis_title', '')} » capte {x.get('share_pct', 0)} % des objectifs.")
@@ -544,17 +554,17 @@ def _p_qualite(d):
                  (f"{d['sans_echeance']}", "Sans échéance", "amber", "T"),
                  (f"{d['flous']}", "Objectifs flous", "amber", "S"),
                  (f"{d['avg_smart']} / 100", "Score SMART moyen", "emerald", "★")],
-             y=0.815, w=0.218, gap=0.013)
-    ax = _card_ax(f, (0.045, 0.430, 0.55, 0.340), "Taux de conformité par critère SMART (cible 70 %)")
+             y=0.815, w=0.226, gap=0.0126)
+    ax = _card_ax(f, (0.03, 0.430, 0.56, 0.340), "Taux de conformité par critère SMART (cible 70 %)")
     _taux_par_critere(ax, [("S", d["crit"]["S"]), ("M", d["crit"]["M"]), ("A", d["crit"]["A"]),
                            ("R", d["crit"]["R"]), ("T", d["crit"]["T"])], target=70)
-    ax = _card_ax(f, (0.620, 0.430, 0.335, 0.340), "Nombre d'échecs par critère")
+    ax = _card_ax(f, (0.60, 0.430, 0.37, 0.340), "Nombre d'échecs par critère", left=0.24)
     pal = [RED, "#f87171", AMBER, "#fbbf24", "#a3e635"]
     _hbar(ax, [(r.get("criteria", ""), int(r.get("failures") or 0), pal[i % len(pal)]) for i, r in enumerate(d["blocking"])])
-    ax = _card_ax(f, (0.045, 0.070, 0.43, 0.330), "Objectifs SMART / non-SMART")
+    ax = _card_ax(f, (0.03, 0.070, 0.45, 0.330), "Objectifs SMART / non-SMART")
     _donut(ax, [d["smart_ok"], d["a_ajuster"]], ["Conformes", "À retravailler"],
            [GREEN, "#fca5a5"], f"{d['smart_rate']} %", "conformes")
-    fr = _text_card(f, (0.500, 0.070, 0.455, 0.330), "Lecture rapide", GREEN_D)
+    fr = _text_card(f, (0.50, 0.070, 0.47, 0.330), "Lecture rapide", GREEN_D)
     _dotted(fr, [
         f"Point fort : critère « {d['best']} » ({d['crit'].get(d['best'][:1], '')} %).",
         f"Point faible : critère « {d['worst']} » ({d['crit'].get(d['worst'][:1], '')} %).",
@@ -567,9 +577,9 @@ def _p_comparatifs(d):
     f = _new_panel("4.  Comparatifs par périmètre",
                    "Lecture comparative, sans objectif de sanction : repérer où un appui serait le plus utile")
     ent = sorted(d["entities"], key=lambda e: float(e.get("avg_smart") or 0), reverse=True)[:6]
-    ax = _card_ax(f, (0.045, 0.470, 0.91, 0.400), "Score SMART moyen par entité (cible 80)", left=0.19)
+    ax = _card_ax(f, (0.03, 0.470, 0.94, 0.400), "Score SMART moyen par entité (cible 80)", left=0.18)
     if ent:
-        _bullet(ax, [((e.get("entity") or "—")[:18], round(float(e.get("avg_smart") or 0))) for e in ent])
+        _bullet(ax, [((e.get("entity") or "—")[:26], round(float(e.get("avg_smart") or 0))) for e in ent])
     else:
         ax.axis("off")
         ax.text(0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED)
@@ -577,12 +587,12 @@ def _p_comparatifs(d):
     top = mgr[:3]
     flop = mgr[-3:] if len(mgr) > 3 else []
     sel = top + [m for m in flop if m not in top]
-    ax = _card_ax(f, (0.045, 0.070, 0.91, 0.370), "Score SMART moyen par manager", left=0.17)
+    ax = _card_ax(f, (0.03, 0.070, 0.94, 0.370), "Score SMART moyen par manager", left=0.16)
     if sel:
         rows = []
         for m in sel:
             v = round(float(m.get("avg_smart") or 0))
-            rows.append(((m.get("manager") or "—")[:22], v, GREEN if v >= d["smart_thr"] else (AMBER if v >= 50 else RED)))
+            rows.append(((m.get("manager") or "—")[:28], v, GREEN if v >= d["smart_thr"] else (AMBER if v >= 50 else RED)))
         _hbar(ax, rows, vmax=100, pct=True)
     else:
         ax.axis("off")
@@ -600,17 +610,17 @@ def _p_attention(d):
                  (f"{d['entities_below']}", f"Entités sous la cible ({d['smart_thr']} %)", "amber", "▤"),
                  (f"{len(d['over'])}", "Axe(s) sur-concentré(s)", "rose", "▣")], y=0.692)
     ent = sorted(d["entities"], key=lambda e: float(e.get("avg_smart") or 0))[:5]
-    ax = _card_ax(f, (0.045, 0.330, 0.55, 0.300), "Périmètres les plus éloignés de la cible (score SMART)", left=0.27)
+    ax = _card_ax(f, (0.03, 0.330, 0.57, 0.300), "Périmètres les plus éloignés de la cible (score SMART)", left=0.28)
     if ent:
         rows = []
         for e in ent:
             v = round(float(e.get("avg_smart") or 0))
-            rows.append(((e.get("entity") or "—")[:14], v, RED if v < 50 else (AMBER if v < d["smart_thr"] else GREEN)))
+            rows.append(((e.get("entity") or "—")[:22], v, RED if v < 50 else (AMBER if v < d["smart_thr"] else GREEN)))
         _hbar(ax, rows, vmax=100, pct=True)
     else:
         ax.axis("off")
         ax.text(0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED)
-    fr = _text_card(f, (0.620, 0.330, 0.335, 0.300), "Lecture", GREEN_D)
+    fr = _text_card(f, (0.61, 0.330, 0.36, 0.300), "Lecture", GREEN_D)
     lect = []
     if d["worst"] != "—":
         lect.append(f"Critère « {d['worst']} » fréquemment non validé.")
@@ -618,7 +628,7 @@ def _p_attention(d):
         lect.append(f"Axe « {x.get('axis_title','')[:16]} » orphelin.")
     lect.append(f"{d['entities_below']} entité(s) sous la cible.")
     _dotted(fr, lect[:4], y0=0.80, dy=0.255, fs=8.2, width=30)
-    fr = _text_card(f, (0.045, 0.055, 0.91, 0.215), "Constat de synthèse", RED)
+    fr = _text_card(f, (0.03, 0.055, 0.94, 0.215), "Constat de synthèse", RED)
     _syn = (f"{d['a_ajuster']} objectif(s) à ajuster et {d['faible_align']} objectif(s) faiblement "
             f"alignés constituent les principaux leviers d'amélioration de la campagne.")
     for j, ln in enumerate(textwrap.wrap(_syn, 98)):
@@ -629,7 +639,7 @@ def _p_attention(d):
 def _p_constats(d):
     f = _new_panel("6.  Synthèse des constats   ·   7.  Annexes",
                    "Récapitulatif observationnel — les décisions restent prises par les personnes habilitées")
-    fr = _text_card(f, (0.045, 0.470, 0.91, 0.400), "Synthèse des constats", GREEN_D)
+    fr = _text_card(f, (0.03, 0.470, 0.94, 0.400), "Synthèse des constats", GREEN_D)
     _dotted(fr, [
         f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %).",
         f"Critère le plus souvent non validé : « {d['worst']} ».",
@@ -637,7 +647,7 @@ def _p_constats(d):
         f"Couverture des axes : {d['covered']}/{d['naxes']} ({len(d['orphans'])} orphelin(s), {len(d['over'])} sur-concentré(s)).",
         f"{d['a_ajuster']} objectif(s) à ajuster ; {d['low_confidence']} analyse(s) à relire (faible confiance IA).",
     ], y0=0.83, dy=0.165, fs=8.8)
-    fr = _text_card(f, (0.045, 0.130, 0.91, 0.310), "Annexes — disponibles sur demande auprès de la RH", SKY)
+    fr = _text_card(f, (0.03, 0.130, 0.94, 0.310), "Annexes — disponibles sur demande auprès de la RH", SKY)
     _dotted(fr, [
         "Liste détaillée des objectifs à ajuster (sans KPI, sans échéance, flous, désalignés).",
         "Propositions de reformulation IA (avant / après), toujours soumises à validation humaine.",
@@ -736,7 +746,8 @@ def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
 
     panels = [_p_synthese(d), _p_pilotage_a(d), _p_pilotage_b(d, ent_axis), _p_qualite(d),
               _p_comparatifs(d), _p_attention(d), _p_constats(d)]
-    L = 1.0 * cm
+    # Marges réduites au minimum : la page sert le contenu, pas le blanc.
+    L = 0.55 * cm
     img_w = A4[0] - 2 * L
     for buf in panels:
         story.append(Image(buf, width=img_w, height=img_w * 10.0 / 7.6))
@@ -747,7 +758,7 @@ def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
 
 def _assemble(story, when, period, scope):
     output = io.BytesIO()
-    L = 1.0 * cm
+    L = 0.55 * cm
 
     def on_page(canvas, doc):
         canvas.saveState()
@@ -773,7 +784,7 @@ def _assemble(story, when, period, scope):
         canvas.restoreState()
 
     doc = BaseDocTemplate(output, pagesize=A4, leftMargin=L, rightMargin=L,
-                          topMargin=1.25 * cm, bottomMargin=1.15 * cm,
+                          topMargin=1.05 * cm, bottomMargin=1.0 * cm,
                           title="BMCI - Rapport Direction / COMEX")
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f")
     doc.addPageTemplates([PageTemplate(id="p", frames=[frame], onPage=on_page)])
