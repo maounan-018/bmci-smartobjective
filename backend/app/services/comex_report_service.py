@@ -107,6 +107,8 @@ _TONES = {
     "rose":    ("#fff1f2", "#fecdd3", "#be123c", "#fb7185"),
     "amber":   ("#fffbeb", "#fde68a", "#b45309", "#f59e0b"),
     "violet":  ("#f5f3ff", "#ddd6fe", "#6d28d9", "#a78bfa"),
+    "sky":     ("#eff6ff", "#bfdbfe", "#1d4ed8", "#60a5fa"),
+    "teal":    ("#f0fdfa", "#99f6e4", "#0f766e", "#2dd4bf"),
 }
 
 
@@ -332,16 +334,22 @@ def _dotted(fr, items, y0=0.82, dy=0.20, fs=8.6, width=88):
 
 
 def _ia_box(fig, rect, text):
+    """Encadré de synthèse : carte uniforme, légèrement arrondie, texte enroulé."""
     x, y, w, h = rect
+    sh = fig.add_axes([x + 0.002, y - 0.006, w, h])
+    sh.axis("off")
+    sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
+                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#0f172a", ec="none", alpha=0.05))
     ax = fig.add_axes([x, y, w, h])
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=ax.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.10", fc="#e9f7f1", ec=GREEN, lw=1.2))
-    ax.add_patch(Rectangle((0.0, 0.1), 0.005, 0.8, transform=ax.transAxes, fc=GREEN, ec="none"))
-    ax.text(0.018, 0.72, "✦ Synthèse", fontsize=8.8, fontweight="bold", color=GREEN_D, va="center")
-    ax.text(0.018, 0.33, text, fontsize=8.3, color=INK, va="center", wrap=True)
+                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#f8fafc", ec="#dbe3ea", lw=1.1))
+    ax.add_patch(Rectangle((0.020, 0.64), 0.009, 0.26, transform=ax.transAxes, fc=GREEN, ec="none"))
+    ax.text(0.044, 0.78, "Synthèse", fontsize=9, fontweight="bold", color=GREEN_D, va="center")
+    for j, ln in enumerate(textwrap.wrap(text, 118)[:2]):
+        ax.text(0.044, 0.40 - j * 0.30, ln, fontsize=8.4, color=INK, va="center")
 
 
 def _png(fig):
@@ -440,69 +448,92 @@ def _entity_axis(objective_rows, axes, max_entities=5):
 # ===========================================================================
 # Panneaux
 # ===========================================================================
+def _attention_points(d):
+    """Points d'attention RÉELS déduits de l'analyse (liste de longueur variable)."""
+    pts = []
+    if d["smart_rate"] < d["smart_thr"]:
+        pts.append((RED, f"Taux d'objectifs SMART à {d['smart_rate']} %, sous la cible de {d['smart_thr']} % — "
+                         f"{d['a_ajuster']} objectif(s) à ajuster."))
+    if d["worst"] != "—":
+        wf = {"S": d["flous"], "M": d["sans_kpi"], "T": d["sans_echeance"]}.get(d["worst"][:1])
+        det = f" ({wf} objectif(s) concerné(s))" if wf else ""
+        pts.append((AMBER, f"Critère « {d['worst']} » le plus souvent non validé{det}."))
+    for x in d["over"]:
+        pts.append((AMBER, f"Axe « {x.get('axis_title', '')} » sur-concentré : {x.get('share_pct', 0)} % "
+                          f"des objectifs (seuil {d['over_threshold']} %)."))
+    for x in d["orphans"]:
+        pts.append((RED, f"Axe « {x.get('axis_title', '')} » orphelin : aucun objectif rattaché."))
+    if d["low_confidence"] > 0:
+        pts.append((VIOLET, f"{d['low_confidence']} analyse(s) à faible confiance IA, à faire relire par un humain."))
+    if d["faible_align"] > 0:
+        pts.append((AMBER, f"{d['faible_align']} objectif(s) faiblement aligné(s) sur la stratégie."))
+    if d["entities_below"] > 0:
+        pts.append((AMBER, f"{d['entities_below']} entité(s) sous la cible SMART de {d['smart_thr']} %."))
+    return pts
+
+
 def _p_synthese(d):
     f = _new_panel("1.  Synthèse exécutive",
                    "Vue suffisante pour comprendre l'état global des objectifs")
     pct = round(d["analyzed"] / d["total"] * 100) if d["total"] else 0
-    _ia_box(f, (0.045, 0.860, 0.91, 0.056),
+    _ia_box(f, (0.05, 0.838, 0.90, 0.085),
             f"{d['analyzed']} objectifs analysés sur {d['total']} importés ({pct} %). "
             f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %). "
             f"Critère le plus souvent non validé : {d['worst']}.")
-    # Les 8 KPI EXACTEMENT identiques au tableau de bord RH (même source get_analytics,
-    # mêmes libellés, mêmes valeurs) : le rapport COMEX = photo fidèle du dashboard.
-    _kpi_row(f, [(f"{d['analyzed']} / {d['total']}", "Objectifs analysés", "neutral", "▤"),
-                 (f"{d['avg_smart']} %", "Score SMART moyen", "neutral", "★"),
-                 (f"{d['avg_align']} %", "Alignement moyen", "neutral", "◆"),
-                 (f"{d['validated']}", "Objectifs validés", "neutral", "●")],
-             y=0.775, w=0.218, gap=0.012)
+    # Les 8 KPI EXACTEMENT identiques au tableau de bord RH (mêmes libellés, mêmes valeurs).
+    _kpi_row(f, [(f"{d['analyzed']} / {d['total']}", "Objectifs analysés", "sky", "▤"),
+                 (f"{d['avg_smart']} %", "Score SMART moyen", "emerald", "★"),
+                 (f"{d['avg_align']} %", "Alignement moyen", "teal", "◆"),
+                 (f"{d['validated']}", "Objectifs validés", "violet", "●")],
+             y=0.728, w=0.206, gap=0.026, x0=0.05)
     _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
                  (f"{d['smart_rate']} %", "Taux d'objectifs SMART", "emerald", "◎"),
                  (f"{d['align_rate']} %", "Alignement stratégique fort", "amber", "◇"),
                  (f"{d['low_confidence']}", "Faible confiance IA", "violet", "?")],
-             y=0.672, w=0.218, gap=0.012)
-    fr = _text_card(f, (0.045, 0.075, 0.91, 0.520), "3 points d'attention (constats factuels)", RED)
-    pts = []
-    if d["worst"] != "—":
-        wf = max(d["sans_kpi"], d["sans_echeance"], d["flous"])
-        pts.append((RED, f"Critère « {d['worst']} » le plus souvent non validé : {wf} objectif(s) concerné(s)."))
-    for x in d["orphans"][:1]:
-        pts.append((AMBER, f"Axe « {x.get('axis_title','')} » sans aucun objectif rattaché (axe orphelin)."))
-    for x in d["over"][:1]:
-        pts.append((AMBER, f"« {x.get('axis_title','')} » capte {x.get('share_pct',0)} % des objectifs (seuil {d['over_threshold']} %)."))
-    if not pts:
-        pts.append((GREEN, "Aucun point d'attention majeur sur le périmètre analysé."))
-    _numbered(fr, pts[:3])
+             y=0.618, w=0.206, gap=0.026, x0=0.05)
+    pts = _attention_points(d) or [(GREEN, "Aucun point d'attention majeur sur le périmètre analysé.")]
+    n = len(pts)
+    titre = f"{n} point d'attention" if n == 1 else f"{n} points d'attention"
+    card_h = max(0.30, min(0.52, 0.11 + n * 0.064))
+    fr = _text_card(f, (0.05, 0.565 - card_h, 0.90, card_h), titre, RED)
+    _numbered(fr, pts, y0=0.87, dy=min(0.17, 0.80 / max(n, 1)), fs=8.8, width=104)
     return _png(f)
 
 
-def _p_pilotage(d, ent_axis):
-    f = _new_panel("2.  Pilotage stratégique — couverture des axes",
+def _p_pilotage_a(d):
+    f = _new_panel("2.  Pilotage stratégique  (1/2) — couverture des axes",
                    f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique")
-    ax = _card_ax(f, (0.045, 0.560, 0.45, 0.345), "Poids des axes — treemap (rouge = sur-concentré)")
-    _treemap(ax, [(x.get("axis_title", "")[:10], int(x.get("count") or 0), _axis_color(x)) for x in d["axes"]])
-    ax = _card_ax(f, (0.505, 0.560, 0.45, 0.345), "Couverture par axe (% des objectifs)", left=0.30)
-    _hbar(ax, [(x.get("axis_title", "")[:14], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:7]],
+    ax = _card_ax(f, (0.05, 0.515, 0.90, 0.380), "Poids des axes stratégiques (rouge = sur-concentré)")
+    _treemap(ax, [(x.get("axis_title", "")[:16], int(x.get("count") or 0), _axis_color(x)) for x in d["axes"]])
+    ax = _card_ax(f, (0.05, 0.070, 0.90, 0.380), "Couverture par axe (% des objectifs)", left=0.22)
+    _hbar(ax, [(x.get("axis_title", "")[:24], round(float(x.get("share_pct") or 0)), _axis_color(x)) for x in d["axes"][:8]],
           pct=True, vmax=max(50, d["over_threshold"] + 10))
     ax.axvline(d["over_threshold"], color=INK, lw=1.2, ls="--")
+    return _png(f)
+
+
+def _p_pilotage_b(d, ent_axis):
+    f = _new_panel("2.  Pilotage stratégique  (2/2) — alignement",
+                   "Alignement moyen des objectifs sur les axes stratégiques, par entité")
     if ent_axis:
         matrix, rows, cols = ent_axis
-        ax = _card_ax(f, (0.045, 0.230, 0.55, 0.305), "Alignement moyen par entité × axe")
+        ax = _card_ax(f, (0.05, 0.500, 0.90, 0.395), "Alignement moyen par entité × axe", left=0.16)
         _heatmap(ax, matrix, rows, cols)
     else:
-        fr = _text_card(f, (0.045, 0.230, 0.55, 0.305), "Alignement par entité × axe")
-        fr.text(0.5, 0.5, "Données insuffisantes\n(axes non rattachés)", ha="center", va="center", fontsize=9, color=MUTED)
-    ax = _card_ax(f, (0.61, 0.230, 0.345, 0.305), "Niveaux d'alignement")
+        fr = _text_card(f, (0.05, 0.500, 0.90, 0.395), "Alignement par entité × axe")
+        fr.text(0.5, 0.5, "Données insuffisantes (axes non rattachés)", ha="center", va="center", fontsize=9, color=MUTED)
+    ax = _card_ax(f, (0.05, 0.075, 0.42, 0.375), "Niveaux d'alignement")
     dist = d["alignment_distribution"] or [{"level": "—", "count": 1}]
     _donut(ax, [int(r.get("count") or 0) for r in dist], [r.get("level", "")[:6] for r in dist],
            [GREEN, AMBER, RED], f"{d['avg_align']} %", "alignement")
-    fr = _text_card(f, (0.045, 0.050, 0.91, 0.155), "Constats", GREEN_D)
+    fr = _text_card(f, (0.50, 0.075, 0.45, 0.375), "Constats", GREEN_D)
     cons = []
-    for x in d["orphans"][:1]:
-        cons.append(f"Axe orphelin : « {x.get('axis_title','')} » ne reçoit aucun objectif.")
-    for x in d["over"][:1]:
-        cons.append(f"Sur-concentration : « {x.get('axis_title','')} » capte {x.get('share_pct',0)} % des objectifs (seuil {d['over_threshold']} %).")
+    for x in d["over"]:
+        cons.append(f"Sur-concentration : « {x.get('axis_title', '')} » capte {x.get('share_pct', 0)} % des objectifs.")
+    for x in d["orphans"]:
+        cons.append(f"Axe orphelin : « {x.get('axis_title', '')} » ne reçoit aucun objectif.")
     cons.append(f"{d['covered']} axe(s) couvert(s) sur {d['naxes']}.")
-    _dotted(fr, cons[:3], y0=0.80, dy=0.27, fs=8.2)
+    _dotted(fr, cons[:4], y0=0.84, dy=0.205, fs=8.2, width=40)
     return _png(f)
 
 
@@ -546,7 +577,7 @@ def _p_comparatifs(d):
     top = mgr[:3]
     flop = mgr[-3:] if len(mgr) > 3 else []
     sel = top + [m for m in flop if m not in top]
-    ax = _card_ax(f, (0.045, 0.070, 0.91, 0.370), "Managers — Top 3 / Flop 3 (score SMART moyen)", left=0.17)
+    ax = _card_ax(f, (0.045, 0.070, 0.91, 0.370), "Score SMART moyen par manager", left=0.17)
     if sel:
         rows = []
         for m in sel:
@@ -620,6 +651,33 @@ def _p_constats(d):
 # ===========================================================================
 # Assemblage du PDF
 # ===========================================================================
+def _format_period(p):
+    """Formule la période le plus précisément possible sur la page de garde :
+    année -> plage de dates, trimestre/semestre -> libellé + plage, sinon tel quel."""
+    import re
+    p = (p or "").strip()
+    if not p or p.lower() in ("toutes périodes", "toutes periodes", "campagne en cours"):
+        return "Campagne en cours"
+    m = re.fullmatch(r"(20\d{2})", p)
+    if m:
+        y = m.group(1)
+        return f"Année {y}  ·  du 01/01/{y} au 31/12/{y}"
+    m = re.search(r"[TQ]\s*([1-4])\D*(20\d{2})", p, re.I)
+    if m:
+        q, y = int(m.group(1)), m.group(2)
+        lib = {1: "1er", 2: "2e", 3: "3e", 4: "4e"}[q]
+        rng = {1: ("01/01", "31/03"), 2: ("01/04", "30/06"),
+               3: ("01/07", "30/09"), 4: ("01/10", "31/12")}[q]
+        return f"{lib} trimestre {y}  ·  du {rng[0]}/{y} au {rng[1]}/{y}"
+    m = re.search(r"S\s*([12])\D*(20\d{2})", p, re.I)
+    if m:
+        s, y = int(m.group(1)), m.group(2)
+        lib = {1: "1er", 2: "2e"}[s]
+        rng = {1: ("01/01", "30/06"), 2: ("01/07", "31/12")}[s]
+        return f"{lib} semestre {y}  ·  du {rng[0]}/{y} au {rng[1]}/{y}"
+    return p
+
+
 def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
     """Construit le rapport COMEX (PDF portrait) à partir des agrégats RH."""
     if not REPORT_SUPPORT:
@@ -628,7 +686,7 @@ def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
     meta = meta or {}
     d = _derive(analytics)
     when = meta.get("generated_at") or datetime.now().strftime("%d/%m/%Y %H:%M")
-    period = meta.get("period") or "Toutes périodes"
+    period = _format_period(meta.get("period"))
     scope = meta.get("scope") or "Groupe BMCI — toutes entités"
 
     ss = getSampleStyleSheet()
@@ -676,7 +734,7 @@ def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
         PageBreak(),
     ]
 
-    panels = [_p_synthese(d), _p_pilotage(d, ent_axis), _p_qualite(d),
+    panels = [_p_synthese(d), _p_pilotage_a(d), _p_pilotage_b(d, ent_axis), _p_qualite(d),
               _p_comparatifs(d), _p_attention(d), _p_constats(d)]
     L = 1.0 * cm
     img_w = A4[0] - 2 * L
@@ -700,7 +758,7 @@ def _assemble(story, when, period, scope):
             canvas.setFont("Helvetica-Bold", 26)
             canvas.drawString(2 * cm, A4[1] - 2.1 * cm, "BMCI")
             canvas.setFont("Helvetica", 12)
-            canvas.drawString(2 * cm, A4[1] - 2.8 * cm, "Projet Smart Objectif — Pilotage des objectifs")
+            canvas.drawString(2 * cm, A4[1] - 2.8 * cm, "Smart Objectives — Pilotage des objectifs")
         else:
             canvas.setFillColor(rl.HexColor(GREEN_D))
             canvas.setFont("Helvetica-Bold", 8.5)
