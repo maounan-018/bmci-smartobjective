@@ -68,12 +68,23 @@ def import_strategy(filename: str, content: bytes, current_user: dict) -> dict:
         imported = 0
 
         with db_session() as db:
+            # Index des axes existants par titre NORMALISÉ (casse et espaces ignorés) :
+            # un axe de titre équivalent est MIS À JOUR au lieu de créer un doublon
+            # (« Transformation Digitale » vs « Transformation digitale »).
+            existing = {" ".join((a.title or "").split()).lower(): a.id
+                        for a in company_objective_repository.list_all(db)}
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 title = row[col_map["title"]] if col_map.get("title") is not None else None
                 if not title or str(title).strip() == "":
                     continue
 
-                obj_id = row[col_map["id"]] if col_map.get("id") is not None else f"STRAT-{row_idx}"
+                title = " ".join(str(title).split())  # espaces normalisés
+                norm = title.lower()
+                raw_id = row[col_map["id"]] if col_map.get("id") is not None else None
+                # Priorité : titre déjà connu -> on réutilise son id (fusion) ; sinon
+                # l'id fourni dans le fichier ; sinon un id généré.
+                obj_id = existing.get(norm) or (str(raw_id).strip() if raw_id else "") or f"STRAT-{row_idx}"
+                existing[norm] = obj_id
                 description = row[col_map["description"]] if col_map.get("description") is not None else ""
                 department = row[col_map["department"]] if col_map.get("department") is not None else ""
                 priority = row[col_map["priority"]] if col_map.get("priority") is not None else 1
@@ -84,7 +95,7 @@ def import_strategy(filename: str, content: bytes, current_user: dict) -> dict:
 
                 company_objective_repository.merge(db, {
                     "id": str(obj_id).strip(),
-                    "title": str(title).strip(),
+                    "title": title,
                     "description": str(description or "").strip(),
                     "department": str(department or "").strip(),
                     "priority": priority,
