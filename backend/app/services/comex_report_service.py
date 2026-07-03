@@ -365,7 +365,8 @@ def _ia_box(fig, rect, text):
 
 def _png(fig):
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=150, facecolor=fig.get_facecolor(), pad_inches=0)
+    # 280 dpi : net à l'impression et au zoom (150 dpi rendait le texte flou en pleine page A4).
+    fig.savefig(buf, format="png", dpi=280, facecolor=fig.get_facecolor(), pad_inches=0)
     plt.close(fig)
     buf.seek(0)
     return buf
