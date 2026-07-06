@@ -159,6 +159,39 @@ export const ApiService = {
     }
   },
 
+  // ---- Administration des comptes (HR/ADMIN) ----
+  async _adminMutate(url, method, body) {
+    try {
+      const opts = { method };
+      if (body !== undefined) opts.body = JSON.stringify(body);
+      const response = await AuthService.authFetch(`${API_BASE}${url}`, opts);
+      if (response.ok) return { ok: true };
+      const data = await response.json().catch(() => ({}));
+      return { ok: false, error: data.detail || 'Opération refusée.' };
+    } catch (error) {
+      console.error('[ApiService] admin mutate error:', error);
+      return { ok: false, error: 'Erreur réseau.' };
+    }
+  },
+
+  async adminListUsers() {
+    try {
+      const response = await AuthService.authFetch(`${API_BASE}/admin/users`, { method: 'GET' });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.users || [];
+    } catch (error) {
+      console.error('[ApiService] adminListUsers error:', error);
+      return [];
+    }
+  },
+
+  adminCreateUser(payload) { return this._adminMutate('/admin/users', 'POST', payload); },
+  adminUpdateUser(id, payload) { return this._adminMutate(`/admin/users/${encodeURIComponent(id)}`, 'PUT', payload); },
+  adminSetUserActive(id, active) { return this._adminMutate(`/admin/users/${encodeURIComponent(id)}/active`, 'PATCH', { active }); },
+  adminResetUserPassword(id, password) { return this._adminMutate(`/admin/users/${encodeURIComponent(id)}/reset-password`, 'POST', { password }); },
+  adminDeleteUser(id) { return this._adminMutate(`/admin/users/${encodeURIComponent(id)}`, 'DELETE'); },
+
   // ==================== ÉQUIPE (MANAGER/RH) ====================
   async getTeamMembers() {
     try {

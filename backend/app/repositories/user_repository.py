@@ -13,7 +13,7 @@ EMPLACEMENT MVC
 
 from typing import List, Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_token
@@ -101,3 +101,35 @@ def get_team_members(db: Session, manager_id: str) -> List[User]:
 def get_all_members(db: Session) -> List[User]:
     """Tous les utilisateurs (vue HR globale)."""
     return list(db.scalars(select(User)).all())
+
+
+def list_all_ordered(db: Session) -> List[User]:
+    """Tous les utilisateurs, triés par rôle puis email (administration des comptes)."""
+    return list(db.scalars(select(User).order_by(User.role, User.email)).all())
+
+
+def count_active_by_role(db: Session, role: str) -> int:
+    """Nombre de comptes ACTIFS pour un rôle (garde-fou « dernier administrateur »)."""
+    return db.scalar(
+        select(func.count()).select_from(User).where(User.role == role, User.active == 1)
+    ) or 0
+
+
+def set_active(db: Session, user_id: str, active: bool) -> None:
+    """Active (1) ou désactive (0) un compte."""
+    db.execute(update(User).where(User.id == user_id).values(active=1 if active else 0))
+
+
+def update_fields(db: Session, user_id: str, values: dict) -> None:
+    """Met à jour les champs fournis d'un utilisateur (nom, rôle, manager, entité)."""
+    if values:
+        db.execute(update(User).where(User.id == user_id).values(**values))
+
+
+def delete_by_id(db: Session, user_id: str) -> bool:
+    """Supprime un utilisateur (cascade objectifs/sessions). True si supprimé."""
+    obj = db.get(User, user_id)
+    if obj is None:
+        return False
+    db.delete(obj)
+    return True

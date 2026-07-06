@@ -102,6 +102,15 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
 
     with db_session() as db:
         user = user_repository.get_by_id(db, user_id)
+        # Compte désactivé par l'administration : connexion refusée (données conservées).
+        if user is not None and getattr(user, "active", 1) == 0:
+            audit.log_event(
+                AuditEventType.ACCESS_DENIED, f"Connexion refusée : compte désactivé ({identifier})",
+                user_id=user_id, username=identifier, event_status="FAILED",
+                ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+            )
+            raise HTTPException(status_code=403,
+                                detail="Ce compte est désactivé. Contactez votre administrateur.")
         # Migration transparente du hash si ancien format SHA-256
         if user and security.needs_rehash(user.password_hash):
             user_repository.update_password_hash(

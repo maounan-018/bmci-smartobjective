@@ -16,7 +16,7 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, ForeignKey, CheckConstraint, text
+from sqlalchemy import String, Integer, ForeignKey, CheckConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -36,6 +36,9 @@ class User(Base):
     )
     team: Mapped[str | None] = mapped_column(String, nullable=True)
     entity: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Compte actif (1) ou désactivé (0) : un compte désactivé ne peut plus se
+    # connecter mais ses données (objectifs, analyses) sont conservées.
+    active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     created_at: Mapped[str | None] = mapped_column(
         String, server_default=text("CURRENT_TIMESTAMP")
     )
@@ -70,5 +73,6 @@ class User(Base):
             "manager_id": self.manager_id,
             "team": self.team,
             "entity": self.entity,
+            "active": bool(self.active),
             "created_at": self.created_at,
         }

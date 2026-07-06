@@ -15,7 +15,7 @@ import DashboardLayout from '@/layouts/DashboardLayout.vue';
 import {
   ShieldCheck, Upload, Download, ChevronRight, Loader2, Target, Users, BarChart3,
   CheckCircle2, AlertCircle, TrendingUp, FileSpreadsheet, Sparkles, RefreshCw, Eye,
-  Filter, FileCheck2, History, FileText,
+  Filter, FileCheck2, History, FileText, Plus, Pencil, KeyRound, Power, Trash2,
 } from 'lucide-vue-next';
 
 // Enregistrement des éléments Chart.js nécessaires.
@@ -398,6 +398,61 @@ function goToFilter(f) {
 function goToAdjust() { goToFilter('to-adjust'); }
 function goToLowConfidence() { goToFilter('low-confidence'); }
 
+// ============ GESTION DES COMPTES (HR/ADMIN) ============
+const usersList = ref([]);
+const usersLoading = ref(false);
+const usersError = ref('');
+const showCreateUser = ref(false);
+const newUser = ref({ email: '', name: '', role: 'COLLAB', password: '', manager_id: '' });
+const editingUser = ref(null);
+const managersList = computed(() => usersList.value.filter((u) => u.role === 'MANAGER'));
+
+async function loadUsers() {
+  usersLoading.value = true;
+  usersError.value = '';
+  try {
+    usersList.value = await ApiService.adminListUsers();
+  } finally {
+    usersLoading.value = false;
+  }
+}
+async function handleCreateUser() {
+  const payload = { ...newUser.value };
+  if (!payload.manager_id) delete payload.manager_id;
+  const res = await ApiService.adminCreateUser(payload);
+  if (res.ok) {
+    showCreateUser.value = false;
+    newUser.value = { email: '', name: '', role: 'COLLAB', password: '', manager_id: '' };
+    await loadUsers();
+  } else {
+    usersError.value = res.error;
+  }
+}
+function startEditUser(u) {
+  editingUser.value = { id: u.id, email: u.email, name: u.name, role: u.role, manager_id: u.manager_id || '' };
+}
+async function handleUpdateUser() {
+  const u = editingUser.value;
+  const res = await ApiService.adminUpdateUser(u.id, { name: u.name, role: u.role, manager_id: u.manager_id || null });
+  if (res.ok) { editingUser.value = null; await loadUsers(); } else { usersError.value = res.error; }
+}
+async function toggleUserActive(u) {
+  const res = await ApiService.adminSetUserActive(u.id, !u.active);
+  if (res.ok) await loadUsers(); else usersError.value = res.error;
+}
+async function handleResetPassword(u) {
+  const pwd = window.prompt(`Nouveau mot de passe pour ${u.name} (min. 6 caractères) :`);
+  if (!pwd) return;
+  if (pwd.length < 6) { usersError.value = 'Le mot de passe doit faire au moins 6 caractères.'; return; }
+  const res = await ApiService.adminResetUserPassword(u.id, pwd);
+  if (res.ok) { usersError.value = ''; window.alert('Mot de passe réinitialisé.'); } else { usersError.value = res.error; }
+}
+async function handleDeleteUser(u) {
+  if (!window.confirm(`Supprimer définitivement le compte « ${u.name} » (${u.email}) et toutes ses données ?`)) return;
+  const res = await ApiService.adminDeleteUser(u.id);
+  if (res.ok) await loadUsers(); else usersError.value = res.error;
+}
+
 function smartValid(analysisObj, item, key) {
   return analysisObj?.[key] || item?.[`${key.toLowerCase()}_score`];
 }
@@ -773,12 +828,13 @@ function noDetailedAnalysis(analysisObj) {
           <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-lg">
             <button @click="view = 'dashboard'" :class="['px-4 py-1.5 text-sm font-bold rounded-md', view === 'dashboard' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500']">Dashboard</button>
             <button @click="view = 'details'" :class="['px-4 py-1.5 text-sm font-bold rounded-md', view === 'details' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500']">Détails</button>
+            <button @click="view = 'users'; loadUsers()" :class="['px-4 py-1.5 text-sm font-bold rounded-md', view === 'users' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500']">Comptes</button>
           </div>
         </div>
 
         <div v-if="loading" class="h-64 flex items-center justify-center"><Loader2 class="animate-spin text-emerald-500" :size="32" /></div>
 
-        <div v-else-if="!hasData" class="text-center py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+        <div v-else-if="!hasData && view !== 'users'" class="text-center py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
           <BarChart3 :size="48" class="mx-auto text-slate-300 mb-4" />
           <h3 class="text-lg font-bold text-slate-600">Aucune donnée à afficher</h3>
           <p class="text-sm text-slate-400 mt-1">Importez des fichiers pour commencer l'analyse.</p>
@@ -901,6 +957,97 @@ function noDetailedAnalysis(analysisObj) {
               </div>
             </div>
             <p class="text-xs text-slate-400 mt-3">Sur-concentration au-delà de {{ analytics?.axis_coverage?.over_concentration_threshold ?? 40 }}% des objectifs sur un seul axe.</p>
+          </div>
+        </div>
+
+        <!-- Vue Comptes (administration des utilisateurs) -->
+        <div v-else-if="view === 'users'" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-lg text-slate-800">Gestion des comptes ({{ usersList.length }})</h3>
+            <button @click="showCreateUser = !showCreateUser" class="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700">
+              <Plus :size="16" /> Nouveau compte
+            </button>
+          </div>
+
+          <div v-if="usersError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center justify-between">
+            <span>{{ usersError }}</span>
+            <button @click="usersError = ''" class="font-bold">✕</button>
+          </div>
+
+          <!-- Formulaire de création -->
+          <div v-if="showCreateUser" class="bg-slate-50 p-4 rounded-xl border grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input v-model="newUser.name" placeholder="Nom complet" class="px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            <input v-model="newUser.email" placeholder="Email" type="email" class="px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            <select v-model="newUser.role" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+              <option value="COLLAB">Collaborateur</option>
+              <option value="MANAGER">Manager</option>
+              <option value="HR">RH</option>
+            </select>
+            <select v-if="newUser.role === 'COLLAB'" v-model="newUser.manager_id" class="px-3 py-2 border border-slate-200 rounded-lg text-sm">
+              <option value="">— Manager (optionnel) —</option>
+              <option v-for="m in managersList" :key="m.id" :value="m.id">{{ m.name }}</option>
+            </select>
+            <input v-model="newUser.password" placeholder="Mot de passe (min. 6)" type="text" class="px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+            <div class="md:col-span-2 flex justify-end gap-2">
+              <button @click="showCreateUser = false" class="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-lg">Annuler</button>
+              <button @click="handleCreateUser" :disabled="!newUser.name.trim() || !newUser.email.trim() || newUser.password.length < 6" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">Créer</button>
+            </div>
+          </div>
+
+          <div v-if="usersLoading" class="py-10 text-center"><Loader2 class="animate-spin text-emerald-500 mx-auto" :size="28" /></div>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="border-b bg-slate-50 text-xs text-slate-500 uppercase">
+                  <th class="p-3">Nom</th><th class="p-3">Email</th><th class="p-3">Rôle</th>
+                  <th class="p-3 text-center">Statut</th><th class="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in usersList" :key="u.id" :class="['border-b hover:bg-slate-50', u.active ? '' : 'opacity-60']">
+                  <td class="p-3 font-semibold text-slate-800">{{ u.name }}</td>
+                  <td class="p-3 text-slate-500">{{ u.email }}</td>
+                  <td class="p-3">
+                    <span :class="['text-xs font-bold px-2 py-0.5 rounded', u.role === 'HR' ? 'bg-emerald-100 text-emerald-700' : u.role === 'MANAGER' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600']">{{ u.role }}</span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <span :class="['text-xs font-bold px-2 py-0.5 rounded', u.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500']">{{ u.active ? 'Actif' : 'Inactif' }}</span>
+                  </td>
+                  <td class="p-3">
+                    <div class="flex items-center justify-end gap-1">
+                      <button @click="startEditUser(u)" class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Modifier"><Pencil :size="16" /></button>
+                      <button @click="handleResetPassword(u)" class="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Réinitialiser le mot de passe"><KeyRound :size="16" /></button>
+                      <button @click="toggleUserActive(u)" class="p-2 rounded-lg" :class="u.active ? 'text-slate-500 hover:text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'" :title="u.active ? 'Désactiver' : 'Réactiver'"><Power :size="16" /></button>
+                      <button @click="handleDeleteUser(u)" class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 :size="16" /></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Modal édition -->
+          <div v-if="editingUser" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click="editingUser = null">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" @click.stop>
+              <h3 class="font-bold text-lg text-slate-800 mb-1">Modifier le compte</h3>
+              <p class="text-xs text-slate-400 mb-4">{{ editingUser.email }}</p>
+              <div class="space-y-3">
+                <input v-model="editingUser.name" placeholder="Nom" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                <select v-model="editingUser.role" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                  <option value="COLLAB">Collaborateur</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="HR">RH</option>
+                </select>
+                <select v-if="editingUser.role === 'COLLAB'" v-model="editingUser.manager_id" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                  <option value="">— Sans manager —</option>
+                  <option v-for="m in managersList" :key="m.id" :value="m.id">{{ m.name }}</option>
+                </select>
+              </div>
+              <div class="flex justify-end gap-2 mt-5">
+                <button @click="editingUser = null" class="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Annuler</button>
+                <button @click="handleUpdateUser" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700">Enregistrer</button>
+              </div>
+            </div>
           </div>
         </div>
 

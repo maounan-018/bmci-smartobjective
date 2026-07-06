@@ -29,7 +29,21 @@ logger = logging.getLogger(__name__)
 def init_db() -> None:
     """Crée toutes les tables ORM manquantes (idempotent)."""
     Base.metadata.create_all(bind=engine)
+    _run_migrations()
     _create_vector_tables()
+
+
+def _run_migrations() -> None:
+    """Migrations légères et idempotentes : `create_all` n'ALTÈRE pas les tables
+    existantes. On ajoute ici les colonnes manquantes sur une base déjà peuplée."""
+    try:
+        with engine.begin() as conn:
+            cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()]
+            if "active" not in cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+                logger.info("Migration : colonne users.active ajoutée")
+    except Exception as e:
+        logger.error("Migration users.active échouée: %s", e)
 
 
 def _create_vector_tables() -> None:
