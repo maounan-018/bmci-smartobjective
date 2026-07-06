@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends
 
 from app.controllers.auth_controller import get_current_user
 from app.schemas.objective_schema import (
-    ObjectiveCreate, ObjectiveUpdate, CompanyObjectiveCreate,
+    ObjectiveCreate, ObjectiveUpdate, CompanyObjectiveCreate, CompanyObjectiveUpdate,
 )
 from app.services import objective_service, user_service
 
@@ -74,6 +74,24 @@ def create_company_objective(request: CompanyObjectiveCreate, current_user: dict
 def batch_create_company_objectives(objectives: List[CompanyObjectiveCreate], current_user: dict = Depends(get_current_user)):
     """Import batch d'objectifs stratégiques (HR ou Manager seulement)."""
     return objective_service.batch_create_company_objectives(objectives, current_user)
+
+
+@router.get("/company-objectives/export")
+def export_company_objectives(current_user: dict = Depends(get_current_user)):
+    """Exporte le catalogue stratégique en modèle Excel (HR ou Manager)."""
+    return objective_service.export_company_objectives_excel(current_user)
+
+
+@router.put("/company-objectives/{objective_id}")
+def update_company_objective(objective_id: str, request: CompanyObjectiveUpdate, current_user: dict = Depends(get_current_user)):
+    """Met à jour un objectif stratégique (HR ou Manager)."""
+    return objective_service.update_company_objective(objective_id, request, current_user)
+
+
+@router.delete("/company-objectives/{objective_id}")
+def delete_company_objective(objective_id: str, current_user: dict = Depends(get_current_user)):
+    """Supprime un objectif stratégique (HR ou Manager)."""
+    return objective_service.delete_company_objective(objective_id, current_user)
 
 
 # ============= ÉQUIPE (générique, dépendant du rôle) =============

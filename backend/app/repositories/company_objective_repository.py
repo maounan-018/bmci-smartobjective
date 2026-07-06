@@ -46,3 +46,29 @@ def merge(db: Session, values: dict) -> CompanyObjective:
     obj = db.merge(CompanyObjective(**values))
     db.flush()
     return obj
+
+
+def get_by_id(db: Session, obj_id: str):
+    """Récupère un objectif stratégique par son id (ou None)."""
+    return db.get(CompanyObjective, obj_id)
+
+
+def update(db: Session, obj_id: str, values: dict):
+    """Met à jour les champs fournis d'un objectif stratégique (ou None si absent)."""
+    obj = db.get(CompanyObjective, obj_id)
+    if obj is None:
+        return None
+    for key, value in values.items():
+        setattr(obj, key, value)
+    db.flush()
+    return obj
+
+
+def delete_by_id(db: Session, obj_id: str) -> bool:
+    """Supprime un objectif stratégique. Retourne True si un objet a été supprimé."""
+    obj = db.get(CompanyObjective, obj_id)
+    if obj is None:
+        return False
+    db.delete(obj)
+    db.flush()
+    return True

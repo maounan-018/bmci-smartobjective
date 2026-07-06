@@ -13,7 +13,7 @@ import {
   Users, Target, ChevronRight, Loader2, AlertCircle,
   CheckCircle2, TrendingUp, RefreshCw, Eye, Plus, Download,
   Search, PieChart as PieChartIcon, Play, Sparkles, FileSpreadsheet, Upload, X,
-  BookOpen,
+  BookOpen, Pencil, Trash2, Check,
 } from 'lucide-vue-next';
 
 const auth = useAuthStore();
@@ -274,6 +274,63 @@ async function handleAddCompanyGoal() {
     await loadData();
     newGoalTitle.value = '';
     newGoalDesc.value = '';
+  }
+}
+
+// --- Édition / suppression / export des objectifs stratégiques ---
+const editingGoalId = ref(null);
+const editGoalTitle = ref('');
+const editGoalDesc = ref('');
+const isExportingStrategy = ref(false);
+
+function startEditGoal(goal) {
+  editingGoalId.value = goal.id;
+  editGoalTitle.value = goal.title;
+  editGoalDesc.value = goal.description || '';
+}
+function cancelEditGoal() {
+  editingGoalId.value = null;
+  editGoalTitle.value = '';
+  editGoalDesc.value = '';
+}
+async function handleUpdateCompanyGoal(id) {
+  if (!editGoalTitle.value.trim()) return;
+  const ok = await ApiService.updateCompanyObjective(id, {
+    title: editGoalTitle.value,
+    description: editGoalDesc.value,
+  });
+  if (ok) {
+    await loadData();
+    cancelEditGoal();
+  } else {
+    error.value = "La modification de l'objectif stratégique a échoué.";
+  }
+}
+async function handleDeleteCompanyGoal(goal) {
+  if (!confirm(`Supprimer l'objectif stratégique « ${goal.title} » ?`)) return;
+  const ok = await ApiService.deleteCompanyObjective(goal.id);
+  if (ok) {
+    await loadData();
+  } else {
+    error.value = "La suppression de l'objectif stratégique a échoué.";
+  }
+}
+async function exportStrategyTemplate() {
+  isExportingStrategy.value = true;
+  try {
+    const blob = await ApiService.exportCompanyObjectivesExcel();
+    if (blob) {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `objectifs_strategiques_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } else {
+      error.value = "L'export Excel des objectifs stratégiques a échoué.";
+    }
+  } finally {
+    isExportingStrategy.value = false;
   }
 }
 
@@ -1128,18 +1185,44 @@ function historyIssueFor(item, key) {
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 class="font-bold text-lg text-slate-800 mb-4">Catalogue Stratégique ({{ companyObjectives.length }})</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg text-slate-800">Catalogue Stratégique ({{ companyObjectives.length }})</h3>
+            <button @click="exportStrategyTemplate" :disabled="isExportingStrategy" class="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-bold text-sm hover:bg-purple-200 disabled:opacity-50">
+              <Loader2 v-if="isExportingStrategy" :size="16" class="animate-spin" />
+              <Download v-else :size="16" />
+              Exporter (modèle Excel)
+            </button>
+          </div>
           <div v-if="companyObjectives.length === 0" class="text-center py-12 text-slate-400">
             <Target :size="48" class="mx-auto mb-4 text-slate-300" />
             <p>Aucun objectif stratégique défini.</p>
             <p class="text-sm">Ajoutez des objectifs ci-dessus.</p>
           </div>
           <div v-else class="space-y-2">
-            <div v-for="goal in companyObjectives" :key="goal.id" class="p-4 bg-slate-50 rounded-xl flex items-center gap-4">
-              <div class="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">{{ goal.id }}</div>
-              <div class="flex-1">
-                <div class="font-bold text-purple-900">{{ goal.title }}</div>
-                <div class="text-xs text-slate-500">{{ goal.description || 'Pas de description' }}</div>
+            <div v-for="goal in companyObjectives" :key="goal.id" class="p-4 bg-slate-50 rounded-xl">
+              <!-- Mode édition -->
+              <div v-if="editingGoalId === goal.id" class="flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">{{ goal.id }}</span>
+                  <input v-model="editGoalTitle" class="flex-1 px-3 py-2 border border-purple-300 rounded-lg text-sm" placeholder="Titre..." />
+                </div>
+                <input v-model="editGoalDesc" class="px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Description..." />
+                <div class="flex items-center gap-2 justify-end">
+                  <button @click="cancelEditGoal" class="px-3 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-lg">Annuler</button>
+                  <button @click="handleUpdateCompanyGoal(goal.id)" :disabled="!editGoalTitle.trim()" class="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded-lg font-bold text-sm hover:bg-purple-700 disabled:opacity-50">
+                    <Check :size="16" /> Enregistrer
+                  </button>
+                </div>
+              </div>
+              <!-- Mode lecture -->
+              <div v-else class="flex items-center gap-4">
+                <div class="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">{{ goal.id }}</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-purple-900 truncate">{{ goal.title }}</div>
+                  <div class="text-xs text-slate-500 truncate">{{ goal.description || 'Pas de description' }}</div>
+                </div>
+                <button @click="startEditGoal(goal)" class="p-2 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg" title="Modifier"><Pencil :size="16" /></button>
+                <button @click="handleDeleteCompanyGoal(goal)" class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 :size="16" /></button>
               </div>
             </div>
           </div>

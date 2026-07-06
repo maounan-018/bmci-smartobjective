@@ -123,6 +123,42 @@ export const ApiService = {
     }
   },
 
+  async updateCompanyObjective(id, values) {
+    try {
+      const response = await AuthService.authFetch(`${API_BASE}/company-objectives/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(values),
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('[ApiService] updateCompanyObjective error:', error);
+      return false;
+    }
+  },
+
+  async deleteCompanyObjective(id) {
+    try {
+      const response = await AuthService.authFetch(`${API_BASE}/company-objectives/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('[ApiService] deleteCompanyObjective error:', error);
+      return false;
+    }
+  },
+
+  async exportCompanyObjectivesExcel() {
+    try {
+      const response = await AuthService.authFetch(`${API_BASE}/company-objectives/export`, { method: 'GET' });
+      if (!response.ok) return null;
+      return await response.blob();
+    } catch (error) {
+      console.error('[ApiService] exportCompanyObjectivesExcel error:', error);
+      return null;
+    }
+  },
+
   // ==================== ÉQUIPE (MANAGER/RH) ====================
   async getTeamMembers() {
     try {

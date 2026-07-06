@@ -41,3 +41,10 @@ class CompanyObjectiveCreate(BaseModel):
     title: str = Field(min_length=1, max_length=_TITLE_MAX)
     description: Optional[str] = Field(default="", max_length=_DESC_MAX)
     department: Optional[str] = Field(default="", max_length=_SHORT_MAX)
+
+
+class CompanyObjectiveUpdate(BaseModel):
+    """Mise à jour partielle d'un objectif stratégique d'entreprise."""
+    title: Optional[str] = Field(default=None, min_length=1, max_length=_TITLE_MAX)
+    description: Optional[str] = Field(default=None, max_length=_DESC_MAX)
+    department: Optional[str] = Field(default=None, max_length=_SHORT_MAX)

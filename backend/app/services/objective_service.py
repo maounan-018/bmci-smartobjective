@@ -188,6 +188,82 @@ def batch_create_company_objectives(objectives: List, current_user: dict) -> dic
     return {"success": True, "created": created}
 
 
+def _require_manager_or_hr(current_user: dict):
+    if current_user["role"] not in ("MANAGER", "HR"):
+        raise HTTPException(status_code=403,
+                            detail="Seuls les managers et RH peuvent gérer les objectifs stratégiques.")
+
+
+def update_company_objective(objective_id: str, request, current_user: dict) -> dict:
+    """Met à jour un objectif stratégique (HR ou Manager)."""
+    _require_manager_or_hr(current_user)
+    values = {}
+    if request.title is not None:
+        values["title"] = request.title.strip()
+    if request.description is not None:
+        values["description"] = request.description.strip()
+    if request.department is not None:
+        values["department"] = request.department.strip()
+    with db_session() as db:
+        updated = company_objective_repository.update(db, objective_id, values)
+        if updated is None:
+            raise HTTPException(status_code=404, detail="Objectif stratégique introuvable.")
+    return {"success": True, "id": objective_id}
+
+
+def delete_company_objective(objective_id: str, current_user: dict) -> dict:
+    """Supprime un objectif stratégique (HR ou Manager)."""
+    _require_manager_or_hr(current_user)
+    with db_session() as db:
+        deleted = company_objective_repository.delete_by_id(db, objective_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Objectif stratégique introuvable.")
+    return {"success": True}
+
+
+def export_company_objectives_excel(current_user: dict):
+    """Exporte le catalogue stratégique dans un modèle Excel (ré-importable)."""
+    _require_manager_or_hr(current_user)
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+    from datetime import datetime
+    from fastapi.responses import StreamingResponse
+
+    with db_session() as db:
+        objs = company_objective_repository.list_all(db)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Objectifs strategiques"
+    headers = ["ID", "Titre", "Description", "Departement", "Priorite"]
+    ws.append(headers)
+    head_font = Font(bold=True, color="FFFFFF")
+    head_fill = PatternFill("solid", fgColor="7C3AED")
+    for cell in ws[1]:
+        cell.font = head_font
+        cell.fill = head_fill
+    if objs:
+        for o in objs:
+            ws.append([o.id, o.title, o.description or "", o.department or "", o.priority or 1])
+    else:
+        # Modèle vide : deux lignes d'exemple pour guider la saisie.
+        ws.append(["AXE-01", "Transformation digitale", "Description de l'axe...", "Direction", 1])
+        ws.append(["", "Nouvel axe (ID laisse vide = genere automatiquement)", "", "", 1])
+    for col, width in zip("ABCDE", (12, 40, 55, 20, 10)):
+        ws.column_dimensions[col].width = width
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"objectifs_strategiques_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 # ============= STATISTIQUES D'ÉQUIPE (génériques) =============
 
 def compute_team_stats(team_ids: List[str]) -> dict:
