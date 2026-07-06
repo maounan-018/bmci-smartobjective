@@ -56,6 +56,14 @@ const filterMember = ref('all');
 const filterSmartStatus = ref('all');
 const searchQuery = ref('');
 
+// Un clic sur un KPI du dashboard ouvre la vue « Mon équipe » filtrée en conséquence.
+function goToTeam(smartStatus = 'all') {
+  filterSmartStatus.value = smartStatus;
+  filterMember.value = 'all';
+  searchQuery.value = '';
+  activeTask.value = 'team';
+}
+
 // État pour l'analyse en cours
 const analyzingId = ref(null);
 
@@ -528,31 +536,31 @@ function historyIssueFor(item, key) {
         <button @click="error = null" class="ml-auto text-xs font-bold">Masquer</button>
       </div>
 
-      <!-- KPIs Cards -->
+      <!-- KPIs Cards (cliquables : renvoient à la liste d'équipe filtrée) -->
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div @click="goToTeam('all')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-emerald-200 transition-shadow">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Collaborateurs</div>
           <div class="text-3xl font-black text-emerald-800 mt-1">{{ kpis.totalMembers }}</div>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div @click="goToTeam('all')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-emerald-200 transition-shadow">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Total Objectifs</div>
           <div class="text-3xl font-black text-emerald-800 mt-1">{{ kpis.totalObjectives }}</div>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div @click="goToTeam('smart')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-emerald-200 transition-shadow">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Taux SMART</div>
           <div class="text-3xl font-black text-emerald-800 mt-1">
             <template v-if="kpis.smartRate !== null">{{ kpis.smartRate }}%</template>
             <span v-else class="text-slate-300 text-lg">—</span>
           </div>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div @click="goToTeam('all')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-emerald-200 transition-shadow">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Alignement Moyen</div>
           <div class="text-3xl font-black text-emerald-800 mt-1">
             <template v-if="kpis.avgAlignment !== null">{{ kpis.avgAlignment }}%</template>
             <span v-else class="text-slate-300 text-lg">—</span>
           </div>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div @click="goToTeam('non-smart')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md hover:border-amber-200 transition-shadow">
           <div class="text-[10px] font-bold text-slate-400 uppercase">Alertes</div>
           <div :class="['text-3xl font-black mt-1', kpis.alertsCount > 0 ? 'text-amber-600' : 'text-emerald-600']">
             {{ kpis.alertsCount }}

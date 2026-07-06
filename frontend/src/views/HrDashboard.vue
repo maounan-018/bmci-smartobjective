@@ -343,8 +343,9 @@ const objModalConfidence = computed(() => {
 
 // Filtres de la vue détails : E3 « à ajuster » (sous le seuil SMART) et
 // #2 « faible confiance IA » (le modèle s'est déclaré incertain -> relecture humaine).
-const detailsFilter = ref('all'); // 'all' | 'to-adjust' | 'low-confidence'
+const detailsFilter = ref('all');
 const smartThreshold = computed(() => analytics.value?.thresholds?.smart ?? 80);
+const alignStrong = computed(() => analytics.value?.thresholds?.alignment_strong ?? 80);
 const confidenceMin = computed(() => analytics.value?.thresholds?.ai_confidence_min ?? 0.6);
 const toAdjustCount = computed(() => {
   const r = analytics.value?.smart_rate;
@@ -357,24 +358,45 @@ function objConfidence(o) {
   const c = parseJson(o?.smart_analysis)?.confidence;
   return typeof c === 'number' ? c : null;
 }
+const isAnalyzed = (o) => o.smart_score !== null && o.smart_score !== undefined;
+// Libellé du filtre actif, affiché en tête de la vue détails.
+const FILTER_LABELS = {
+  analyzed: 'Objectifs analysés',
+  'to-adjust': 'Objectifs à ajuster',
+  'smart-ok': 'Objectifs SMART conformes',
+  'align-strong': 'Objectifs fortement alignés',
+  validated: 'Objectifs validés',
+  'low-confidence': 'Analyses à faible confiance IA',
+};
+// Chaque KPI du dashboard renvoie à la liste filtrée des objectifs concernés.
 const displayedObjectives = computed(() => {
-  if (detailsFilter.value === 'to-adjust')
-    return objectives.value.filter((o) => (o.smart_score ?? 0) < smartThreshold.value);
-  if (detailsFilter.value === 'low-confidence')
-    return objectives.value.filter((o) => {
-      const c = objConfidence(o);
-      return c !== null && c < confidenceMin.value;
-    });
-  return objectives.value;
+  const objs = objectives.value;
+  switch (detailsFilter.value) {
+    case 'analyzed':
+      return objs.filter(isAnalyzed);
+    case 'to-adjust':
+      return objs.filter((o) => isAnalyzed(o) && o.smart_score < smartThreshold.value);
+    case 'smart-ok':
+      return objs.filter((o) => isAnalyzed(o) && o.smart_score >= smartThreshold.value);
+    case 'align-strong':
+      return objs.filter((o) => (o.alignment_score ?? -1) >= alignStrong.value);
+    case 'validated':
+      return objs.filter((o) => o.status === 'validated' || o.validated === true);
+    case 'low-confidence':
+      return objs.filter((o) => {
+        const c = objConfidence(o);
+        return c !== null && c < confidenceMin.value;
+      });
+    default:
+      return objs;
+  }
 });
-function goToAdjust() {
-  detailsFilter.value = 'to-adjust';
+function goToFilter(f) {
+  detailsFilter.value = f;
   view.value = 'details';
 }
-function goToLowConfidence() {
-  detailsFilter.value = 'low-confidence';
-  view.value = 'details';
-}
+function goToAdjust() { goToFilter('to-adjust'); }
+function goToLowConfidence() { goToFilter('low-confidence'); }
 
 function smartValid(analysisObj, item, key) {
   return analysisObj?.[key] || item?.[`${key.toLowerCase()}_score`];
@@ -784,19 +806,19 @@ function noDetailedAnalysis(analysisObj) {
 
           <!-- KPIs -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div class="bg-slate-50/50 p-4 rounded-xl border">
+            <div @click="goToFilter('analyzed')" class="bg-slate-50/50 p-4 rounded-xl border cursor-pointer hover:shadow-md hover:border-emerald-300 transition-shadow">
               <p class="text-xs font-bold text-slate-500 uppercase">Objectifs Analysés</p>
               <p class="text-3xl font-black text-emerald-800 mt-1">{{ kpiDisplay(analytics?.global_stats.analyzed || 0) }}<template v-if="analytics?.global_stats.total !== undefined"> / {{ analytics.global_stats.total.toLocaleString('fr-FR') }}</template></p>
             </div>
-            <div class="bg-slate-50/50 p-4 rounded-xl border">
+            <div @click="goToFilter('analyzed')" class="bg-slate-50/50 p-4 rounded-xl border cursor-pointer hover:shadow-md hover:border-emerald-300 transition-shadow">
               <p class="text-xs font-bold text-slate-500 uppercase">Score SMART Moyen</p>
               <p class="text-3xl font-black text-emerald-800 mt-1">{{ kpiDisplay(analytics?.avg_scores.avg_smart, 'percent') }}</p>
             </div>
-            <div class="bg-slate-50/50 p-4 rounded-xl border">
+            <div @click="goToFilter('analyzed')" class="bg-slate-50/50 p-4 rounded-xl border cursor-pointer hover:shadow-md hover:border-emerald-300 transition-shadow">
               <p class="text-xs font-bold text-slate-500 uppercase">Alignement Moyen</p>
               <p class="text-3xl font-black text-emerald-800 mt-1">{{ kpiDisplay(analytics?.avg_scores.avg_alignment, 'percent') }}</p>
             </div>
-            <div class="bg-slate-50/50 p-4 rounded-xl border">
+            <div @click="goToFilter('validated')" class="bg-slate-50/50 p-4 rounded-xl border cursor-pointer hover:shadow-md hover:border-emerald-300 transition-shadow">
               <p class="text-xs font-bold text-slate-500 uppercase">Objectifs Validés</p>
               <p class="text-3xl font-black text-emerald-800 mt-1">{{ kpiDisplay(analytics?.global_stats.validated || 0) }}</p>
             </div>
@@ -812,7 +834,7 @@ function noDetailedAnalysis(analysisObj) {
               </div>
               <AlertCircle :size="40" class="text-rose-400" />
             </div>
-            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-xl border border-emerald-200 flex items-center justify-between">
+            <div @click="goToFilter('smart-ok')" class="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-xl border border-emerald-200 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow">
               <div>
                 <p class="text-xs font-bold text-emerald-700 uppercase">Taux d'objectifs SMART</p>
                 <p class="text-4xl font-black text-emerald-700 mt-1">{{ analytics?.smart_rate?.rate ?? 0 }}%</p>
@@ -820,7 +842,7 @@ function noDetailedAnalysis(analysisObj) {
               </div>
               <CheckCircle2 :size="40" class="text-emerald-400" />
             </div>
-            <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-xl border border-amber-200 flex items-center justify-between">
+            <div @click="goToFilter('align-strong')" class="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-xl border border-amber-200 flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow">
               <div>
                 <p class="text-xs font-bold text-amber-700 uppercase">Alignement stratégique fort</p>
                 <p class="text-4xl font-black text-amber-700 mt-1">{{ analytics?.alignment_rate?.rate ?? 0 }}%</p>
@@ -887,16 +909,15 @@ function noDetailedAnalysis(analysisObj) {
           <div class="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border">
             <Filter :size="16" class="text-slate-500" />
             <span class="text-sm font-bold text-slate-600 mr-2">Filtres :</span>
+            <!-- Filtre actif (issu d'un clic sur un KPI du dashboard) -->
+            <span v-if="detailsFilter !== 'all'" class="flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-emerald-600 text-white">
+              {{ FILTER_LABELS[detailsFilter] || 'Filtré' }} ({{ displayedObjectives.length }})
+              <button @click="detailsFilter = 'all'" class="hover:opacity-80" title="Tout afficher">✕</button>
+            </span>
+            <!-- Accès rapides -->
             <button v-if="detailsFilter !== 'to-adjust'" @click="detailsFilter = 'to-adjust'" class="text-xs font-bold px-3 py-1 rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200">Objectifs à ajuster</button>
-            <span v-else class="flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-rose-600 text-white">
-              À ajuster ({{ displayedObjectives.length }})
-              <button @click="detailsFilter = 'all'" class="hover:opacity-80">✕</button>
-            </span>
             <button v-if="detailsFilter !== 'low-confidence'" @click="detailsFilter = 'low-confidence'" class="text-xs font-bold px-3 py-1 rounded-full bg-violet-100 text-violet-700 hover:bg-violet-200">Faible confiance IA</button>
-            <span v-else class="flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full bg-violet-600 text-white">
-              Faible confiance ({{ displayedObjectives.length }})
-              <button @click="detailsFilter = 'all'" class="hover:opacity-80">✕</button>
-            </span>
+            <span class="text-xs text-slate-400 ml-auto">{{ displayedObjectives.length }} objectif(s) affiché(s)</span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
