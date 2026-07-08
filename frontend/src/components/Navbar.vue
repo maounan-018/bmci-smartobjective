@@ -11,6 +11,7 @@ import {
   Users,
   LogOut,
   ClipboardCheck,
+  ShieldCheck,
 } from 'lucide-vue-next';
 
 const route = useRoute();
@@ -25,6 +26,7 @@ const links = computed(() =>
     { to: '/manager', label: 'Mon Dashboard', icon: Users, roles: [UserRole.MANAGER] },
     { to: '/hr', label: 'Dashboard RH', icon: Briefcase, roles: [UserRole.HR] },
     { to: '/smart-analysis', label: 'Mon Analyse', icon: ClipboardCheck, roles: [UserRole.HR] },
+    { to: '/admin', label: 'Administration', icon: ShieldCheck, roles: [UserRole.ADMIN] },
   ].filter((link) => user.value && link.roles.includes(user.value.role)),
 );
 

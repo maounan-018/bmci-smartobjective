@@ -12,6 +12,7 @@ import LoginView from '@/views/LoginView.vue';
 import CollaboratorDashboard from '@/views/CollaboratorDashboard.vue';
 import ManagerDashboard from '@/views/ManagerDashboard.vue';
 import HrDashboard from '@/views/HrDashboard.vue';
+import AdminDashboard from '@/views/AdminDashboard.vue';
 import SmartAnalysisView from '@/views/SmartAnalysisView.vue';
 
 const routes = [
@@ -33,6 +34,12 @@ const routes = [
     name: 'hr',
     component: HrDashboard,
     meta: { roles: [UserRole.HR] },
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminDashboard,
+    meta: { roles: [UserRole.ADMIN] },
   },
   {
     path: '/smart-analysis',

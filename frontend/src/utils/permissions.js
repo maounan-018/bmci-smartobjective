@@ -14,6 +14,8 @@ export const UserRole = {
 // Chemin d'accueil par défaut selon le rôle (équivalent de getDefaultPath dans App.tsx).
 export function getDefaultPath(role) {
   switch (role) {
+    case UserRole.ADMIN:
+      return '/admin';
     case UserRole.MANAGER:
       return '/manager';
     case UserRole.HR:
