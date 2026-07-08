@@ -28,12 +28,13 @@ import argparse
 import secrets
 import sys
 
+from app.core.emails import is_valid_bnp_email
 from app.core.security import hash_password
 from app.database.init_db import init_db
 from app.database.session import db_session
 from app.repositories import user_repository
 
-ROLES = {"COLLAB", "MANAGER", "HR"}
+ROLES = {"COLLAB", "MANAGER", "HR", "ADMIN"}
 MIN_PASSWORD_LEN = 8
 
 
@@ -53,11 +54,11 @@ def _list_users() -> None:
 def _create_user(args) -> None:
     role = (args.role or "").strip().upper()
     if role not in ROLES:
-        sys.exit(f"[ERREUR] Rôle invalide : '{args.role}' (attendu : COLLAB | MANAGER | HR)")
+        sys.exit(f"[ERREUR] Rôle invalide : '{args.role}' (attendu : COLLAB | MANAGER | HR | ADMIN)")
 
     email = (args.email or "").strip().lower()
-    if "@" not in email:
-        sys.exit(f"[ERREUR] Email invalide : '{args.email}'")
+    if not is_valid_bnp_email(email):
+        sys.exit(f"[ERREUR] Email invalide : '{args.email}' (format attendu : prenom.nom@bmci.local)")
 
     password = args.password or secrets.token_urlsafe(12)
     if len(password) < MIN_PASSWORD_LEN:

@@ -51,7 +51,7 @@ const roles = [
     icon: UserCircle,
     iconClass: 'text-emerald-500',
     bgColor: 'hover:border-emerald-500 hover:bg-emerald-50',
-    demo: { email: 'collab@bmci.ma', password: 'REDACTED_DEMO_PWD' },
+    demo: { email: 'collaborateur.demo@bmci.local', password: 'REDACTED_DEMO_PWD' },
   },
   {
     role: UserRole.MANAGER,
@@ -60,7 +60,7 @@ const roles = [
     icon: Users,
     iconClass: 'text-teal-500',
     bgColor: 'hover:border-teal-500 hover:bg-teal-50',
-    demo: { email: 'manager@bmci.ma', password: 'REDACTED_DEMO_PWD' },
+    demo: { email: 'manager.demo@bmci.local', password: 'REDACTED_DEMO_PWD' },
   },
   {
     role: UserRole.HR,
@@ -69,7 +69,7 @@ const roles = [
     icon: ShieldCheck,
     iconClass: 'text-green-500',
     bgColor: 'hover:border-green-500 hover:bg-green-50',
-    demo: { email: 'hr@bmci.ma', password: 'REDACTED_DEMO_PWD' },
+    demo: { email: 'rh.demo@bmci.local', password: 'REDACTED_DEMO_PWD' },
   },
 ];
 
@@ -252,7 +252,7 @@ function handleBack() {
                 v-model="email"
                 type="email"
                 class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                placeholder="email@bmci.ma"
+                placeholder="prenom.nom@bmci.local"
               />
             </div>
 

@@ -105,13 +105,13 @@ _SIMULATION_PAGE = """<!doctype html>
     <div class="warn">⚠️ Mode développement uniquement (SAML_SIMULATION=true).</div>
 
     <div class="row">
-      <button type="button" onclick="fill('rh.sso@bmci.ma','RH Demo','HR')">RH</button>
-      <button type="button" onclick="fill('manager.sso@bmci.ma','Manager Demo','MANAGER')">Manager</button>
-      <button type="button" onclick="fill('collab.sso@bmci.ma','Collab Demo','COLLAB')">Collab</button>
+      <button type="button" onclick="fill('rh.sso@bmci.local','RH Demo','HR')">RH</button>
+      <button type="button" onclick="fill('manager.sso@bmci.local','Manager Demo','MANAGER')">Manager</button>
+      <button type="button" onclick="fill('collab.sso@bmci.local','Collab Demo','COLLAB')">Collab</button>
     </div>
 
     <label>Email</label>
-    <input id="email" name="email" type="email" value="rh.sso@bmci.ma" required>
+    <input id="email" name="email" type="email" value="rh.sso@bmci.local" required>
     <label>Nom affiché</label>
     <input id="name" name="name" type="text" value="RH Demo">
     <label>Rôle (groupe simulé)</label>
