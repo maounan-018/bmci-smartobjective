@@ -167,8 +167,8 @@ risque d'auto-attribution de rôle). Les comptes sont créés de deux façons :
 - **Provisionnement manuel (admin)** via `backend/create_user.py` :
   ```bash
   cd backend
-  python create_user.py --email rh@bmci.ma --name "RH BMCI" --role HR --password "MotDePasseFort1"
-  python create_user.py --email collab@bmci.ma --role COLLAB --manager rh@bmci.ma
+  python create_user.py --email rh.bmci@bmci.local --name "RH BMCI" --role HR --password "MotDePasseFort1"
+  python create_user.py --email jean.dupont@bmci.local --role COLLAB --manager rh.bmci@bmci.local
   python create_user.py --list
   ```
 
@@ -268,9 +268,12 @@ cd frontend && npm run dev                                              # 3
 ### Comptes de démonstration (dev local, créés au démarrage)
 | Rôle | Email | Mot de passe |
 |---|---|---|
-| HR | `hr@bmci.ma` | `REDACTED_DEMO_PWD` |
-| Manager | `manager@bmci.ma` | `REDACTED_DEMO_PWD` |
-| Collaborateur | `collab@bmci.ma` | `REDACTED_DEMO_PWD` |
+| Admin | `admin.system@bmci.local` | `REDACTED_DEMO_PWD` |
+| RH | `rh.demo@bmci.local` | `REDACTED_DEMO_PWD` |
+| Manager | `manager.demo@bmci.local` | `REDACTED_DEMO_PWD` |
+| Collaborateur | `collaborateur.demo@bmci.local` | `REDACTED_DEMO_PWD` |
+
+> Format d'email d'entreprise : `prenom.nom@bmci.local` (imposé à la création ; l'admin gère les comptes depuis `/admin`).
 
 > ⚠️ Comptes de **démo uniquement** : désactivés automatiquement en SSO réel,
 > à retirer/changer en production (`SEED_DEMO_ACCOUNTS=false`).

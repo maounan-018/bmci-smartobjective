@@ -145,9 +145,10 @@ echo.
 echo   Application : http://localhost:3000
 echo.
 echo   Comptes de demonstration (crees automatiquement) :
-echo     RH        : hr@bmci.ma      / REDACTED_DEMO_PWD
-echo     Manager   : manager@bmci.ma / REDACTED_DEMO_PWD
-echo     Collab    : collab@bmci.ma  / REDACTED_DEMO_PWD
+echo     Admin   : admin.system@bmci.local        / REDACTED_DEMO_PWD
+echo     RH      : rh.demo@bmci.local             / REDACTED_DEMO_PWD
+echo     Manager : manager.demo@bmci.local        / REDACTED_DEMO_PWD
+echo     Collab  : collaborateur.demo@bmci.local  / REDACTED_DEMO_PWD
 echo.
 echo   (Mots de passe a changer hors developpement.)
 echo.

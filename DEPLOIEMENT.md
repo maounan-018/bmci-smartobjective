@@ -59,9 +59,10 @@ cd frontend && npm run dev                                         # terminal 3
 
 | Rôle | Email | Mot de passe |
 |---|---|---|
-| RH | `hr@bmci.ma` | `REDACTED_DEMO_PWD` |
-| Manager | `manager@bmci.ma` | `REDACTED_DEMO_PWD` |
-| Collaborateur | `collab@bmci.ma` | `REDACTED_DEMO_PWD` |
+| Admin | `admin.system@bmci.local` | `REDACTED_DEMO_PWD` |
+| RH | `rh.demo@bmci.local` | `REDACTED_DEMO_PWD` |
+| Manager | `manager.demo@bmci.local` | `REDACTED_DEMO_PWD` |
+| Collaborateur | `collaborateur.demo@bmci.local` | `REDACTED_DEMO_PWD` |
 
 ### À propos du `.env`
 
