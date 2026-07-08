@@ -49,20 +49,36 @@ engine = create_engine(
 # connexion via l'evenement "connect" du moteur. Ce meme moteur est reutilise par
 # la suite de tests, qui herite ainsi automatiquement de la recherche vectorielle.
 @event.listens_for(engine, "connect")
-def _load_sqlite_vec(dbapi_connection, connection_record):
-    """Active puis charge sqlite-vec, et recoupe le chargement d'extensions.
+def _configure_connection(dbapi_connection, connection_record):
+    """Configure chaque nouvelle connexion : mode WAL + busy_timeout + sqlite-vec.
 
-    Defensif : si l'extension ne peut pas se charger (build SQLite sans support,
-    paquet absent...), on journalise une erreur SANS casser la connexion. L'app
-    (authentification, objectifs) reste disponible ; seules les fonctions RAG
-    echoueront, et de facon explicite.
+    - `journal_mode=WAL` : Write-Ahead Logging. Les LECTURES ne bloquent plus les
+      ÉCRITURES et réciproquement, donc un outil externe (DB Browser for SQLite)
+      peut consulter/éditer la base pendant que l'appli tourne.
+    - `busy_timeout=5000` : si un verrou d'écriture est déjà pris (ex. DB Browser
+      en cours de modification), l'appli attend jusqu'à 5 s au lieu d'échouer par
+      « database is locked ».
+    - `synchronous=NORMAL` : compromis vitesse/durabilité recommandé en WAL.
+    - sqlite-vec : extension vectorielle pour le RAG (chargée à chaque connexion).
     """
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+    except Exception as e:  # pragma: no cover
+        logger.error("PRAGMA de connexion non appliqués: %s", e)
+    finally:
+        cursor.close()
+    # Extension vectorielle sqlite-vec. Défensif : si elle ne se charge pas
+    # (build SQLite sans support, paquet absent), on journalise sans casser la
+    # connexion — seules les fonctions RAG échoueront alors, de façon explicite.
     try:
         dbapi_connection.enable_load_extension(True)
         sqlite_vec.load(dbapi_connection)
         dbapi_connection.enable_load_extension(False)
-    except Exception as e:  # pragma: no cover - depend de l'environnement SQLite
-        logger.error("sqlite-vec non charge (RAG indisponible): %s", e)
+    except Exception as e:  # pragma: no cover - dépend de l'environnement SQLite
+        logger.error("sqlite-vec non chargé (RAG indisponible): %s", e)
 
 # Fabrique de sessions. `expire_on_commit=False` permet de continuer à lire les
 # attributs d'un objet après commit (utile pour renvoyer un dict au controller).
