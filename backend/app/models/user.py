@@ -44,7 +44,7 @@ class User(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("role IN ('COLLAB', 'MANAGER', 'HR')", name="ck_users_role"),
+        CheckConstraint("role IN ('COLLAB', 'MANAGER', 'HR', 'ADMIN')", name="ck_users_role"),
     )
 
     # --- Relations ---

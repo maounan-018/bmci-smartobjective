@@ -62,9 +62,10 @@ def test_import_creates_users_with_random_distinct_passwords(client, make_user, 
     assert "REDACTED_DEMO_PWD" not in passwords
     assert "REDACTED_DEMO_PWD" not in passwords
 
-    # 7. Chaque entree doit etre nominative
+    # 7. Emails générés au format entreprise, dérivés du NOM (l'email du fichier
+    #    est ignoré pour imposer prenom.nom@bmci.local).
     emails = {c["email"] for c in creds}
-    assert emails == {"alice@bmci.test", "bob@bmci.test"}
+    assert emails == {"alice.imported@bmci.local", "bob.imported@bmci.local"}
 
 
 def test_import_existing_user_not_recreated(client, make_user, auth_token):
@@ -72,14 +73,16 @@ def test_import_existing_user_not_recreated(client, make_user, auth_token):
     make_user(user_id="hr-test", email="hr-test@bmci.test", role="HR")
     token = auth_token("hr-test")
 
-    # Cree un collab existant
-    make_user(user_id="u-existing", email="existing@bmci.test", role="COLLAB")
+    # Collab existant : son email est celui DÉRIVÉ DE SON NOM (l'import reconnaît
+    # un compte par l'email dérivé du nom, pas par l'email du fichier).
+    make_user(user_id="u-existing", email="existing.user@bmci.local",
+              name="Existing User", role="COLLAB")
 
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.append(["Email", "Nom", "Titre"])
-    ws.append(["existing@bmci.test", "Existing", "Objectif test"])
-    ws.append(["new@bmci.test", "New", "Autre objectif"])
+    ws.append(["ignore@fichier.test", "Existing User", "Objectif test"])
+    ws.append(["ignore2@fichier.test", "New Person", "Autre objectif"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -93,7 +96,7 @@ def test_import_existing_user_not_recreated(client, make_user, auth_token):
 
     assert resp.status_code == 200
     body = resp.json()
-    # Seul "new" est cree, donc 1 seul credential temporaire
+    # Seul "New Person" est cree ; "Existing User" est reconnu par email dérivé du nom.
     assert body["users_created"] == 1
     assert len(body["created_users"]) == 1
-    assert body["created_users"][0]["email"] == "new@bmci.test"
+    assert body["created_users"][0]["email"] == "new.person@bmci.local"

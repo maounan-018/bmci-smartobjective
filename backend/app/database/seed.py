@@ -21,6 +21,7 @@ EMPLACEMENT MVC
 """
 
 from app.core.config import settings
+from app.core.emails import to_bnp_email
 from app.core.security import hash_password
 from app.database.session import db_session
 from app.repositories import user_repository
@@ -44,33 +45,42 @@ def _ensure_user(db, *, user_id, email, name, role, password, manager_id=None) -
 
 
 def seed_demo_accounts() -> None:
-    """Crée les comptes de démo (Manager → RH → Collab) si SEED_DEMO_ACCOUNTS=true.
+    """Crée le compte ADMIN (dédié) puis les comptes de démo (Manager/RH/Collab).
 
-    Ne sème RIEN si la connexion locale est désactivée (SSO réel) : inutile de
-    créer des comptes à mots de passe faibles qui ne pourraient servir que de
-    porte dérobée.
+    Emails au format entreprise `prenom.nom@bmci.local`. Ne sème RIEN si la
+    connexion locale est désactivée (SSO réel) : inutile de créer des comptes à
+    mots de passe faibles qui ne pourraient servir que de porte dérobée.
     """
-    if not settings.SEED_DEMO_ACCOUNTS or not settings.local_auth_enabled:
+    if not settings.local_auth_enabled:
         return
 
     with db_session() as db:
-        # 1) Manager et RH (sans hiérarchie).
+        # 0) Compte ADMIN dédié — indépendant des comptes de démonstration.
         _ensure_user(
-            db, user_id="user-seed-manager", email="manager@bmci.ma",
+            db, user_id="user-admin", email=settings.SEED_ADMIN_EMAIL,
+            name="Admin System", role="ADMIN",
+            password=settings.SEED_ADMIN_PASSWORD,
+        )
+
+        if not settings.SEED_DEMO_ACCOUNTS:
+            return
+
+        # 1) Manager et RH (emails dérivés du nom).
+        _ensure_user(
+            db, user_id="user-seed-manager", email=to_bnp_email("Manager Démo"),
             name="Manager Démo", role="MANAGER",
             password=settings.SEED_MANAGER_PASSWORD,
         )
         _ensure_user(
-            db, user_id="user-seed-hr", email="hr@bmci.ma",
+            db, user_id="user-seed-hr", email=to_bnp_email("RH Démo"),
             name="RH Démo", role="HR",
             password=settings.SEED_HR_PASSWORD,
         )
 
-        # 2) Collaborateur rattaché au manager de démo (résolution dynamique de l'id
-        #    pour rester robuste si le manager a été créé autrement).
-        manager = user_repository.get_by_email(db, "manager@bmci.ma")
+        # 2) Collaborateur rattaché au manager de démo (résolution par id, robuste).
+        manager = user_repository.get_by_id(db, "user-seed-manager")
         _ensure_user(
-            db, user_id="user-seed-collab", email="collab@bmci.ma",
+            db, user_id="user-seed-collab", email=to_bnp_email("Collaborateur Démo"),
             name="Collaborateur Démo", role="COLLAB",
             password=settings.SEED_COLLAB_PASSWORD,
             manager_id=manager.id if manager else None,

@@ -133,7 +133,10 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
     return {"success": True, "token": token, "user": user_public}
 
 
-# Rôles acceptés en base (la contrainte CHECK du modèle User interdit ADMIN).
+# Rôles assignables via SSO/fédération. ADMIN en est VOLONTAIREMENT EXCLU :
+# le rôle administrateur ne s'obtient jamais par un groupe de l'annuaire (anti
+# escalade de privilèges) — il est réservé au compte admin dédié (seed/manuel).
+# Un groupe mappé sur ADMIN est donc ramené à HR (cf. provision ci-dessous).
 _ALLOWED_DB_ROLES = {"COLLAB", "MANAGER", "HR"}
 
 

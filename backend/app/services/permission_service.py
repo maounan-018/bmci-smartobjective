@@ -35,13 +35,23 @@ def require_role(current_user: dict, allowed_roles: List[str]) -> None:
 
 def require_admin(current_user: dict) -> None:
     """
-    Réserve l'accès aux administrateurs.
-    HR fait office d'admin tant que le rôle ADMIN dédié n'est pas introduit.
+    Réserve l'accès aux fonctions d'administration « métier » (journal d'audit) :
+    ADMIN et HR (la RH garde une visibilité sur la traçabilité).
     """
     if current_user.get("role") not in ("HR", "ADMIN"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès réservé aux administrateurs."
+        )
+
+
+def require_super_admin(current_user: dict) -> None:
+    """Réserve l'accès à l'ADMIN dédié UNIQUEMENT (gestion des comptes utilisateurs).
+    La RH n'est PAS administrateur des comptes."""
+    if current_user.get("role") != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé à l'administrateur."
         )
 
 

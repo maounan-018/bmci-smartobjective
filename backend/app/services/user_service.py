@@ -16,9 +16,10 @@ import secrets
 from fastapi import HTTPException
 
 from app.core import security
+from app.core.emails import is_valid_bnp_email
 from app.database.session import db_session
 from app.repositories import user_repository, session_repository
-from app.services.permission_service import require_admin
+from app.services.permission_service import require_super_admin
 
 
 def get_team_members(current_user: dict) -> dict:
@@ -67,7 +68,7 @@ def _user_admin_dict(u) -> dict:
 
 def admin_list_users(current_user: dict) -> dict:
     """Liste tous les comptes (administration)."""
-    require_admin(current_user)
+    require_super_admin(current_user)
     with db_session() as db:
         users = user_repository.list_all_ordered(db)
         return {"users": [_user_admin_dict(u) for u in users], "total": len(users)}
@@ -75,10 +76,11 @@ def admin_list_users(current_user: dict) -> dict:
 
 def admin_create_user(current_user: dict, request) -> dict:
     """Crée un compte (email unique, mot de passe haché)."""
-    require_admin(current_user)
+    require_super_admin(current_user)
     email = (request.email or "").strip().lower()
-    if "@" not in email or "." not in email.split("@")[-1]:
-        raise HTTPException(status_code=400, detail="Adresse email invalide.")
+    if not is_valid_bnp_email(email):
+        raise HTTPException(status_code=400,
+                            detail="L'email doit être au format prenom.nom@bmci.local.")
     with db_session() as db:
         if user_repository.get_by_email(db, email):
             raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet email.")
@@ -95,7 +97,7 @@ def admin_create_user(current_user: dict, request) -> dict:
 
 def admin_update_user(current_user: dict, user_id: str, request) -> dict:
     """Met à jour un compte (nom, rôle, manager, entité)."""
-    require_admin(current_user)
+    require_super_admin(current_user)
     with db_session() as db:
         target = user_repository.get_by_id(db, user_id)
         if target is None:
@@ -117,7 +119,7 @@ def admin_update_user(current_user: dict, user_id: str, request) -> dict:
 
 def admin_set_user_active(current_user: dict, user_id: str, active: bool) -> dict:
     """Active ou désactive un compte (données conservées ; sessions purgées si désactivé)."""
-    require_admin(current_user)
+    require_super_admin(current_user)
     if not active and user_id == current_user["id"]:
         raise HTTPException(status_code=400, detail="Vous ne pouvez pas désactiver votre propre compte.")
     with db_session() as db:
@@ -134,7 +136,7 @@ def admin_set_user_active(current_user: dict, user_id: str, active: bool) -> dic
 
 def admin_reset_password(current_user: dict, user_id: str, new_password: str) -> dict:
     """Réinitialise le mot de passe d'un compte."""
-    require_admin(current_user)
+    require_super_admin(current_user)
     with db_session() as db:
         target = user_repository.get_by_id(db, user_id)
         if target is None:
@@ -145,7 +147,7 @@ def admin_reset_password(current_user: dict, user_id: str, new_password: str) ->
 
 def admin_delete_user(current_user: dict, user_id: str) -> dict:
     """Supprime définitivement un compte (cascade objectifs/sessions)."""
-    require_admin(current_user)
+    require_super_admin(current_user)
     if user_id == current_user["id"]:
         raise HTTPException(status_code=400, detail="Vous ne pouvez pas supprimer votre propre compte.")
     with db_session() as db:

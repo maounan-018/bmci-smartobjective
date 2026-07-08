@@ -19,6 +19,7 @@ from typing import List
 from fastapi import HTTPException
 
 from app.core.security import hash_password
+from app.core.emails import to_bnp_email, unique_bnp_email
 from app.database.session import db_session
 from app.repositories import (
     user_repository,
@@ -166,13 +167,14 @@ def import_objectives(filename: str, content: bytes, current_user: dict) -> dict
         created_users: List[dict] = []
 
         with db_session() as db:
+            # Emails déjà pris (existants) pour garantir l'unicité au format entreprise.
+            taken = {(u.email or "").strip().lower() for u in user_repository.get_all_members(db)}
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 title = row[col_map["title"]] if col_map.get("title") is not None else None
                 if not title or str(title).strip() == "":
                     continue
 
                 user_name = row[col_map["user_name"]] if col_map.get("user_name") is not None else f"Collaborateur-{row_idx}"
-                email = row[col_map["email"]] if col_map.get("email") is not None else None
                 entity = row[col_map["entity"]] if col_map.get("entity") is not None else ""
                 manager = row[col_map["manager"]] if col_map.get("manager") is not None else ""
                 period = row[col_map["period"]] if col_map.get("period") is not None else ""
@@ -180,45 +182,30 @@ def import_objectives(filename: str, content: bytes, current_user: dict) -> dict
                 context = row[col_map["context"]] if col_map.get("context") is not None else ""
                 obj_id_raw = row[col_map["id"]] if col_map.get("id") is not None else None
 
-                if email:
-                    existing = user_repository.get_by_email(db, str(email).strip())
-                    if existing:
-                        user_id = existing.id
-                    else:
-                        user_id = f"user-{secrets.token_hex(4)}"
-                        temp_password = secrets.token_urlsafe(16)
-                        user_repository.create(
-                            db, user_id=user_id, email=str(email).strip(),
-                            password_hash=hash_password(temp_password),
-                            name=str(user_name).strip(), role="COLLAB",
-                            entity=str(entity or "").strip(),
-                        )
-                        users_created += 1
-                        created_users.append({
-                            "user_id": user_id,
-                            "name": str(user_name).strip(),
-                            "email": str(email).strip(),
-                            "temporary_password": temp_password,
-                        })
+                # Email au format entreprise DÉRIVÉ DU NOM (l'email du fichier est ignoré
+                # pour garantir prenom.nom@bmci.local). Réutilise un compte existant.
+                name_clean = str(user_name).strip()
+                existing = user_repository.get_by_email(db, to_bnp_email(name_clean))
+                if existing:
+                    user_id = existing.id
                 else:
-                    user_id = f"import-user-{row_idx}"
-                    if not user_repository.get_by_id(db, user_id):
-                        temp_password = secrets.token_urlsafe(16)
-                        temp_email = f"import_{row_idx}_{batch_id}@temp.local"
-                        user_repository.create(
-                            db, user_id=user_id, email=temp_email,
-                            password_hash=hash_password(temp_password),
-                            name=str(user_name).strip(), role="COLLAB",
-                            entity=str(entity or "").strip(),
-                        )
-                        users_created += 1
-                        created_users.append({
-                            "user_id": user_id,
-                            "name": str(user_name).strip(),
-                            "email": temp_email,
-                            "temporary_password": temp_password,
-                            "note": "Email synthetique : a editer avant transmission.",
-                        })
+                    email_final = unique_bnp_email(name_clean, taken)
+                    taken.add(email_final)
+                    user_id = f"user-{secrets.token_hex(4)}"
+                    temp_password = secrets.token_urlsafe(16)
+                    user_repository.create(
+                        db, user_id=user_id, email=email_final,
+                        password_hash=hash_password(temp_password),
+                        name=name_clean, role="COLLAB",
+                        entity=str(entity or "").strip(),
+                    )
+                    users_created += 1
+                    created_users.append({
+                        "user_id": user_id,
+                        "name": name_clean,
+                        "email": email_final,
+                        "temporary_password": temp_password,
+                    })
 
                 obj_id = str(obj_id_raw).strip() if obj_id_raw else f"obj-{secrets.token_hex(6)}"
                 objective_repository.merge(db, {

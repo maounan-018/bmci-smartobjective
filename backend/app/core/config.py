@@ -131,6 +131,10 @@ class Settings:
         self.SEED_MANAGER_PASSWORD = os.getenv("SEED_MANAGER_PASSWORD", "")
         self.SEED_HR_PASSWORD = os.getenv("SEED_HR_PASSWORD", "")
         self.SEED_COLLAB_PASSWORD = os.getenv("SEED_COLLAB_PASSWORD", "")
+        # Compte ADMIN dédié (administration des comptes). Créé au démarrage si un
+        # mot de passe est fourni. Email au format entreprise par défaut.
+        self.SEED_ADMIN_EMAIL = os.getenv("SEED_ADMIN_EMAIL", "admin.system@bmci.local").strip().lower()
+        self.SEED_ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "REDACTED_DEMO_PWD")
 
         # --- Authentification : fournisseur d'identite ---
         # local (defaut). Le SSO SAML s'active des que SP + IdP sont configures.
