@@ -11,8 +11,16 @@ __pycache__/
 !backend/.env
 .env.local
 
-# Base de données locale
+# Base de données locale (+ fichiers WAL/SHM du mode WAL, projet DB Browser)
 *.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqbpro
+
+# Logs / sorties d'exécution des serveurs lancés en local (back/front)
+_back.*
+_front.*
 
 # Build frontend
 dist/
