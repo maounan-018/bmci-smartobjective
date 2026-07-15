@@ -19,6 +19,17 @@ const router = useRouter();
 const auth = useAuthStore();
 
 const user = computed(() => auth.user);
+const isAdmin = computed(() => user.value?.role === UserRole.ADMIN);
+
+// L'admin n'a qu'une seule vue (/admin) : cliquer le logo ne doit pas le laisser
+// « rebondir » sur /admin. On s'en sert de sortie propre vers l'écran de connexion
+// (déconnexion). Pour les autres rôles, le logo reste le retour à l'accueil.
+async function onLogoClick() {
+  if (isAdmin.value) {
+    await auth.logout();
+  }
+  router.push('/');
+}
 
 const links = computed(() =>
   [
@@ -42,7 +53,12 @@ async function handleLogout() {
     class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm"
   >
     <div class="flex items-center gap-8">
-      <router-link to="/" class="flex items-center gap-2">
+      <button
+        type="button"
+        @click="onLogoClick"
+        :title="isAdmin ? 'Retour à la connexion' : 'Accueil'"
+        class="flex items-center gap-2"
+      >
         <div class="bg-emerald-700 p-1.5 rounded-lg flex items-center justify-center">
           <div class="grid grid-cols-2 gap-0.5">
             <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
@@ -57,7 +73,7 @@ async function handleLogout() {
             Objectif SMART
           </span>
         </div>
-      </router-link>
+      </button>
 
       <div class="hidden md:flex items-center gap-1">
         <router-link
