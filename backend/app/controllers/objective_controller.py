@@ -59,8 +59,8 @@ def delete_objective(objective_id: str, current_user: dict = Depends(get_current
 # ============= OBJECTIFS STRATÉGIQUES (CATALOGUE ENTREPRISE) =============
 
 @router.get("/company-objectives")
-def list_company_objectives():
-    """Liste le catalogue stratégique (lecture publique)."""
+def list_company_objectives(current_user: dict = Depends(get_current_user)):
+    """Liste le catalogue stratégique (authentification requise)."""
     return objective_service.list_company_objectives()
 
 

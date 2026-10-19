@@ -51,7 +51,7 @@ const roles = [
     icon: UserCircle,
     iconClass: 'text-emerald-500',
     bgColor: 'hover:border-emerald-500 hover:bg-emerald-50',
-    demo: { email: 'collaborateur.demo@bmci.local', password: 'REDACTED_DEMO_PWD' },
+    demo: { email: 'collaborateur.demo@bmci.local', password: '' },
   },
   {
     role: UserRole.MANAGER,
@@ -60,7 +60,7 @@ const roles = [
     icon: Users,
     iconClass: 'text-teal-500',
     bgColor: 'hover:border-teal-500 hover:bg-teal-50',
-    demo: { email: 'manager.demo@bmci.local', password: 'REDACTED_DEMO_PWD' },
+    demo: { email: 'manager.demo@bmci.local', password: '' },
   },
   {
     role: UserRole.HR,
@@ -69,7 +69,7 @@ const roles = [
     icon: ShieldCheck,
     iconClass: 'text-green-500',
     bgColor: 'hover:border-green-500 hover:bg-green-50',
-    demo: { email: 'rh.demo@bmci.local', password: 'REDACTED_DEMO_PWD' },
+    demo: { email: 'rh.demo@bmci.local', password: '' },
   },
 ];
 
@@ -294,9 +294,7 @@ function handleBack() {
 
           <div class="mt-6 p-4 bg-slate-50 rounded-xl">
             <p class="text-xs text-slate-500 font-bold uppercase mb-2">Compte de démonstration</p>
-            <p class="text-xs text-slate-600">
-              {{ currentRoleMeta?.demo?.email }} / {{ currentRoleMeta?.demo?.password }}
-            </p>
+            <p class="text-xs text-slate-600">{{ currentRoleMeta?.demo?.email }}</p>
           </div>
         </div>
       </div>
