@@ -131,6 +131,8 @@ def update_objective(objective_id: str, request, current_user: dict) -> dict:
         if values:
             values["updated_at"] = datetime.now(timezone.utc).isoformat()
             objective_repository.update_fields(db, objective_id, values)
+        else:
+            logger.debug("update_objective: aucun champ fourni pour %s, rien à faire.", objective_id)
 
     return {"success": True}
 

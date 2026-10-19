@@ -20,12 +20,29 @@ EMPLACEMENT MVC
     Couche "core" : configuration transverse.
 """
 
+import json
 import logging
 import sys
+import time
 
 from app.core.config import settings
 
 _CONFIGURED = False
+
+
+class _JsonFormatter(logging.Formatter):
+    """Formatter JSON une ligne pour ELK/Loki/Datadog."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "ts": self.formatTime(record, datefmt=None),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
 
 
 def setup_logging() -> None:
@@ -34,11 +51,16 @@ def setup_logging() -> None:
     if _CONFIGURED:
         return
     level = getattr(logging, settings.LOG_LEVEL, logging.INFO)
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        stream=sys.stdout,
-        force=True,
-    )
+    handler = logging.StreamHandler(sys.stdout)
+    if settings.LOG_FORMAT == "json":
+        handler.setFormatter(_JsonFormatter())
+    else:
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.handlers.clear()
+    root.addHandler(handler)
     _CONFIGURED = True

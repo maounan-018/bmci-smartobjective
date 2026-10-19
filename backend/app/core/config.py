@@ -47,6 +47,8 @@ class Settings:
         # Niveau de log applicatif : DEBUG | INFO | WARNING | ERROR. En prod -> INFO
         # (masque les logs DEBUG, donc aucune donnee RH dans les journaux).
         self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+        # Format de log : "text" (defaut) ou "json" (structured logging pour ELK/Loki).
+        self.LOG_FORMAT = os.getenv("LOG_FORMAT", "text").strip().lower()
 
         # Intelligence artificielle (Ollama)
         self.OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
