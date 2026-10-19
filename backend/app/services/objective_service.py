@@ -11,11 +11,16 @@ EMPLACEMENT MVC
     Couche "services" : logique métier.
 """
 
+import io
 import json
 import logging
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
+
+import openpyxl
+from fastapi.responses import RedirectResponse, StreamingResponse
+from openpyxl.styles import Font, PatternFill
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +129,7 @@ def update_objective(objective_id: str, request, current_user: dict) -> dict:
             values["alignment_analysis"] = json.dumps(request.alignment_analysis)
 
         if values:
-            values["updated_at"] = datetime.now().isoformat()
+            values["updated_at"] = datetime.now(timezone.utc).isoformat()
             objective_repository.update_fields(db, objective_id, values)
 
     return {"success": True}
@@ -152,8 +157,7 @@ def list_company_objectives() -> dict:
 
 def create_company_objective(request, current_user: dict) -> dict:
     """Crée un objectif stratégique (HR ou Manager seulement)."""
-    if current_user["role"] == "COLLAB":
-        raise HTTPException(status_code=403, detail="Seuls les managers et RH peuvent créer des objectifs stratégiques.")
+    _require_manager_or_hr(current_user)
 
     obj_id = request.id or f"STRAT-{secrets.token_hex(4)}"
     with db_session() as db:
@@ -170,8 +174,7 @@ def create_company_objective(request, current_user: dict) -> dict:
 
 def batch_create_company_objectives(objectives: List, current_user: dict) -> dict:
     """Import batch d'objectifs stratégiques (HR ou Manager seulement)."""
-    if current_user["role"] == "COLLAB":
-        raise HTTPException(status_code=403, detail="Accès refusé.")
+    _require_manager_or_hr(current_user)
 
     created = 0
     errors = []
@@ -229,11 +232,6 @@ def delete_company_objective(objective_id: str, current_user: dict) -> dict:
 def export_company_objectives_excel(current_user: dict):
     """Exporte le catalogue stratégique dans un modèle Excel (ré-importable)."""
     _require_manager_or_hr(current_user)
-    import io
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill
-    from datetime import datetime
-    from fastapi.responses import StreamingResponse
 
     with db_session() as db:
         objs = company_objective_repository.list_all(db)
@@ -265,7 +263,7 @@ def export_company_objectives_excel(current_user: dict):
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -340,10 +338,7 @@ def get_team_stats_generic(current_user: dict) -> dict:
     if current_user["role"] == "COLLAB":
         raise HTTPException(status_code=403, detail="Accès réservé aux managers.")
     if current_user["role"] == "HR":
-        raise HTTPException(
-            status_code=400,
-            detail="Les statistiques RH sont disponibles via /api/hr/analytics. Cet endpoint est réservé aux managers.",
-        )
+        return RedirectResponse(url="/api/hr/analytics", status_code=303)
 
     team_ids = perm.get_manager_team_ids(current_user["id"])
     stats = compute_team_stats(team_ids)

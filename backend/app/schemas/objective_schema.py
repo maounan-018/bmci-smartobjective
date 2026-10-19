@@ -11,8 +11,11 @@ EMPLACEMENT MVC
 """
 
 import re
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
+
+_STATUS_VALUES = Literal["draft", "active", "completed", "archived"]
+_PROGRESS_VALUES = Literal["not_started", "in_progress", "completed", "on_hold"]
 
 _TITLE_MAX = 500
 _DESC_MAX = 5000
@@ -41,8 +44,8 @@ class ObjectiveUpdate(BaseModel):
     """Mise à jour partielle d'un objectif personnel."""
     title: Optional[str] = Field(default=None, max_length=_TITLE_MAX)
     description: Optional[str] = Field(default=None, max_length=_DESC_MAX)
-    status: Optional[str] = Field(default=None, max_length=_SHORT_MAX)
-    progress: Optional[str] = Field(default=None, max_length=_SHORT_MAX)
+    status: Optional[_STATUS_VALUES] = None
+    progress: Optional[_PROGRESS_VALUES] = None
     smart_analysis: Optional[dict] = None
     alignment_analysis: Optional[dict] = None
 

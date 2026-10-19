@@ -17,6 +17,7 @@ EMPLACEMENT MVC
     Couche "services" : logique métier d'authentification.
 """
 
+import hashlib
 import logging
 import secrets
 from datetime import datetime, timedelta
@@ -126,11 +127,12 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
         name = user.name
         user_role = user.role
 
+    token_hint = hashlib.sha256(token.encode()).hexdigest()[:12]
     audit.log_event(
         AuditEventType.LOGIN_SUCCESS, f"Connexion réussie de {name}",
         user_id=user_id, username=username, role=user_role,
         event_status="SUCCESS", ip_address=ip, user_agent=ua,
-        endpoint=endpoint, http_method=method, token=token,
+        endpoint=endpoint, http_method=method, token=token_hint,
     )
     return {"success": True, "token": token, "user": user_public}
 
@@ -211,10 +213,11 @@ def start_federated_session(user_id: str, meta: Meta = _EMPTY_META) -> dict:
         user_public = _public_user(user)
         uid, uemail, uname, urole = user.id, user.email, user.name, user.role
 
+    token_hint = hashlib.sha256(token.encode()).hexdigest()[:12]
     audit.log_event(
         AuditEventType.LOGIN_SUCCESS, f"Connexion SSO SAML de {uname}",
         user_id=uid, username=uemail, role=urole, event_status="SUCCESS",
-        ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method, token=token,
+        ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method, token=token_hint,
     )
     return {"success": True, "token": token, "user": user_public}
 
