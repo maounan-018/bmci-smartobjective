@@ -11,18 +11,25 @@ echo ================================================
 echo.
 
 REM ============================================================
-REM [1/7] Python installe ?
+REM [1/7] Python installe ? (venv projet en priorite)
 REM ============================================================
 echo [1/7] Verification de Python...
-where python >nul 2>&1
-if errorlevel 1 (
-    echo     [ERREUR] Python introuvable dans le PATH.
-    echo              Installe Python 3.10+ : https://www.python.org/downloads/
-    echo              IMPORTANT : coche "Add Python to PATH" pendant l'installation.
+set "PYTHON_EXE="
+REM -- Venv projet (cree par Option B : anaconda -m venv venv)
+if exist "%ROOT%venv\Scripts\python.exe" set "PYTHON_EXE=%ROOT%venv\Scripts\python.exe"
+REM -- Fallback : Anaconda / Miniconda
+if not defined PYTHON_EXE if exist "%USERPROFILE%\anaconda3\python.exe" set "PYTHON_EXE=%USERPROFILE%\anaconda3\python.exe"
+if not defined PYTHON_EXE if exist "%USERPROFILE%\miniconda3\python.exe" set "PYTHON_EXE=%USERPROFILE%\miniconda3\python.exe"
+REM -- Fallback final : python du PATH
+if not defined PYTHON_EXE where python >nul 2>&1 && set "PYTHON_EXE=python"
+if not defined PYTHON_EXE (
+    echo     [ERREUR] Python introuvable.
+    echo              Cree le venv projet : anaconda\python.exe -m venv venv
+    echo              ou installe Anaconda : https://www.anaconda.com/download
     pause
     exit /b 1
 )
-echo     Python OK
+echo     Python OK  (%PYTHON_EXE%)
 
 REM ============================================================
 REM [2/7] Node.js / npm installe ?
@@ -65,7 +72,7 @@ REM ============================================================
 REM [4/7] Dependances Python (idempotent)
 REM ============================================================
 echo [4/7] Installation des dependances Python (peut prendre 1-2 min)...
-python -m pip install --disable-pip-version-check -q -r "%ROOT%requirements.txt"
+"%PYTHON_EXE%" -m pip install --disable-pip-version-check -q -r "%ROOT%requirements.txt"
 if errorlevel 1 (
     echo     [ERREUR] L'installation des dependances Python a echoue.
     echo              Verifie ta connexion internet puis relance.
@@ -132,7 +139,7 @@ REM ============================================================
 REM [7/7] Backend FastAPI + Frontend Vue
 REM ============================================================
 echo [7/7] Demarrage Backend (port 5001) et Frontend (port 3000)...
-start "Backend FastAPI" cmd /k "cd /d "%ROOT%backend" && python -m uvicorn app.main:app --host 0.0.0.0 --port 5001 --reload"
+start "Backend FastAPI" cmd /k "cd /d "%ROOT%backend" && "%PYTHON_EXE%" -m uvicorn app.main:app --host 0.0.0.0 --port 5001 --reload"
 timeout /t 5 /nobreak >nul
 start "Frontend Vue" cmd /k "cd /d "%ROOT%frontend" && npm run dev"
 timeout /t 5 /nobreak >nul

@@ -17,6 +17,7 @@ EMPLACEMENT MVC
     Couche "services" : logique métier d'authentification.
 """
 
+import logging
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -35,6 +36,7 @@ from app.auth.identity_provider import get_identity_provider, map_groups_to_role
 # Métadonnées de requête : (ip_address, user_agent, endpoint, http_method)
 Meta = Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]
 _EMPTY_META: Meta = (None, None, None, None)
+logger = logging.getLogger(__name__)
 
 
 def _public_user(user) -> dict:
@@ -231,8 +233,13 @@ def login_from_federated(profile: dict, meta: Meta = _EMPTY_META) -> dict:
 def logout(current_user: dict, meta: Meta = _EMPTY_META) -> dict:
     """Déconnexion volontaire : suppression des sessions + audit."""
     ip, ua, endpoint, method = meta
-    with db_session() as db:
-        session_repository.delete_by_user(db, current_user["id"])
+    try:
+        with db_session() as db:
+            session_repository.delete_by_user(db, current_user["id"])
+    except Exception as exc:
+        # Base verrouillée (ex. DB Browser ouvert) : le cookie est effacé par le
+        # controller, la session expire naturellement. On trace sans bloquer.
+        logger.warning("Suppression de session impossible (base verrouillée) : %s", exc)
     audit.log_event(
         AuditEventType.LOGOUT_MANUAL, f"Déconnexion de {current_user.get('name')}",
         user_id=current_user["id"], username=current_user.get("email"),

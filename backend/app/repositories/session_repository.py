@@ -28,3 +28,4 @@ def create(db: Session, token: str, user_id: str, expires_at: str) -> SessionMod
 def delete_by_user(db: Session, user_id: str) -> None:
     """Supprime toutes les sessions d'un utilisateur (login/logout)."""
     db.execute(delete(SessionModel).where(SessionModel.user_id == user_id))
+    db.flush()

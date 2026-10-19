@@ -55,8 +55,8 @@ def _configure_connection(dbapi_connection, connection_record):
     - `journal_mode=WAL` : Write-Ahead Logging. Les LECTURES ne bloquent plus les
       ÉCRITURES et réciproquement, donc un outil externe (DB Browser for SQLite)
       peut consulter/éditer la base pendant que l'appli tourne.
-    - `busy_timeout=5000` : si un verrou d'écriture est déjà pris (ex. DB Browser
-      en cours de modification), l'appli attend jusqu'à 5 s au lieu d'échouer par
+    - `busy_timeout=30000` : si un verrou d'écriture est déjà pris (ex. DB Browser
+      en cours de modification), l'appli attend jusqu'à 30 s au lieu d'échouer par
       « database is locked ».
     - `synchronous=NORMAL` : compromis vitesse/durabilité recommandé en WAL.
     - sqlite-vec : extension vectorielle pour le RAG (chargée à chaque connexion).
@@ -64,7 +64,7 @@ def _configure_connection(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     try:
         cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA busy_timeout=30000")
         cursor.execute("PRAGMA synchronous=NORMAL")
     except Exception as e:  # pragma: no cover
         logger.error("PRAGMA de connexion non appliqués: %s", e)
