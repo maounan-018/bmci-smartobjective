@@ -15,7 +15,7 @@ defineProps({
         'w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300',
         active
           ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100'
-          : 'bg-slate-100 text-slate-300 border-2 border-slate-200',
+          : 'bg-red-100 text-red-500 border-2 border-red-200',
       ]"
     >
       {{ letter }}

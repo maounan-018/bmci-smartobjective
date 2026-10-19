@@ -994,7 +994,7 @@ function historyIssueFor(item, key) {
                 </div>
                 <div class="flex items-center gap-3">
                   <div class="flex gap-1">
-                    <span v-for="letter in ['s','m','a','r','t']" :key="letter" :class="['w-6 h-6 flex items-center justify-center rounded text-xs font-bold', item[`${letter}_score`] ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400']">
+                    <span v-for="letter in ['s','m','a','r','t']" :key="letter" :class="['w-6 h-6 flex items-center justify-center rounded text-xs font-bold', item[`${letter}_score`] ? 'bg-emerald-500 text-white' : 'bg-red-100 text-red-500']">
                       {{ letter.toUpperCase() }}
                     </span>
                   </div>
@@ -1102,7 +1102,7 @@ function historyIssueFor(item, key) {
                       {{ obj.smartAnalysis?.overall ? 'SMART' : obj.smartAnalysis ? 'Non SMART' : 'En attente' }}
                     </div>
                     <div v-if="obj.smartAnalysis" class="flex gap-0.5">
-                      <span v-for="l in ['S','M','A','R','T']" :key="l" :class="['w-4 h-4 rounded text-[8px] flex items-center justify-center font-bold', obj.smartAnalysis?.[l] ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400']">
+                      <span v-for="l in ['S','M','A','R','T']" :key="l" :class="['w-4 h-4 rounded text-[8px] flex items-center justify-center font-bold', obj.smartAnalysis?.[l] ? 'bg-emerald-500 text-white' : 'bg-red-100 text-red-500']">
                         {{ l }}
                       </span>
                     </div>

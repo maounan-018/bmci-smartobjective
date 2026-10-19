@@ -258,7 +258,7 @@ function scoreClass(score) {
                     :key="letter"
                     :class="[
                       'w-6 h-6 flex items-center justify-center rounded text-xs font-bold',
-                      item[`${letter}_score`] ? 'bg-purple-500 text-white' : 'bg-slate-200 text-slate-400',
+                      item[`${letter}_score`] ? 'bg-purple-500 text-white' : 'bg-red-100 text-red-500',
                     ]"
                   >
                     {{ letter.toUpperCase() }}

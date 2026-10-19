@@ -698,7 +698,7 @@ function smartScoreClass(score) {
                   :key="letter"
                   :class="[
                     'w-6 h-6 flex items-center justify-center rounded text-xs font-bold',
-                    item[`${letter}_score`] ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400',
+                    item[`${letter}_score`] ? 'bg-emerald-500 text-white' : 'bg-red-100 text-red-500',
                   ]"
                 >
                   {{ letter.toUpperCase() }}
@@ -729,7 +729,7 @@ function smartScoreClass(score) {
                   :key="l"
                   :class="[
                     'w-6 h-6 rounded-full text-[10px] flex items-center justify-center font-bold',
-                    obj.smartAnalysis?.[l] ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400',
+                    obj.smartAnalysis?.[l] ? 'bg-emerald-500 text-white' : 'bg-red-100 text-red-500',
                   ]"
                 >
                   {{ l }}
