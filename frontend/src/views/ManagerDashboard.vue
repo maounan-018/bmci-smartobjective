@@ -343,7 +343,7 @@ async function handleAnalyzeObjective(objectiveId) {
     if (result.success) {
       teamObjectives.value = teamObjectives.value.map(obj => {
         if (obj.id === objectiveId) {
-          return { ...obj, smartAnalysis: result.smart_analysis, alignmentAnalysis: result.alignment_analysis, status: 'analyzed' };
+          return { ...obj, smartAnalysis: result.smart_analysis, alignmentAnalysis: result.alignment_analysis, status: 'active' };
         }
         return obj;
       });
@@ -353,7 +353,7 @@ async function handleAnalyzeObjective(objectiveId) {
           ...selectedObjective.value,
           smartAnalysis: result.smart_analysis,
           alignmentAnalysis: result.alignment_analysis,
-          status: 'analyzed',
+          status: 'active',
         };
       }
     } else {

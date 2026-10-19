@@ -83,7 +83,7 @@ async function handleAnalyze() {
         ? await ApiService.analyzeAlignment(title.value, companyObjectives.value)
         : { alignment_score: 0, top_matches: [], gaps: ['Aucun catalogue stratégique défini'] };
     await ApiService.updateObjective(newObj.id, {
-      status: 'analyzed',
+      status: 'active',
       smart_analysis: smartResult || undefined,
       alignment_analysis: alignmentResult || undefined,
     });
@@ -110,7 +110,7 @@ async function handleReanalyze() {
         ? await ApiService.analyzeAlignment(obj.title, companyObjectives.value)
         : { alignment_score: 0, top_matches: [], gaps: ['Aucun catalogue stratégique défini'] };
     await ApiService.updateObjective(obj.id, {
-      status: 'analyzed',
+      status: 'active',
       smart_analysis: smartResult || undefined,
       alignment_analysis: alignmentResult || undefined,
     });
@@ -165,7 +165,7 @@ async function handleFileUpload(event) {
             ? await ApiService.analyzeAlignment(objTitle, companyObjectives.value)
             : null;
         await ApiService.updateObjective(newObj.id, {
-          status: 'analyzed',
+          status: 'active',
           smart_analysis: smartResult || undefined,
           alignment_analysis: alignmentResult || undefined,
         });
