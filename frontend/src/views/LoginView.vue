@@ -6,7 +6,7 @@
 // SSO inactif (dev local) => connexion email/mot de passe sur les comptes seedés.
 //
 // Aucune logique de sécurité côté client : juste de la validation de formulaire et de l'UX.
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { UserRole, getDefaultPath } from '@/utils/permissions';
@@ -31,6 +31,7 @@ const selectedRole = ref(null);
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
+const passwordInput = ref(null);
 
 const isLoading = ref(false);
 const error = ref(null);
@@ -108,10 +109,14 @@ function handleSelectRole(role) {
   selectedRole.value = role;
   mode.value = 'login';
   error.value = null;
-  // Pré-remplissage du compte de démonstration seedé.
+  // Pré-remplissage de l'email du compte de démonstration seedé.
+  // Le mot de passe n'est PAS embarqué dans le bundle (cf. correctif S-3) :
+  // on pré-remplit l'email puis on place le focus sur le champ mot de passe
+  // pour que le testeur n'ait qu'à le saisir.
   const meta = roles.find((r) => r.role === role);
   email.value = meta?.demo?.email || '';
-  password.value = meta?.demo?.password || '';
+  password.value = '';
+  nextTick(() => passwordInput.value?.focus());
 }
 
 async function handleLogin() {
@@ -260,6 +265,7 @@ function handleBack() {
               <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Mot de passe</label>
               <div class="relative">
                 <input
+                  ref="passwordInput"
                   v-model="password"
                   :type="showPassword ? 'text' : 'password'"
                   class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all pr-12"
@@ -295,6 +301,10 @@ function handleBack() {
           <div class="mt-6 p-4 bg-slate-50 rounded-xl">
             <p class="text-xs text-slate-500 font-bold uppercase mb-2">Compte de démonstration</p>
             <p class="text-xs text-slate-600">{{ currentRoleMeta?.demo?.email }}</p>
+            <p class="text-xs text-slate-400 mt-2">
+              Mot de passe fourni séparément (défini dans <code>backend/.env</code> —
+              variables <code>SEED_*_PASSWORD</code>).
+            </p>
           </div>
         </div>
       </div>
