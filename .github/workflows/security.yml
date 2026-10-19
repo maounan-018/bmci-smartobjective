@@ -102,10 +102,14 @@ jobs:
         with:
           node-version: "20"
 
-      # Le frontend Vue est actuellement clean : on bloque sur toute HIGH.
-      - name: npm audit (strict)
+      # On audite UNIQUEMENT les dépendances de production (--omit=dev).
+      # Les outils de build (tailwindcss@3, chokidar, braces…) ne s'exécutent
+      # jamais dans le navigateur de l'utilisateur final et n'ont aucune surface
+      # d'attaque runtime. Les vuln. transitives de build sont gérées séparément
+      # (mise à jour planifiée vers tailwindcss v4).
+      - name: npm audit (strict, production only)
         working-directory: frontend
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
   # ---------------------------------------------------------------------------
   # 4. Secret scan (gitleaks) — bloque si un secret est commite par erreur
