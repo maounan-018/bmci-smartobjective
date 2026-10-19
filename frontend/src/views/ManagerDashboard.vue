@@ -483,8 +483,19 @@ function historyIssueFor(item, key) {
                 <CheckCircle2 v-if="selectedObjective.smartAnalysis?.overall" class="text-emerald-500" :size="20" />
                 <AlertCircle v-else class="text-amber-500" :size="20" />
               </h3>
-              <div class="text-sm font-medium text-slate-500">
-                Confiance: {{ selectedObjective.smartAnalysis?.confidence !== undefined ? `${(selectedObjective.smartAnalysis.confidence * 100).toFixed(0)}%` : 'Indisponible' }}
+              <div class="flex items-center gap-3">
+                <div class="text-sm font-medium text-slate-500">
+                  Confiance: {{ selectedObjective.smartAnalysis?.confidence !== undefined ? `${(selectedObjective.smartAnalysis.confidence * 100).toFixed(0)}%` : 'Indisponible' }}
+                </div>
+                <button
+                  :disabled="analyzingId === selectedObjective.id"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors"
+                  @click="handleAnalyzeObjective(selectedObjective.id)"
+                >
+                  <Loader2 v-if="analyzingId === selectedObjective.id" class="animate-spin" :size="14" />
+                  <Sparkles v-else :size="14" />
+                  {{ analyzingId === selectedObjective.id ? 'Analyse…' : (selectedObjective.smartAnalysis ? 'Réanalyser' : 'Analyser') }}
+                </button>
               </div>
             </div>
             <div class="flex justify-between items-center">

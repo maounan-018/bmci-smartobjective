@@ -32,6 +32,7 @@ const analysisStats = ref(null);
 
 const selectedObjective = ref(null);
 
+const isReanalyzing = ref(false);
 const isImportingExcel = ref(false);
 const excelImportResults = ref(null);
 const excelFileInput = ref(null);
@@ -94,6 +95,32 @@ async function handleAnalyze() {
     error.value = err.message || "Erreur lors de l'analyse.";
   } finally {
     isAnalyzing.value = false;
+  }
+}
+
+async function handleReanalyze() {
+  if (!selectedObjective.value) return;
+  isReanalyzing.value = true;
+  error.value = null;
+  try {
+    const obj = selectedObjective.value;
+    const smartResult = await ApiService.analyzeSmartObjective(obj.title, obj.description || '');
+    const alignmentResult =
+      companyObjectives.value.length > 0
+        ? await ApiService.analyzeAlignment(obj.title, companyObjectives.value)
+        : { alignment_score: 0, top_matches: [], gaps: ['Aucun catalogue stratégique défini'] };
+    await ApiService.updateObjective(obj.id, {
+      status: 'analyzed',
+      smart_analysis: smartResult || undefined,
+      alignment_analysis: alignmentResult || undefined,
+    });
+    await loadData();
+    selectedObjective.value = objectives.value.find((o) => o.id === obj.id) || null;
+  } catch (err) {
+    console.error(err);
+    error.value = err.message || "Erreur lors de l'analyse.";
+  } finally {
+    isReanalyzing.value = false;
   }
 }
 
@@ -267,13 +294,24 @@ function smartScoreClass(score) {
                 />
                 <AlertCircle v-else class="text-amber-500" :size="20" />
               </h3>
-              <div class="text-sm font-medium text-slate-500">
-                Confiance:
-                {{
-                  selectedObjective.smartAnalysis?.confidence !== undefined
-                    ? (selectedObjective.smartAnalysis.confidence * 100).toFixed(0) + '%'
-                    : 'Indisponible'
-                }}
+              <div class="flex items-center gap-3">
+                <div class="text-sm font-medium text-slate-500">
+                  Confiance:
+                  {{
+                    selectedObjective.smartAnalysis?.confidence !== undefined
+                      ? (selectedObjective.smartAnalysis.confidence * 100).toFixed(0) + '%'
+                      : 'Indisponible'
+                  }}
+                </div>
+                <button
+                  :disabled="isReanalyzing"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  @click="handleReanalyze"
+                >
+                  <Loader2 v-if="isReanalyzing" class="animate-spin" :size="14" />
+                  <Sparkles v-else :size="14" />
+                  {{ isReanalyzing ? 'Analyse…' : 'Analyser' }}
+                </button>
               </div>
             </div>
             <div class="flex justify-between items-center">
