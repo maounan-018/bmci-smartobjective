@@ -12,9 +12,12 @@ EMPLACEMENT MVC
 """
 
 import json
+import logging
 import secrets
 from datetime import datetime
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException
 
@@ -171,6 +174,7 @@ def batch_create_company_objectives(objectives: List, current_user: dict) -> dic
         raise HTTPException(status_code=403, detail="Accès refusé.")
 
     created = 0
+    errors = []
     with db_session() as db:
         for obj in objectives:
             obj_id = obj.id or f"STRAT-{secrets.token_hex(4)}"
@@ -183,9 +187,10 @@ def batch_create_company_objectives(objectives: List, current_user: dict) -> dic
                     "created_by": current_user["id"],
                 })
                 created += 1
-            except Exception:
-                pass
-    return {"success": True, "created": created}
+            except Exception as exc:
+                logger.warning("Objectif ignoré lors de l'import batch (id=%s) : %s", obj_id, exc)
+                errors.append({"id": obj_id, "title": obj.title, "error": str(exc)})
+    return {"success": True, "created": created, "errors": errors}
 
 
 def _require_manager_or_hr(current_user: dict):

@@ -92,20 +92,6 @@ SessionLocal = sessionmaker(
 )
 
 
-def get_db() -> Iterator[Session]:
-    """
-    Dépendance FastAPI : fournit une session ORM et la referme en fin de requête.
-
-    Utilisation dans un controller :
-        def endpoint(db: Session = Depends(get_db)): ...
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @contextmanager
 def db_session() -> Iterator[Session]:
     """
