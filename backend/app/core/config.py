@@ -80,7 +80,7 @@ class Settings:
         # passage est juge hors-sujet et ecarte -> le Coach repond SANS contexte
         # plutot que d'injecter un passage non pertinent qui le ferait divaguer.
         # Calibre sur bge-m3 : on-topic <= ~24, hors-sujet >= ~30 ; 28 = marge sure.
-        self.RAG_MAX_DISTANCE = float(os.getenv("RAG_MAX_DISTANCE", "28"))
+        self.RAG_MAX_DISTANCE = float(os.getenv("RAG_MAX_DISTANCE", "32"))
 
         # KPI RH (seuils du tableau de bord, réglables sans toucher au code).
         self.KPI_SMART_THRESHOLD = int(os.getenv("KPI_SMART_THRESHOLD", "80"))        # objectif "conforme"
