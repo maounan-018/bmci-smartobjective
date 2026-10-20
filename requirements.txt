@@ -17,7 +17,9 @@ numpy==2.3.5
 # --- RAG : recherche vectorielle locale dans SQLite (assistant base de connaissances) ---
 sqlite-vec==0.1.9
 # Extraction de texte des documents televerses (Excel via openpyxl ci-dessus).
-pypdf==6.13.0
+# PyMuPDF : extraction PDF robuste sur les mises en page complexes (remplace pypdf,
+# trop faible sur les guides infographiques -> ne lisait que les puces, pas le texte).
+PyMuPDF==2.0
 python-docx==1.2.0
 
 # --- Tests (securite / tracabilite) ---
