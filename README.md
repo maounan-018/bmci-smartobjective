@@ -76,7 +76,7 @@ bmci-smartobjective/
 │       ├── auth/                   # IdentityProvider + providers (local, saml)
 │       ├── middlewares/            # request_size (DoS) + security_headers
 │       ├── utils/                  # Helpers (score SMART, métadonnées requête)
-│       └── tests/                  # pytest (48 tests : sécurité, RBAC, SSO, import)
+│       └── tests/                  # pytest (103 tests : sécurité, RBAC, SSO, import, RAG/Coach)
 │
 ├── frontend/                       # Frontend Vue.js (JavaScript pur)
 │   ├── package.json
@@ -111,8 +111,10 @@ bmci-smartobjective/
 | Base de données | **SQLite** (`objectifsmart.db`) | Persistance locale (PostgreSQL en prod) |
 | Validation | **Pydantic v2** | Schémas d'entrée bornés |
 | SSO | **python3-saml** (optionnel) | SAML 2.0 ADFS / Entra ID |
-| IA | **Ollama** (`smart-qwen8`, construit depuis le `Modelfile`) | Modèle local |
-| Excel / PDF | **openpyxl** / **reportlab** | Imports & rapports |
+| IA (analyse) | **Ollama** (`smart-qwen8`, construit depuis le `Modelfile`) | Analyse SMART & alignement (local) |
+| RAG / Coach IA | **bge-m3** (embeddings) + **sqlite-vec** | Base de connaissances & assistant conversationnel |
+| Extraction documents | **PyMuPDF** (PDF) / **openpyxl** (Excel) / **rapidocr-onnxruntime** (OCR local des PDF en images) | Indexation de la base de connaissances |
+| Rapports PDF | **reportlab** | Exports RH / COMEX |
 | Tests | **pytest** + **httpx** | Tests d'intégration |
 
 ### Frontend
@@ -137,6 +139,12 @@ bmci-smartobjective/
 - **Imports Excel** : objectifs collaborateurs & stratégiques (RH), drag & drop.
 - **Analyse en lot** (HR) : SMART + alignement de N objectifs en **SSE**.
 - **Tableaux de bord analytiques RH** + **exports** Excel / PDF.
+- **Coach IA conversationnel** (COLLAB / MANAGER / HR) : accompagnement SMART
+  pas-à-pas **et** réponses aux questions ancrées dans la base de connaissances.
+- **Base de connaissances (RAG local)** : chaque utilisateur téléverse ses
+  documents (PDF, Word, Excel, texte ; **OCR** automatique pour les PDF en
+  images). Base **privée** — chacun ne voit, ne supprime et n'interroge via le
+  Coach que **ses propres** documents.
 - **Audit trail** : journalisation des évènements sensibles (anti-fuite).
 
 ---
@@ -153,6 +161,10 @@ bmci-smartobjective/
 > **Isolation stricte** : analyses stockées dans **trois tables séparées**
 > (`hr_/manager_/collab_analysis_results`). Une analyse RH n'est jamais visible
 > côté Manager et inversement. Le marquage `data_scope` renforce le cloisonnement.
+>
+> **Base de connaissances privée** : les documents RAG sont cloisonnés par
+> `uploaded_by` — un document téléversé par un utilisateur n'est visible, ni
+> supprimable, ni exploitable par le Coach d'un autre utilisateur.
 
 ---
 
@@ -283,11 +295,12 @@ cd frontend && npm run dev                                              # 3
 ## 10. Tests
 
 ```bash
-cd backend && python -m pytest -v        # 48 tests verts
+cd backend && python -m pytest -v        # 103 tests verts
 cd frontend && npm run build             # validation build (~1600 modules)
 ```
 Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurité
-(PBKDF2, cookies, CSRF, rate-limit, en-têtes), audit, RBAC, auth, SSO SAML, import Excel.
+(PBKDF2, cookies, CSRF, rate-limit, en-têtes), audit, RBAC, auth, SSO SAML,
+import Excel, RAG (ingestion, recherche, isolation par utilisateur) et Coach IA.
 
 ---
 
@@ -302,6 +315,8 @@ Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurit
 | `MAX_REQUEST_SIZE_MB` | Limite uploads (défaut 20 Mo) |
 | `DATABASE_PATH` | Chemin SQLite |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | IA locale (`smart-qwen8`) |
+| `OLLAMA_CHAT_MODEL` / `OLLAMA_EMBED_MODEL` | Modèles du Coach IA et des embeddings RAG (`bge-m3`) |
+| `RAG_MAX_DISTANCE` | Seuil de pertinence RAG — au-delà, un passage est écarté (défaut 32) |
 | `AI_MAX_ATTEMPTS` | Réessais IA si réponse vide/non parsable (défaut 2) |
 | `AI_RATE_LIMIT_MAX` / `AI_RATE_LIMIT_WINDOW_SECONDS` | Quota d'analyses IA par utilisateur (défaut 10/60 s) |
 | `AUTH_PROVIDER` | `local` (défaut) / `saml` |
@@ -373,6 +388,8 @@ Base SQLite **temporaire isolée** (jamais la production). Couverture : sécurit
 | GET | `/api/manager/*` | MANAGER | Dashboard, équipe, analyses, export |
 | GET | `/api/collab/analysis-results` | COLLAB | Analyses privées |
 | POST | `/api/analyze-smart`, `/api/analyze-alignment` | authentifié | Analyse IA |
+| POST | `/api/chat-coach` | COLLAB/MANAGER/HR | Coach IA conversationnel (RAG privé) |
+| GET/POST/DELETE | `/api/rag/documents` | COLLAB/MANAGER/HR | Base de connaissances (ses propres documents) |
 | POST | `/api/hr/import-strategy`, `/api/hr/import-objectives` | HR | Imports Excel RH |
 | POST | `/api/hr/analyze-batch` | HR | Analyse en lot **SSE** |
 | GET | `/api/hr/analytics`, `/api/hr/export-excel`, `/api/hr/export-pdf` | HR | Analytics & rapports |
