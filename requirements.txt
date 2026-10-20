@@ -21,6 +21,11 @@ sqlite-vec==0.1.9
 # trop faible sur les guides infographiques -> ne lisait que les puces, pas le texte).
 PyMuPDF==2.0
 python-docx==1.2.0
+# OCR local pour les PDF en images/scannes (contenu dans des images -> aucun
+# extracteur de texte ne le lit). 100% local/hors-ligne (CNDP) : aucune donnee
+# ne sort. Repli automatique quand la couche texte d'un PDF est vide. Import
+# tardif (lourd : onnxruntime) -> n'impacte pas le boot ni la CI.
+rapidocr-onnxruntime==1.2.3
 
 # --- Tests (securite / tracabilite) ---
 pytest==8.4.2

@@ -110,11 +110,62 @@ def _extract_pdf(content: bytes) -> str:
     except ImportError:  # pragma: no cover - compat anciennes versions
         import fitz as pymupdf
 
-    parts = []
     with pymupdf.open(stream=content, filetype="pdf") as doc:
-        for page in doc:
-            parts.append(page.get_text("text") or "")
-    return "\n\n".join(parts)
+        text = "\n\n".join((page.get_text("text") or "") for page in doc)
+        # PDF en images (scan, guide infographique) : la couche texte est quasi
+        # vide. On bascule sur l'OCR local (rapidocr) en rendant chaque page.
+        if _looks_poorly_extracted(text):
+            ocr_text = _ocr_pdf_pages(doc)
+            if len(ocr_text.strip()) > len(text.strip()):
+                return ocr_text
+    return text
+
+
+# Moteur OCR chargé paresseusement puis réutilisé (le chargement des modèles
+# ONNX coûte ~1-2 s ; inutile de le refaire à chaque téléversement).
+_ocr_engine = None
+_OCR_DPI = 200          # compromis qualité/vitesse pour l'OCR des pages
+_OCR_MAX_PAGES = 50     # borne anti-emballement sur de très gros documents
+
+
+def _get_ocr_engine():
+    global _ocr_engine
+    if _ocr_engine is None:
+        from rapidocr_onnxruntime import RapidOCR  # import tardif : lourd (onnx)
+        _ocr_engine = RapidOCR()
+    return _ocr_engine
+
+
+def _ocr_pdf_pages(doc) -> str:
+    """OCR local des pages d'un PDF (texte dans des images).
+
+    Local et hors-ligne (CNDP) : aucune donnée ne sort. Si rapidocr n'est pas
+    installé, on renvoie "" et l'appelant conserve le texte natif (le garde-fou
+    d'extract_text rejettera alors proprement l'import avec un message clair).
+    """
+    try:
+        engine = _get_ocr_engine()
+    except ImportError:
+        logger.warning("OCR indisponible : rapidocr-onnxruntime n'est pas installé.")
+        return ""
+
+    n_pages = min(doc.page_count, _OCR_MAX_PAGES)
+    if doc.page_count > _OCR_MAX_PAGES:
+        logger.warning("OCR limité aux %d premières pages (document de %d pages).",
+                       _OCR_MAX_PAGES, doc.page_count)
+    parts = []
+    for i in range(n_pages):
+        try:
+            pixmap = doc[i].get_pixmap(dpi=_OCR_DPI)
+            result, _ = engine(pixmap.tobytes("png"))
+        except Exception as exc:  # une page illisible ne doit pas tout annuler
+            logger.warning("OCR page %d échouée : %s", i + 1, exc)
+            continue
+        if result:
+            parts.append("\n".join(line[1] for line in result))
+    text = "\n\n".join(parts)
+    logger.info("OCR terminé : %d page(s), %d caractères extraits.", n_pages, len(text))
+    return text
 
 
 def _extract_docx(content: bytes) -> str:
