@@ -487,9 +487,12 @@ _FINAL_MARKER_RE = re.compile(
 )
 
 
-def _retrieve_coach_context(messages: List[ChatMessage]) -> str | None:
+def _retrieve_coach_context(messages: List[ChatMessage], uploaded_by: str = None) -> str | None:
     """Récupère du contexte BMCI pertinent (RAG) à partir du dernier message user.
 
+    `uploaded_by` : restreint aux documents de l'utilisateur courant (base de
+    connaissances privée — le Coach n'utilise QUE les documents que cet
+    utilisateur a lui-même téléversés).
     Défensif : si le RAG est indisponible ou ne renvoie rien, le Coach continue
     SANS contexte (il ne doit jamais tomber en panne à cause du RAG).
     """
@@ -501,7 +504,8 @@ def _retrieve_coach_context(messages: List[ChatMessage]) -> str | None:
         # Seuil de pertinence : on n'injecte QUE des passages réellement proches
         # (sinon un contexte hors-sujet ferait divaguer le Coach).
         passages = rag_service.retrieve(
-            last_user, scope="GLOBAL", top_k=3, max_distance=settings.RAG_MAX_DISTANCE)
+            last_user, scope="GLOBAL", top_k=3,
+            max_distance=settings.RAG_MAX_DISTANCE, uploaded_by=uploaded_by)
     except Exception as e:  # RAG indisponible -> on continue sans contexte
         logger.warning("RAG indisponible pour le Coach (poursuite sans contexte): %s", e)
         return None
@@ -568,7 +572,7 @@ def _coach_step(messages: List[ChatMessage], ready: bool) -> str:
     return _COACH_STEPS[min(answered, len(_COACH_STEPS) - 1)]
 
 
-def run_chat_coach(messages: List[ChatMessage]) -> ChatResponse:
+def run_chat_coach(messages: List[ChatMessage], uploaded_by: str = None) -> ChatResponse:
     """Orchestre un tour de conversation avec le Coach IA (enrichi par le RAG).
 
     1. Récupère du contexte BMCI (RAG) à partir du dernier message utilisateur.
@@ -577,7 +581,7 @@ def run_chat_coach(messages: List[ChatMessage]) -> ChatResponse:
     4. Détecte le marqueur final {"final_objective": "...", "ready": true}.
     """
     raw_messages = [{"role": m.role, "content": m.content} for m in messages]
-    context = _retrieve_coach_context(messages)
+    context = _retrieve_coach_context(messages, uploaded_by=uploaded_by)
     raw_reply = call_ollama_chat(raw_messages, extra_context=context)
 
     # Retire les blocs <think>...</think> et un éventuel bloc tronqué non fermé.

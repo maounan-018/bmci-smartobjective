@@ -77,13 +77,14 @@ async def scan_excel_structure(
 
 @router.post("/chat-coach", response_model=ChatResponse)
 def chat_coach(request: ChatRequest, current_user: dict = Depends(ai_rate_limited_user)):
-    """Conversation avec le Coach IA SMART (réservé MANAGER/COLLAB, quota IA).
+    """Conversation avec le Coach IA SMART (MANAGER/COLLAB/HR, quota IA).
 
     Le Coach guide pas à pas vers un objectif SMART et s'appuie sur la base de
-    connaissances (RAG) pour le contexte BMCI.
+    connaissances PRIVÉE de l'utilisateur (RAG) : il n'utilise que les documents
+    que cet utilisateur a lui-même téléversés.
     """
-    permission_service.require_role(current_user, ["MANAGER", "COLLAB"])
-    response = run_chat_coach(request.messages)
+    permission_service.require_role(current_user, ["MANAGER", "COLLAB", "HR"])
+    response = run_chat_coach(request.messages, uploaded_by=current_user["id"])
     # Traçabilité (conformité) : on journalise chaque tour de Coach — qui, quand, et
     # l'objectif final produit le cas échéant — dans l'audit trail (no-throw, filtré).
     detail = "Coach IA — tour de conversation"

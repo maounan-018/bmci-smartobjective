@@ -19,8 +19,9 @@ def test_f1_coach_retrieve_uses_distance_threshold(monkeypatch):
     captured = {}
     from app.services import rag_service
 
-    def fake_retrieve(query, *, scope="GLOBAL", top_k=4, max_distance=None):
+    def fake_retrieve(query, *, scope="GLOBAL", top_k=4, max_distance=None, uploaded_by=None):
         captured["max_distance"] = max_distance
+        captured["uploaded_by"] = uploaded_by
         return []
 
     monkeypatch.setattr(rag_service, "retrieve", fake_retrieve)
@@ -72,7 +73,7 @@ def test_f6_coach_step_follows_progress():
 # ---------- F2 : revalidation SMART de l'objectif final ----------
 
 def test_f2_final_objective_is_revalidated(monkeypatch):
-    monkeypatch.setattr(ai_service, "_retrieve_coach_context", lambda messages: None)
+    monkeypatch.setattr(ai_service, "_retrieve_coach_context", lambda messages, uploaded_by=None: None)
     monkeypatch.setattr(
         ai_service, "call_ollama_chat",
         lambda messages, extra_context=None:

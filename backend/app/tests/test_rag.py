@@ -69,6 +69,20 @@ def test_scope_isolation(cleanup_docs):
     assert any(r["document_id"] == n["id"] for r in scoped)
 
 
+def test_retrieve_filters_by_uploaded_by(cleanup_docs):
+    """Base privée : une recherche filtrée par `uploaded_by` ne renvoie que les
+    documents de cet utilisateur."""
+    a = rag_service.ingest_document("alpha doc de alice", filename="a.txt",
+                                    scope="GLOBAL", uploaded_by="alice")
+    b = rag_service.ingest_document("alpha doc de bob", filename="b.txt",
+                                    scope="GLOBAL", uploaded_by="bob")
+    cleanup_docs += [a["id"], b["id"]]
+
+    res = rag_service.retrieve("alpha", scope="GLOBAL", top_k=10, uploaded_by="alice")
+    assert res, "alice doit retrouver son document"
+    assert all(r["document_id"] == a["id"] for r in res), "aucun document de bob ne doit remonter"
+
+
 def test_delete_removes_document_and_vectors(cleanup_docs):
     d = rag_service.ingest_document("alpha a supprimer", filename="d.txt", scope="GLOBAL")
     removed = rag_service.delete_document(d["id"])
@@ -103,6 +117,30 @@ def test_upload_requires_authentication(client):
         data={"scope": "GLOBAL"},
     )
     assert resp.status_code == 401
+
+
+def test_documents_are_private_per_user(client, make_user, auth_token):
+    """Base privée : chacun ne voit et ne supprime QUE ses propres documents."""
+    make_user(user_id="owner-rag", email="owner@bmci.test", role="MANAGER")
+    make_user(user_id="other-rag", email="other@bmci.test", role="COLLAB")
+    owner = {"Authorization": f"Bearer {auth_token('owner-rag')}"}
+    other = {"Authorization": f"Bearer {auth_token('other-rag')}"}
+
+    resp = client.post(
+        "/api/rag/documents",
+        files={"file": ("prive.txt", b"alpha document prive du proprietaire", "text/plain")},
+        data={"scope": "GLOBAL"}, headers=owner,
+    )
+    assert resp.status_code == 200, resp.text
+    doc_id = resp.json()["id"]
+
+    # L'autre utilisateur ne voit pas ce document, le propriétaire si.
+    assert all(d["id"] != doc_id for d in client.get("/api/rag/documents", headers=other).json())
+    assert any(d["id"] == doc_id for d in client.get("/api/rag/documents", headers=owner).json())
+
+    # L'autre ne peut pas le supprimer (404), le propriétaire si (200).
+    assert client.delete(f"/api/rag/documents/{doc_id}", headers=other).status_code == 404
+    assert client.delete(f"/api/rag/documents/{doc_id}", headers=owner).status_code == 200
 
 
 def test_upload_rejects_unsupported_format(client, make_user, auth_token):

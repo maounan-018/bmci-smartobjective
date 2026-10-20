@@ -15,7 +15,7 @@ from app.services import ai_service
 @pytest.fixture(autouse=True)
 def _stub_coach(monkeypatch):
     """Neutralise le RAG et Ollama dans les tests (réponse canée déterministe)."""
-    monkeypatch.setattr(ai_service, "_retrieve_coach_context", lambda messages: None)
+    monkeypatch.setattr(ai_service, "_retrieve_coach_context", lambda messages, uploaded_by=None: None)
     monkeypatch.setattr(
         ai_service, "call_ollama_chat",
         lambda messages, extra_context=None: "Bonjour ! Quel est votre objectif principal ?",
@@ -49,10 +49,10 @@ def test_chat_coach_allows_collab(client, make_user, auth_token):
     assert resp.status_code == 200
 
 
-def test_chat_coach_forbids_hr(client, make_user, auth_token):
+def test_chat_coach_allows_hr(client, make_user, auth_token):
     make_user(user_id="hr-coach", email="hrcoach@bmci.test", role="HR")
     resp = _post(client, auth_token("hr-coach"))
-    assert resp.status_code == 403
+    assert resp.status_code == 200
 
 
 def test_chat_coach_rejects_non_user_last_message(client, make_user, auth_token):

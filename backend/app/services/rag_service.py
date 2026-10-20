@@ -127,10 +127,13 @@ def ingest_document(content: str, *, filename: str, title: str = None,
 # ============= RECHERCHE =============
 
 def retrieve(query: str, *, scope: str = "GLOBAL", top_k: int = 4,
-             max_distance: float = None) -> list[dict]:
+             max_distance: float = None, uploaded_by: str = None) -> list[dict]:
     """Retourne les passages les plus proches sémantiquement de `query`.
 
     - Filtre de périmètre : seuls les chunks de `scope` ou de scope GLOBAL.
+    - `uploaded_by` (optionnel) : restreint aux documents téléversés par cet
+      utilisateur (base de connaissances PRIVÉE : chacun n'interroge que ses
+      propres documents). None = aucun filtre de propriété.
     - `max_distance` (optionnel) = SEUIL : au-delà, un passage est jugé hors
       sujet et écarté (permet de répondre « rien trouvé » plutôt qu'un faux
       positif). Sans seuil, on renvoie les `top_k` plus proches tels quels.
@@ -157,13 +160,15 @@ def retrieve(query: str, *, scope: str = "GLOBAL", top_k: int = 4,
         SELECT c.id, c.document_id, c.chunk_index, c.text, c.scope, knn.distance
         FROM knn
         JOIN rag_chunks c ON c.id = knn.rowid
-        WHERE c.scope = :scope OR c.scope = 'GLOBAL'
+        JOIN rag_documents d ON d.id = c.document_id
+        WHERE (c.scope = :scope OR c.scope = 'GLOBAL')
+          AND (:uploaded_by IS NULL OR d.uploaded_by = :uploaded_by)
         ORDER BY knn.distance
         LIMIT {top_k}
     """)
 
     with db_session() as db:
-        rows = db.execute(sql, {"qvec": qjson, "scope": scope}).fetchall()
+        rows = db.execute(sql, {"qvec": qjson, "scope": scope, "uploaded_by": uploaded_by}).fetchall()
 
     results: list[dict] = []
     for r in rows:
@@ -179,10 +184,17 @@ def retrieve(query: str, *, scope: str = "GLOBAL", top_k: int = 4,
 
 # ============= GESTION DES DOCUMENTS =============
 
-def list_documents() -> list[dict]:
-    """Liste les fiches documents (pour l'UI base de connaissances)."""
+def list_documents(uploaded_by: str = None) -> list[dict]:
+    """Liste les fiches documents (pour l'UI base de connaissances).
+
+    `uploaded_by` (optionnel) : ne renvoie que les documents de cet utilisateur
+    (base de connaissances privée). None = tous les documents.
+    """
     with db_session() as db:
-        docs = db.query(RagDocument).order_by(RagDocument.created_at.desc()).all()
+        q = db.query(RagDocument)
+        if uploaded_by is not None:
+            q = q.filter(RagDocument.uploaded_by == uploaded_by)
+        docs = q.order_by(RagDocument.created_at.desc()).all()
         return [{
             "id": d.id, "title": d.title, "filename": d.filename, "scope": d.scope,
             "source_type": d.source_type, "status": d.status,
@@ -190,18 +202,23 @@ def list_documents() -> list[dict]:
         } for d in docs]
 
 
-def delete_document(doc_id: int) -> int:
+def delete_document(doc_id: int, uploaded_by: str = None) -> int:
     """Supprime un document, ses chunks (cascade ORM) ET ses vecteurs vec0.
 
-    Renvoie le nombre de chunks supprimés. La suppression des vecteurs est faite
-    explicitement car la table vec0 n'est pas gérée par l'ORM.
+    `uploaded_by` (optionnel) : si fourni, la suppression n'a lieu QUE si le
+    document appartient à cet utilisateur (base privée). Sinon on renvoie -1
+    (interdit / introuvable pour cet utilisateur) sans rien supprimer.
+    Renvoie le nombre de chunks supprimés (>=0), ou -1 si non autorisé/introuvable.
+    La suppression des vecteurs est faite explicitement car la table vec0 n'est
+    pas gérée par l'ORM.
     """
     with db_session() as db:
+        doc = db.get(RagDocument, doc_id)
+        if doc is None or (uploaded_by is not None and doc.uploaded_by != uploaded_by):
+            return -1
         chunk_ids = [c.id for c in db.query(RagChunk).filter_by(document_id=doc_id).all()]
         for cid in chunk_ids:
             db.execute(text("DELETE FROM vec_rag_chunks WHERE rowid = :rid"), {"rid": cid})
-        doc = db.get(RagDocument, doc_id)
-        if doc is not None:
-            db.delete(doc)  # cascade ORM -> supprime les rag_chunks
+        db.delete(doc)  # cascade ORM -> supprime les rag_chunks
         logger.info("RAG: document id=%s supprimé (%d chunks).", doc_id, len(chunk_ids))
         return len(chunk_ids)

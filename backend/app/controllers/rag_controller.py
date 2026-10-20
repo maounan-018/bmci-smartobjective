@@ -32,9 +32,12 @@ _ALLOWED_ROLES = ["MANAGER", "HR", "COLLAB", "ADMIN"]
 
 @router.get("/documents")
 def list_rag_documents(current_user: dict = Depends(get_current_user)):
-    """Liste les documents de la base de connaissances (MANAGER/ADMIN)."""
+    """Liste les documents que l'utilisateur courant a lui-même téléversés.
+
+    Base de connaissances PRIVÉE : chacun ne voit que ses propres documents.
+    """
     permission_service.require_role(current_user, _ALLOWED_ROLES)
-    return rag_service.list_documents()
+    return rag_service.list_documents(uploaded_by=current_user["id"])
 
 
 @router.post("/documents")
@@ -73,7 +76,13 @@ async def upload_rag_document(
 
 @router.delete("/documents/{doc_id}")
 def delete_rag_document(doc_id: int, current_user: dict = Depends(get_current_user)):
-    """Supprime un document et ses vecteurs (MANAGER/ADMIN)."""
+    """Supprime un document que l'utilisateur courant a lui-même téléversé.
+
+    Un utilisateur ne peut supprimer QUE ses propres documents (404 sinon, pour
+    ne pas révéler l'existence des documents d'autrui).
+    """
     permission_service.require_role(current_user, _ALLOWED_ROLES)
-    removed = rag_service.delete_document(doc_id)
+    removed = rag_service.delete_document(doc_id, uploaded_by=current_user["id"])
+    if removed < 0:
+        raise HTTPException(status_code=404, detail="Document introuvable.")
     return {"deleted": True, "document_id": doc_id, "chunks_removed": removed}
