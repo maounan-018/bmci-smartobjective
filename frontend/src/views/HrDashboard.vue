@@ -234,6 +234,12 @@ function resetFilters() {
   filters.value = { entity: '', manager: '', period: '' };
 }
 
+// Un filtre est actif -> l'état vide vient probablement d'une combinaison sans
+// résultat (ex. département + manager hors département), pas d'une base vide.
+const hasActiveFilters = computed(
+  () => !!(filters.value.entity || filters.value.manager || filters.value.period),
+);
+
 function onStratFileChange(e) { stratFile.value = e.target.files?.[0] || null; }
 function onObjFileChange(e) { objFile.value = e.target.files?.[0] || null; }
 
@@ -776,33 +782,40 @@ function noDetailedAnalysis(analysisObj) {
           </div>
         </div>
 
+        <!-- Barre de filtres : rendue HORS de la chaîne v-if/v-else-if ci-dessous pour
+             rester toujours accessible en vue dashboard, même quand le filtrage ne
+             renvoie aucun résultat. Sinon l'état vide « Aucune donnée » masquait les
+             filtres -> cul-de-sac (impossible de changer/réinitialiser). Les options
+             viennent du catalogue complet (distinct_values), donc toujours peuplées. -->
+        <div v-if="!loading && analytics && view === 'dashboard'" class="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border mb-6">
+          <Filter :size="16" class="text-slate-500" />
+          <span class="text-sm font-bold text-slate-600 mr-2">Filtres :</span>
+          <select v-model="filters.entity" class="text-sm border-slate-200 rounded-md">
+            <option value="">Toutes les entités</option>
+            <option v-for="e in analytics?.filters.entities" :key="e" :value="e">{{ e }}</option>
+          </select>
+          <select v-model="filters.manager" class="text-sm border-slate-200 rounded-md">
+            <option value="">Tous les managers</option>
+            <option v-for="m in analytics?.filters.managers" :key="m" :value="m">{{ m }}</option>
+          </select>
+          <select v-model="filters.period" class="text-sm border-slate-200 rounded-md">
+            <option value="">Toutes les périodes</option>
+            <option v-for="p in analytics?.filters.periods" :key="p" :value="p">{{ p }}</option>
+          </select>
+          <button @click="resetFilters" class="text-xs font-bold text-slate-500 hover:underline ml-auto">Réinitialiser</button>
+        </div>
+
         <div v-if="loading" class="h-64 flex items-center justify-center"><Loader2 class="animate-spin text-emerald-500" :size="32" /></div>
 
         <div v-else-if="!hasData" class="text-center py-16 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
           <BarChart3 :size="48" class="mx-auto text-slate-300 mb-4" />
           <h3 class="text-lg font-bold text-slate-600">Aucune donnée à afficher</h3>
-          <p class="text-sm text-slate-400 mt-1">Importez des fichiers pour commencer l'analyse.</p>
+          <p v-if="hasActiveFilters" class="text-sm text-slate-400 mt-1">Aucun résultat pour ces filtres. Modifiez-les ou cliquez sur « Réinitialiser » ci-dessus.</p>
+          <p v-else class="text-sm text-slate-400 mt-1">Importez des fichiers pour commencer l'analyse.</p>
         </div>
 
         <!-- Vue dashboard analytique -->
         <div v-else-if="view === 'dashboard'" class="space-y-8">
-          <div class="flex flex-wrap items-center gap-3 p-3 bg-slate-50 rounded-xl border">
-            <Filter :size="16" class="text-slate-500" />
-            <span class="text-sm font-bold text-slate-600 mr-2">Filtres :</span>
-            <select v-model="filters.entity" class="text-sm border-slate-200 rounded-md">
-              <option value="">Toutes les entités</option>
-              <option v-for="e in analytics?.filters.entities" :key="e" :value="e">{{ e }}</option>
-            </select>
-            <select v-model="filters.manager" class="text-sm border-slate-200 rounded-md">
-              <option value="">Tous les managers</option>
-              <option v-for="m in analytics?.filters.managers" :key="m" :value="m">{{ m }}</option>
-            </select>
-            <select v-model="filters.period" class="text-sm border-slate-200 rounded-md">
-              <option value="">Toutes les périodes</option>
-              <option v-for="p in analytics?.filters.periods" :key="p" :value="p">{{ p }}</option>
-            </select>
-            <button @click="resetFilters" class="text-xs font-bold text-slate-500 hover:underline ml-auto">Réinitialiser</button>
-          </div>
 
           <!-- KPIs -->
           <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
