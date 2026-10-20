@@ -7,10 +7,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { ApiService } from '@/services/apiService';
 import SmartBadge from '@/components/SmartBadge.vue';
 import AlignmentChart from '@/components/AlignmentChart.vue';
+import KnowledgeBaseManager from '@/components/KnowledgeBaseManager.vue';
 import DashboardLayout from '@/layouts/DashboardLayout.vue';
 import {
   Plus, Copy, CheckCircle2, AlertCircle, Sparkles, ChevronRight, Target,
-  Loader2, Upload, FileText, RefreshCw, Trash2, FileSpreadsheet, Download,
+  Loader2, Upload, FileText, RefreshCw, Trash2, FileSpreadsheet, Download, BookOpen,
 } from 'lucide-vue-next';
 
 const auth = useAuthStore();
@@ -756,6 +757,15 @@ function smartScoreClass(score) {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Base de connaissances de l'assistant (RAG, partagée avec le Coach IA) -->
+      <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100">
+        <div class="flex items-center gap-2 mb-6">
+          <BookOpen :size="22" class="text-indigo-600" />
+          <h2 class="font-bold text-xl text-slate-800">Base de connaissances de l'assistant</h2>
+        </div>
+        <KnowledgeBaseManager />
       </div>
     </div>
   </DashboardLayout>

@@ -22,7 +22,7 @@ const auth = useAuthStore();
       </div>
     </footer>
 
-    <!-- Assistant Coach IA (flottant) — uniquement pour Manager et Collaborateur. -->
-    <ChatCoach v-if="auth.isAuthenticated && ['MANAGER', 'COLLAB'].includes(auth.role)" />
+    <!-- Assistant Coach IA (flottant) — Manager, Collaborateur et RH. -->
+    <ChatCoach v-if="auth.isAuthenticated && ['MANAGER', 'COLLAB', 'HR'].includes(auth.role)" />
   </div>
 </template>

@@ -12,10 +12,11 @@ import {
   LinearScale, PointElement, LineElement, ArcElement,
 } from 'chart.js';
 import DashboardLayout from '@/layouts/DashboardLayout.vue';
+import KnowledgeBaseManager from '@/components/KnowledgeBaseManager.vue';
 import {
   ShieldCheck, Upload, Download, ChevronRight, Loader2, Target, Users, BarChart3,
   CheckCircle2, AlertCircle, TrendingUp, FileSpreadsheet, Sparkles, RefreshCw, Eye,
-  Filter, FileCheck2, History, FileText,
+  Filter, FileCheck2, History, FileText, BookOpen,
 } from 'lucide-vue-next';
 
 // Enregistrement des éléments Chart.js nécessaires.
@@ -970,6 +971,15 @@ function noDetailedAnalysis(analysisObj) {
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- Base de connaissances de l'assistant (RAG, partagée avec le Coach IA) -->
+      <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100">
+        <div class="flex items-center gap-2 mb-6">
+          <BookOpen :size="22" class="text-indigo-600" />
+          <h2 class="font-bold text-xl text-slate-800">Base de connaissances de l'assistant</h2>
+        </div>
+        <KnowledgeBaseManager />
       </div>
 
     </div>

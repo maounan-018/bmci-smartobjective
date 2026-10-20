@@ -24,8 +24,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/rag", tags=["Base de connaissances"])
 
-# La base de connaissances de l'assistant est gérée côté manager (et admin).
-_ALLOWED_ROLES = ["MANAGER", "ADMIN"]
+# Base de connaissances de l'assistant : accessible à tous les rôles métier
+# (MANAGER, HR, COLLAB) + ADMIN. La base est partagée (scope GLOBAL) : tout
+# utilisateur autorisé peut consulter, téléverser et supprimer des documents.
+_ALLOWED_ROLES = ["MANAGER", "HR", "COLLAB", "ADMIN"]
 
 
 @router.get("/documents")

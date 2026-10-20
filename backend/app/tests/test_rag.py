@@ -81,17 +81,28 @@ def test_delete_removes_document_and_vectors(cleanup_docs):
 
 # ============= API : base de connaissances (rag_controller) =============
 
-def test_upload_requires_manager_role(client, make_user, auth_token):
-    """Un COLLAB ne peut pas téléverser de document (403)."""
-    make_user(user_id="collab-rag", email="collabrag@bmci.test", role="COLLAB")
-    token = auth_token("collab-rag")
+def test_upload_allowed_for_collab_and_hr(client, make_user, auth_token):
+    """Base de connaissances partagée : COLLAB et HR peuvent désormais téléverser (200)."""
+    for role in ("COLLAB", "HR"):
+        make_user(user_id=f"rag-{role.lower()}", email=f"rag-{role.lower()}@bmci.test", role=role)
+        token = auth_token(f"rag-{role.lower()}")
+        resp = client.post(
+            "/api/rag/documents",
+            files={"file": (f"{role.lower()}.txt", b"alpha contenu de test", "text/plain")},
+            data={"scope": "GLOBAL"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200, f"{role}: {resp.text}"
+
+
+def test_upload_requires_authentication(client):
+    """Un utilisateur non authentifié ne peut pas téléverser (401)."""
     resp = client.post(
         "/api/rag/documents",
         files={"file": ("note.txt", b"alpha contenu de test", "text/plain")},
         data={"scope": "GLOBAL"},
-        headers={"Authorization": f"Bearer {token}"},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 def test_upload_rejects_unsupported_format(client, make_user, auth_token):
