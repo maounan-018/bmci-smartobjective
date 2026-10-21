@@ -55,14 +55,16 @@ cd frontend && npm run dev                                         # terminal 3
 
 **Accès :** http://localhost:3000 · API Swagger : http://localhost:5001/docs · Santé : http://localhost:5001/health
 
-**Comptes de démonstration** (créés au démarrage) :
+**Comptes de démonstration** (créés au démarrage, dev uniquement) :
 
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Admin | `admin.system@bmci.local` | `REDACTED_DEMO_PWD` |
-| RH | `rh.demo@bmci.local` | `REDACTED_DEMO_PWD` |
-| Manager | `manager.demo@bmci.local` | `REDACTED_DEMO_PWD` |
-| Collaborateur | `collaborateur.demo@bmci.local` | `REDACTED_DEMO_PWD` |
+Les comptes démo sont provisionnés quand `SEED_DEMO_ACCOUNTS=true` (défaut en
+dev, désactivé automatiquement en SSO réel). Les emails et mots de passe sont
+définis dans `backend/.env.local` via les variables `SEED_*_EMAIL` et
+`SEED_*_PASSWORD` — jamais commités, à configurer selon la politique de mots
+de passe du poste. Récupérer la liste des comptes seedés avec :
+```bash
+cd backend && python create_user.py --list
+```
 
 ### À propos du `.env`
 
@@ -88,7 +90,7 @@ npm run build
 
 ```ini
 ENV=production
-ALLOWED_ORIGINS=https://example.com
+ALLOWED_ORIGINS=https://<url-interne-banque>
 SEED_DEMO_ACCOUNTS=false
 ```
 

@@ -116,7 +116,7 @@ class Settings:
         if not _origins_raw or _origins_raw == "*":
             raise RuntimeError(
                 "ALLOWED_ORIGINS doit etre defini explicitement dans .env "
-                "(ex: ALLOWED_ORIGINS=http://localhost:5173,https://example.com). "
+                "(ex: ALLOWED_ORIGINS=http://localhost:5173,https://<url-interne-banque>). "
                 'Le wildcard "*" est interdit car combine a allow_credentials.'
             )
         self.ALLOWED_ORIGINS = [o.strip() for o in _origins_raw.split(",") if o.strip()]

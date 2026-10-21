@@ -45,21 +45,21 @@ vont les vrais secrets (jamais dans `.env` versionné).
 
 ```ini
 # SP = cette application (déclarée auprès de la DSI)
-SAML_SP_ENTITY_ID=https://example.com/api/auth/saml/metadata
-SAML_SP_ACS_URL=https://example.com/api/auth/saml/acs
+SAML_SP_ENTITY_ID=https://<url-interne-banque>/api/auth/saml/metadata
+SAML_SP_ACS_URL=https://<url-interne-banque>/api/auth/saml/acs
 
 # IdP = annuaire BMCI (valeurs fournies par la DSI)
 SAML_IDP_ENTITY_ID=...           # Entity ID / Issuer de l'IdP
 SAML_IDP_SSO_URL=...             # URL de connexion SSO
 SAML_IDP_X509_CERT=MIID...       # certificat de signature (une seule ligne)
 
-SAML_FRONTEND_REDIRECT=https://example.com
+SAML_FRONTEND_REDIRECT=https://<url-interne-banque>
 ```
 
 ### c. Donner les métadonnées SP à la DSI
 Démarrer l'app puis transmettre l'URL :
 ```
-https://example.com/api/auth/saml/metadata
+https://<url-interne-banque>/api/auth/saml/metadata
 ```
 (XML auto-généré : Entity ID, ACS, certificat éventuel.)
 

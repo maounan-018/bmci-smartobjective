@@ -20,7 +20,7 @@ const showCreate = ref(false);
 const newUser = ref({ email: '', name: '', role: 'COLLAB', password: '', manager_id: '' });
 const editingUser = ref(null);
 
-const EMAIL_RE = /^[a-z]+\.[a-z]+[0-9]*@bnpparibas\.com$/;
+const EMAIL_RE = /^[a-z]+\.[a-z]+[0-9]*@bmci.local$/;
 const emailValid = computed(() => EMAIL_RE.test((newUser.value.email || '').trim().toLowerCase()));
 const managers = computed(() => users.value.filter((u) => u.role === 'MANAGER'));
 

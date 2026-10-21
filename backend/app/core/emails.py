@@ -21,7 +21,7 @@ import unicodedata
 
 EMAIL_DOMAIN = "bmci.local"
 # prenom.nom (lettres) avec éventuel suffixe numérique de dédoublonnage.
-_EMAIL_RE = re.compile(r"^[a-z]+\.[a-z]+[0-9]*@bnpparibas\.com$")
+_EMAIL_RE = re.compile(r"^[a-z]+\.[a-z]+[0-9]*@bmci.local$")
 
 
 def _slug(text: str) -> str:
