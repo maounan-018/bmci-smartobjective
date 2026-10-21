@@ -1,0 +1,43 @@
+# =====================================================================
+# pre-commit — hooks locaux executes AVANT chaque commit.
+# =====================================================================
+# Installation (une seule fois par clone) :
+#   pip install pre-commit
+#   pre-commit install
+#
+# Objectif : bloquer en local ce qui ferait echouer la CI, pour que chaque
+# commit pousse soit deja propre (ruff + hygiene + aucun secret).
+# =====================================================================
+
+repos:
+  # --- Hygiene de base (fichiers texte, YAML, large files, prive keys) ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]       # bloque > 1 Mo (binaires, dumps, PDF)
+      - id: debug-statements         # pdb/breakpoint() oublies dans le code
+      - id: detect-private-key       # cle SSH/RSA/EC/OpenSSH
+
+  # --- Python : ruff (lint + format) ---
+  # Version pinnee a la MEME que la CI (.github/workflows/ci.yml) pour qu'un
+  # commit valide en local le soit aussi en CI (pas de regles qui apparaissent
+  # entre les deux).
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        name: ruff (lint)
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        name: ruff-format (black-compatible)
+
+  # --- Secrets scanner : la CI GitHub Actions scanne l'historique via
+  # gitleaks-action, ce qui bloque la merge. Pas de hook local car gitleaks
+  # est un binaire Go qui doit se compiler sous Windows (plusieurs minutes au
+  # premier run) -> trop lent pour un pre-commit. Reajouter si gitleaks est
+  # installe en standalone sur le poste de dev.

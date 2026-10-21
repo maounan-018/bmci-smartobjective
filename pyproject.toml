@@ -1,0 +1,65 @@
+# =====================================================================
+# Configuration des outils dev (ruff, pytest) pour ObjectifSMART-AI.
+# =====================================================================
+# L'app elle-meme s'installe via requirements.txt (pas de packaging) : ce
+# fichier ne declare PAS de [project], il configure uniquement les outils de
+# dev. Commandes :
+#   ruff check .            # lint
+#   ruff check --fix .      # lint + auto-fix
+#   ruff format .           # format (black-compatible)
+# =====================================================================
+
+[tool.ruff]
+line-length = 100          # un peu plus large que 88 (black) : code bancaire =
+                           # phrases francaises longues dans les docstrings/metier
+target-version = "py311"
+# Portee : on cible le code applicatif backend. Les scripts PDF a la racine
+# (generer_fichiers_test.py, interface_pdf.py, pdf_en_projet.py...) sont des
+# utilitaires locaux ad-hoc, hors du scope lint strict.
+include = ["backend/**/*.py"]
+exclude = [
+    "venv", ".venv",
+    "__pycache__", ".pytest_cache", ".ruff_cache",
+    "backend/alembic/versions",    # migrations auto-generees : on ne reformate pas
+    "node_modules",
+    "frontend/dist",
+]
+
+[tool.ruff.lint]
+# Selection raisonnable : erreurs qui comptent, pas chiant.
+select = [
+    "E",    # pycodestyle (erreurs)
+    "F",    # pyflakes (imports morts, variables non utilisees)
+    "W",    # pycodestyle (warnings)
+    "I",    # isort (ordre des imports)
+    "B",    # bugbear (pieges courants : try/except trop larges, mutables defaut)
+    "UP",   # pyupgrade (syntaxe moderne : f-strings, type hints natifs)
+    "SIM",  # simplify (patterns verbeux)
+    "RUF",  # ruff-specific (bonnes pratiques diverses)
+]
+ignore = [
+    "E501",   # line too long : on bornera a 100 cols mais on ne bloque pas sur ca
+    "B008",   # Depends(get_db) au niveau param : pattern FastAPI standard
+    "UP007",  # Union au lieu de X | Y : certains schemas Pydantic preferent Union
+    "SIM108", # if-else -> ternary : parfois moins lisible
+    # --- Codebase francaise : les caracteres typographiques (apostrophe droite ',
+    # tiret cadratin —, guillemets francais) sont VOULUS dans les docstrings,
+    # commentaires et strings metier -> on desactive globalement les 3 regles RUF.
+    "RUF001", "RUF002", "RUF003",
+    # --- Stylistique mineure, non bloquant pour une revue serieuse :
+    "B904",   # raise X from exc : utile en debug mais chainage non critique
+    "E402",   # imports pas en tete : parfois volontaire (lazy / post-dotenv)
+    "E741",   # variables courtes (l, o, i) dans des list-comps : clarte locale
+    "SIM103", # return not (cond) : parfois moins lisible
+    "SIM115", # open sans context : parfois justifie
+    "SIM117", # with imbriques : parfois volontaire
+    "RUF005", # [a, *b] vs a + list(b) : stylistique
+    "RUF012", # ClassVar mutable : vrai piege mais rare ici
+    "UP028",  # yield from : conversion mecanique sans valeur
+    "F841",   # variable locale inutilisee : parfois pour debug ou doc
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/app/tests/**" = ["F401", "F811"]   # imports de fixtures/redefinitions pytest : normal
+"**/__init__.py" = ["F401"]                 # re-exports de modules : normal
+"backend/alembic/env.py" = ["E402"]         # alembic env.py : imports conditionnels normaux

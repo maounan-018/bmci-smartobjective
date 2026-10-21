@@ -1,0 +1,132 @@
+# =====================================================================
+# CI/CD — pipeline pour ObjectifSMART-AI (branche test/comex-rich-full).
+# =====================================================================
+# A chaque push et chaque PR sur test/comex-rich-full :
+#   1. Backend : ruff (lint + format) + pytest (103 tests, SQLite jetable).
+#   2. Frontend : build Vite (Vue.js, pas de type-check car JS pur, pas de TS).
+#   3. Securite : scan secrets (gitleaks) + audit deps (pip-audit, npm audit).
+#
+# Les 3 jobs s'executent en PARALLELE pour reduire le temps de retour.
+#
+# Pas de deploiement ici : la plateforme reste locale chez l'utilisateur.
+# =====================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [test/comex-rich-full]
+  pull_request:
+    branches: [test/comex-rich-full]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------- BACKEND -------------------------
+  backend:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install deps
+        # On filtre les deps lourdes NON requises pour les tests :
+        # rapidocr-onnxruntime (OCR, onnxruntime + opencv ~800 Mo) : les tests
+        # monkeypatchent l'extraction. PyMuPDF reste necessaire (utilise par
+        # certains tests de RAG document). ruff pinned a la MEME version que
+        # .pre-commit-config.yaml (0.6.9) : garantit la coherence local <-> CI.
+        run: |
+          python -m pip install --upgrade pip
+          grep -vE '^(rapidocr-onnxruntime)' requirements.txt > /tmp/req-ci.txt
+          pip install --no-cache-dir -r /tmp/req-ci.txt "ruff==0.6.9"
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Format check (ruff format --check)
+        # Ne bloque pas (soft) tant que le code n'est pas 100% formate :
+        # on signale sans empecher la fusion. A durcir une fois une passe
+        # `ruff format .` globale appliquee.
+        run: ruff format --check . || echo "::warning::Formatage non applique partout — lancer 'ruff format .'"
+
+      - name: Tests
+        working-directory: backend
+        env:
+          # Env minimale pour le boot FastAPI en test (ajuster si besoin).
+          AI_WARMUP_MODELS: ""
+        run: pytest --tb=short -q
+
+  # ------------------------- FRONTEND -------------------------
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (vite)
+        # Simule le build de prod pour attraper les erreurs qui n'apparaissent
+        # qu'a la minification (imports morts, env manquants, syntax errors
+        # dans les .vue). Pas de type-check (JS pur, pas TS) ni de vitest
+        # (pas de tests frontend declares dans package.json).
+        run: npm run build
+
+  # ------------------------- SECURITE -------------------------
+  security:
+    name: Security (secrets scan + deps audit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # historique complet pour gitleaks
+
+      - name: Secrets scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit backend deps (pip-audit)
+        run: pip-audit -r requirements.txt || echo "::warning::Audit pip-audit en erreur (voir log)"
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Audit frontend deps (npm audit)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
