@@ -15,10 +15,9 @@ EMPLACEMENT MVC
 
 import logging
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
-
 from app.controllers.auth_controller import get_current_user
-from app.services import permission_service, rag_service, document_extractor
+from app.services import document_extractor, permission_service, rag_service
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 logger = logging.getLogger(__name__)
 

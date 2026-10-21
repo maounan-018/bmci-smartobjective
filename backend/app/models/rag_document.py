@@ -19,10 +19,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Integer
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class RagDocument(Base):
@@ -48,7 +47,8 @@ class RagDocument(Base):
     # Chunks du document. Cascade ORM : supprimer le document supprime ses chunks
     # (la suppression des vecteurs vec0 associés est faite explicitement côté
     # service, car vec_rag_chunks n'est pas géré par l'ORM).
-    chunks: Mapped[list["RagChunk"]] = relationship(
+    # Forward reference : RagChunk est resolu par la registry SQLAlchemy a runtime.
+    chunks: Mapped[list["RagChunk"]] = relationship(  # noqa: F821
         back_populates="document",
         cascade="all, delete-orphan",
     )

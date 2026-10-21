@@ -36,7 +36,9 @@ def export_excel(current_user: dict, entity=None, manager=None, period=None):
             (label, analysis_repository.hr_criteria_failures(db, col, entity, manager, period))
             for label, col in _CRITERIA
         ]
-    return export_service.generate_hr_excel(detailed, entity_stats, manager_stats, total_obj, failures)
+    return export_service.generate_hr_excel(
+        detailed, entity_stats, manager_stats, total_obj, failures
+    )
 
 
 def export_pdf(current_user: dict, entity=None, manager=None, period=None):
@@ -48,7 +50,8 @@ def export_pdf(current_user: dict, entity=None, manager=None, period=None):
     """
     require_hr(current_user)
     # Import local : évite tout souci d'ordre d'import entre services.
-    from app.services import hr_analysis_service, comex_report_service
+    from app.services import comex_report_service, hr_analysis_service
+
     analytics = hr_analysis_service.get_analytics(current_user, entity, manager, period)
     # Lignes d'objectifs : nécessaires à la heatmap entité × axe du rapport.
     with db_session() as db:

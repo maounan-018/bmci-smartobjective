@@ -10,16 +10,16 @@ Couvre les 5 corrections prioritaires :
   S-6  logout() tolère un verrou de base (ne plante jamais le client)
 """
 
-import pytest
-from pydantic import ValidationError
 from unittest.mock import patch
 
-from app.schemas.objective_schema import ObjectiveUpdate, ObjectiveCreate, CompanyObjectiveCreate
-
+import pytest
+from app.schemas.objective_schema import CompanyObjectiveCreate, ObjectiveCreate, ObjectiveUpdate
+from pydantic import ValidationError
 
 # ─────────────────────────────────────────────────────
 # S-3 — Validation binaire (_CTRL_RE)
 # ─────────────────────────────────────────────────────
+
 
 class TestCtrlReValidation:
     def test_binary_title_rejected(self):
@@ -31,7 +31,9 @@ class TestCtrlReValidation:
             ObjectiveCreate(title="Titre valide", description="Desc\x0bcorrupted")
 
     def test_normal_text_accepted(self):
-        obj = ObjectiveCreate(title="Développer les compétences", description="Description normale.")
+        obj = ObjectiveCreate(
+            title="Développer les compétences", description="Description normale."
+        )
         assert obj.title == "Développer les compétences"
 
     def test_tab_newline_accepted(self):
@@ -46,6 +48,7 @@ class TestCtrlReValidation:
 # ─────────────────────────────────────────────────────
 # D-4 — Enums Literal pour status / progress
 # ─────────────────────────────────────────────────────
+
 
 class TestLiteralEnums:
     def test_invalid_status_rejected(self):
@@ -84,6 +87,7 @@ class TestLiteralEnums:
 # S-2 — GET /company-objectives exige une auth
 # ─────────────────────────────────────────────────────
 
+
 class TestCompanyObjectivesAuth:
     def test_unauthenticated_returns_401(self, client):
         resp = client.get("/api/company-objectives")
@@ -103,6 +107,7 @@ class TestCompanyObjectivesAuth:
 # ─────────────────────────────────────────────────────
 # D-2 — batch_create remonte les erreurs sans les avaler
 # ─────────────────────────────────────────────────────
+
 
 class TestBatchCreateErrors:
     def test_batch_returns_error_list_on_partial_failure(self, client, make_user, auth_token):
@@ -136,6 +141,7 @@ class TestBatchCreateErrors:
 # ─────────────────────────────────────────────────────
 # S-6 — logout() tolère un verrou de base
 # ─────────────────────────────────────────────────────
+
 
 class TestLogoutRobustness:
     def test_logout_succeeds_even_if_db_locked(self, client, make_user, auth_token):

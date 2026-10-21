@@ -9,12 +9,9 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from typing import List
-
+from app.models.hr_import import HRImport
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from app.models.hr_import import HRImport
 
 
 def create(
@@ -39,7 +36,7 @@ def create(
     return record
 
 
-def list_recent(db: Session, limit: int = 50) -> List[HRImport]:
+def list_recent(db: Session, limit: int = 50) -> list[HRImport]:
     """Historique des imports les plus récents."""
     stmt = select(HRImport).order_by(HRImport.created_at.desc()).limit(limit)
     return list(db.scalars(stmt).all())

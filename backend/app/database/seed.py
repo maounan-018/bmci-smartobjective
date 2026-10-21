@@ -57,8 +57,11 @@ def seed_demo_accounts() -> None:
     with db_session() as db:
         # 0) Compte ADMIN dédié — indépendant des comptes de démonstration.
         _ensure_user(
-            db, user_id="user-admin", email=settings.SEED_ADMIN_EMAIL,
-            name="Admin System", role="ADMIN",
+            db,
+            user_id="user-admin",
+            email=settings.SEED_ADMIN_EMAIL,
+            name="Admin System",
+            role="ADMIN",
             password=settings.SEED_ADMIN_PASSWORD,
         )
 
@@ -67,21 +70,30 @@ def seed_demo_accounts() -> None:
 
         # 1) Manager et RH (emails dérivés du nom).
         _ensure_user(
-            db, user_id="user-seed-manager", email=to_bnp_email("Manager Démo"),
-            name="Manager Démo", role="MANAGER",
+            db,
+            user_id="user-seed-manager",
+            email=to_bnp_email("Manager Démo"),
+            name="Manager Démo",
+            role="MANAGER",
             password=settings.SEED_MANAGER_PASSWORD,
         )
         _ensure_user(
-            db, user_id="user-seed-hr", email=to_bnp_email("RH Démo"),
-            name="RH Démo", role="HR",
+            db,
+            user_id="user-seed-hr",
+            email=to_bnp_email("RH Démo"),
+            name="RH Démo",
+            role="HR",
             password=settings.SEED_HR_PASSWORD,
         )
 
         # 2) Collaborateur rattaché au manager de démo (résolution par id, robuste).
         manager = user_repository.get_by_id(db, "user-seed-manager")
         _ensure_user(
-            db, user_id="user-seed-collab", email=to_bnp_email("Collaborateur Démo"),
-            name="Collaborateur Démo", role="COLLAB",
+            db,
+            user_id="user-seed-collab",
+            email=to_bnp_email("Collaborateur Démo"),
+            name="Collaborateur Démo",
+            role="COLLAB",
             password=settings.SEED_COLLAB_PASSWORD,
             manager_id=manager.id if manager else None,
         )

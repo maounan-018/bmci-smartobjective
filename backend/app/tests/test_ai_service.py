@@ -27,7 +27,7 @@ def test_call_ollama_retries_until_valid(monkeypatch):
 
     monkeypatch.setattr(ai_service, "_post_to_ollama", fake_post)
     res = ai_service.call_ollama("p", "s", is_valid=ai_service._smart_response_ok)
-    assert calls["n"] == 2          # a bien réessayé une fois
+    assert calls["n"] == 2  # a bien réessayé une fois
     assert res["S"] is True
     assert res["rewrite_fr"] == "Reformulé FR"
 

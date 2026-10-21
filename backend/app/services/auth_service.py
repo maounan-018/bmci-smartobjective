@@ -21,21 +21,20 @@ import hashlib
 import logging
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional
 
-from fastapi import HTTPException
-
-from app.core.config import settings
+from app.auth.identity_provider import get_identity_provider, map_groups_to_role
 from app.core import security
+from app.core.config import settings
 from app.database.session import db_session
-from app.repositories import user_repository, session_repository
+from app.models.audit_log import AuditEventType
+from app.repositories import session_repository, user_repository
 from app.services import audit_service as audit
 from app.services import throttle_service
-from app.models.audit_log import AuditEventType
-from app.auth.identity_provider import get_identity_provider, map_groups_to_role
+from fastapi import HTTPException
 
 # Métadonnées de requête : (ip_address, user_agent, endpoint, http_method)
-Meta = Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]
+Meta = tuple[Optional[str], Optional[str], Optional[str], Optional[str]]
 _EMPTY_META: Meta = (None, None, None, None)
 logger = logging.getLogger(__name__)
 
@@ -63,9 +62,14 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
     # via comptes seedés). Désactivable/forçable via LOCAL_AUTH_ENABLED.
     if not settings.local_auth_enabled:
         audit.log_event(
-            AuditEventType.ACCESS_DENIED, "Connexion locale désactivée (SSO actif)",
-            username=identifier, event_status="FAILED",
-            ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+            AuditEventType.ACCESS_DENIED,
+            "Connexion locale désactivée (SSO actif)",
+            username=identifier,
+            event_status="FAILED",
+            ip_address=ip,
+            user_agent=ua,
+            endpoint=endpoint,
+            http_method=method,
         )
         raise HTTPException(
             status_code=403,
@@ -73,11 +77,18 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
         )
 
     # Anti brute-force : limite par email ET par adresse IP (anti password spraying).
-    if not throttle_service.is_login_allowed(identifier) or (ip_key and not throttle_service.is_login_allowed(ip_key)):
+    if not throttle_service.is_login_allowed(identifier) or (
+        ip_key and not throttle_service.is_login_allowed(ip_key)
+    ):
         audit.log_event(
-            AuditEventType.LOGIN_FAILED, f"Compte/IP bloqué (trop de tentatives) : {identifier}",
-            username=identifier, event_status="FAILED",
-            ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+            AuditEventType.LOGIN_FAILED,
+            f"Compte/IP bloqué (trop de tentatives) : {identifier}",
+            username=identifier,
+            event_status="FAILED",
+            ip_address=ip,
+            user_agent=ua,
+            endpoint=endpoint,
+            http_method=method,
         )
         raise HTTPException(status_code=429, detail="Trop de tentatives. Réessayez plus tard.")
 
@@ -90,9 +101,14 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
         if ip_key:
             throttle_service.record_failed_login(ip_key)
         audit.log_event(
-            AuditEventType.LOGIN_FAILED, f"Échec de connexion : {identifier}",
-            username=identifier, event_status="FAILED",
-            ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+            AuditEventType.LOGIN_FAILED,
+            f"Échec de connexion : {identifier}",
+            username=identifier,
+            event_status="FAILED",
+            ip_address=ip,
+            user_agent=ua,
+            endpoint=endpoint,
+            http_method=method,
         )
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
@@ -108,12 +124,19 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
         # Compte désactivé par l'administration : connexion refusée (données conservées).
         if user is not None and getattr(user, "active", 1) == 0:
             audit.log_event(
-                AuditEventType.ACCESS_DENIED, f"Connexion refusée : compte désactivé ({identifier})",
-                user_id=user_id, username=identifier, event_status="FAILED",
-                ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+                AuditEventType.ACCESS_DENIED,
+                f"Connexion refusée : compte désactivé ({identifier})",
+                user_id=user_id,
+                username=identifier,
+                event_status="FAILED",
+                ip_address=ip,
+                user_agent=ua,
+                endpoint=endpoint,
+                http_method=method,
             )
-            raise HTTPException(status_code=403,
-                                detail="Ce compte est désactivé. Contactez votre administrateur.")
+            raise HTTPException(
+                status_code=403, detail="Ce compte est désactivé. Contactez votre administrateur."
+            )
         # Migration transparente du hash si ancien format SHA-256
         if user and security.needs_rehash(user.password_hash):
             user_repository.update_password_hash(
@@ -129,10 +152,17 @@ def login(request, meta: Meta = _EMPTY_META) -> dict:
 
     token_hint = hashlib.sha256(token.encode()).hexdigest()[:12]
     audit.log_event(
-        AuditEventType.LOGIN_SUCCESS, f"Connexion réussie de {name}",
-        user_id=user_id, username=username, role=user_role,
-        event_status="SUCCESS", ip_address=ip, user_agent=ua,
-        endpoint=endpoint, http_method=method, token=token_hint,
+        AuditEventType.LOGIN_SUCCESS,
+        f"Connexion réussie de {name}",
+        user_id=user_id,
+        username=username,
+        role=user_role,
+        event_status="SUCCESS",
+        ip_address=ip,
+        user_agent=ua,
+        endpoint=endpoint,
+        http_method=method,
+        token=token_hint,
     )
     return {"success": True, "token": token, "user": user_public}
 
@@ -166,9 +196,14 @@ def provision_federated_user(profile: dict, meta: Meta = _EMPTY_META) -> str:
     # refuse tout utilisateur n'appartenant à aucun groupe autorisé (anti porte ouverte).
     if settings.SAML_ALLOWED_GROUPS and not any(g in settings.SAML_ALLOWED_GROUPS for g in groups):
         audit.log_event(
-            AuditEventType.ACCESS_DENIED, f"SSO refusé (groupe non autorisé) : {email}",
-            username=email, event_status="FAILED",
-            ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+            AuditEventType.ACCESS_DENIED,
+            f"SSO refusé (groupe non autorisé) : {email}",
+            username=email,
+            event_status="FAILED",
+            ip_address=ip,
+            user_agent=ua,
+            endpoint=endpoint,
+            http_method=method,
         )
         raise HTTPException(status_code=403, detail="Accès non autorisé : groupe requis manquant.")
 
@@ -215,9 +250,17 @@ def start_federated_session(user_id: str, meta: Meta = _EMPTY_META) -> dict:
 
     token_hint = hashlib.sha256(token.encode()).hexdigest()[:12]
     audit.log_event(
-        AuditEventType.LOGIN_SUCCESS, f"Connexion SSO SAML de {uname}",
-        user_id=uid, username=uemail, role=urole, event_status="SUCCESS",
-        ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method, token=token_hint,
+        AuditEventType.LOGIN_SUCCESS,
+        f"Connexion SSO SAML de {uname}",
+        user_id=uid,
+        username=uemail,
+        role=urole,
+        event_status="SUCCESS",
+        ip_address=ip,
+        user_agent=ua,
+        endpoint=endpoint,
+        http_method=method,
+        token=token_hint,
     )
     return {"success": True, "token": token, "user": user_public}
 
@@ -244,9 +287,15 @@ def logout(current_user: dict, meta: Meta = _EMPTY_META) -> dict:
         # controller, la session expire naturellement. On trace sans bloquer.
         logger.warning("Suppression de session impossible (base verrouillée) : %s", exc)
     audit.log_event(
-        AuditEventType.LOGOUT_MANUAL, f"Déconnexion de {current_user.get('name')}",
-        user_id=current_user["id"], username=current_user.get("email"),
-        role=current_user.get("role"), event_status="SUCCESS",
-        ip_address=ip, user_agent=ua, endpoint=endpoint, http_method=method,
+        AuditEventType.LOGOUT_MANUAL,
+        f"Déconnexion de {current_user.get('name')}",
+        user_id=current_user["id"],
+        username=current_user.get("email"),
+        role=current_user.get("role"),
+        event_status="SUCCESS",
+        ip_address=ip,
+        user_agent=ua,
+        endpoint=endpoint,
+        http_method=method,
     )
     return {"success": True}

@@ -13,15 +13,17 @@ EMPLACEMENT MVC
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends
-
 from app.controllers.auth_controller import get_current_user
 from app.schemas.admin_schema import (
-    AdminUserCreate, AdminUserUpdate, AdminPasswordReset, AdminActiveUpdate,
+    AdminActiveUpdate,
+    AdminPasswordReset,
+    AdminUserCreate,
+    AdminUserUpdate,
 )
 from app.services import audit_service as audit
 from app.services import user_service
 from app.services.permission_service import require_admin
+from fastapi import APIRouter, Depends
 
 router = APIRouter(prefix="/api/admin", tags=["Administration"])
 
@@ -42,6 +44,7 @@ def get_audit_logs(
 
 # ============= GESTION DES COMPTES (HR/ADMIN) =============
 
+
 @router.get("/users")
 def list_users(current_user: dict = Depends(get_current_user)):
     """Liste tous les comptes (administration)."""
@@ -55,19 +58,25 @@ def create_user(request: AdminUserCreate, current_user: dict = Depends(get_curre
 
 
 @router.put("/users/{user_id}")
-def update_user(user_id: str, request: AdminUserUpdate, current_user: dict = Depends(get_current_user)):
+def update_user(
+    user_id: str, request: AdminUserUpdate, current_user: dict = Depends(get_current_user)
+):
     """Met à jour un compte (nom, rôle, manager, entité)."""
     return user_service.admin_update_user(current_user, user_id, request)
 
 
 @router.patch("/users/{user_id}/active")
-def set_user_active(user_id: str, request: AdminActiveUpdate, current_user: dict = Depends(get_current_user)):
+def set_user_active(
+    user_id: str, request: AdminActiveUpdate, current_user: dict = Depends(get_current_user)
+):
     """Active ou désactive un compte."""
     return user_service.admin_set_user_active(current_user, user_id, request.active)
 
 
 @router.post("/users/{user_id}/reset-password")
-def reset_user_password(user_id: str, request: AdminPasswordReset, current_user: dict = Depends(get_current_user)):
+def reset_user_password(
+    user_id: str, request: AdminPasswordReset, current_user: dict = Depends(get_current_user)
+):
     """Réinitialise le mot de passe d'un compte."""
     return user_service.admin_reset_password(current_user, user_id, request.password)
 

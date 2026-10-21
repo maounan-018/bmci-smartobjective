@@ -13,16 +13,19 @@ EMPLACEMENT MVC
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
-
 from app.controllers.auth_controller import get_current_user
 from app.controllers.dependencies import ai_rate_limited_user
-from app.schemas.analysis_schema import SmartRequest, AlignmentRequest
-from app.schemas.chat_schema import ChatRequest, ChatResponse
-from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal, run_chat_coach
-from app.services import excel_import_service, permission_service, audit_service
 from app.models.audit_log import AuditEventType
+from app.schemas.analysis_schema import AlignmentRequest, SmartRequest
+from app.schemas.chat_schema import ChatRequest, ChatResponse
+from app.services import audit_service, excel_import_service, permission_service
+from app.services.ai_service import (
+    analyze_alignment_internal,
+    analyze_smart_internal,
+    run_chat_coach,
+)
+from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi.responses import StreamingResponse
 
 router = APIRouter(prefix="/api", tags=["IA & Import"])
 
@@ -34,7 +37,9 @@ def analyze_smart(request: SmartRequest, current_user: dict = Depends(ai_rate_li
 
 
 @router.post("/analyze-alignment")
-def analyze_alignment(request: AlignmentRequest, current_user: dict = Depends(ai_rate_limited_user)):
+def analyze_alignment(
+    request: AlignmentRequest, current_user: dict = Depends(ai_rate_limited_user)
+):
     """Analyse d'alignement unitaire (authentifié, quota IA appliqué)."""
     return analyze_alignment_internal(request.objectiveTitle, request.companyObjectives)
 

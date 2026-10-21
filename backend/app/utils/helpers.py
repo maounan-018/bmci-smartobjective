@@ -40,8 +40,10 @@ def safe_float(value, default: float = 0.0) -> float:
 def calculate_smart_total(obj) -> int:
     """Calcule le total des 5 sous-scores SMART (s/m/a/r/t) d'un objet."""
     return (
-        safe_int(obj.get("s_score")) + safe_int(obj.get("m_score"))
-        + safe_int(obj.get("a_score")) + safe_int(obj.get("r_score"))
+        safe_int(obj.get("s_score"))
+        + safe_int(obj.get("m_score"))
+        + safe_int(obj.get("a_score"))
+        + safe_int(obj.get("r_score"))
         + safe_int(obj.get("t_score"))
     )
 
@@ -54,12 +56,16 @@ def is_smart_valid(obj) -> bool:
 def smart_flags_score(smart_result: dict) -> float:
     """Score SMART en pourcentage (0-100) à partir des 5 booléens S/M/A/R/T."""
     return (
-        (1 if smart_result.get("S") else 0)
-        + (1 if smart_result.get("M") else 0)
-        + (1 if smart_result.get("A") else 0)
-        + (1 if smart_result.get("R") else 0)
-        + (1 if smart_result.get("T") else 0)
-    ) / 5 * 100
+        (
+            (1 if smart_result.get("S") else 0)
+            + (1 if smart_result.get("M") else 0)
+            + (1 if smart_result.get("A") else 0)
+            + (1 if smart_result.get("R") else 0)
+            + (1 if smart_result.get("T") else 0)
+        )
+        / 5
+        * 100
+    )
 
 
 def smart_values(smart_result: dict) -> dict:

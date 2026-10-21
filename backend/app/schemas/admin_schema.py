@@ -12,6 +12,7 @@ EMPLACEMENT MVC
 """
 
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 _ROLE_PATTERN = "^(COLLAB|MANAGER|HR)$"
@@ -19,6 +20,7 @@ _ROLE_PATTERN = "^(COLLAB|MANAGER|HR)$"
 
 class AdminUserCreate(BaseModel):
     """Création d'un compte par l'administration."""
+
     email: str = Field(min_length=3, max_length=200)
     name: str = Field(min_length=1, max_length=200)
     role: str = Field(pattern=_ROLE_PATTERN)
@@ -29,6 +31,7 @@ class AdminUserCreate(BaseModel):
 
 class AdminUserUpdate(BaseModel):
     """Mise à jour partielle d'un compte (mot de passe et statut à part)."""
+
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     role: Optional[str] = Field(default=None, pattern=_ROLE_PATTERN)
     manager_id: Optional[str] = Field(default=None, max_length=100)
@@ -37,9 +40,11 @@ class AdminUserUpdate(BaseModel):
 
 class AdminPasswordReset(BaseModel):
     """Réinitialisation du mot de passe d'un compte."""
+
     password: str = Field(min_length=6, max_length=200)
 
 
 class AdminActiveUpdate(BaseModel):
     """Activation / désactivation d'un compte."""
+
     active: bool

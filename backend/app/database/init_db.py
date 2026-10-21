@@ -16,12 +16,11 @@ EMPLACEMENT MVC
 
 import logging
 
+# Importer le paquet `models` enregistre TOUTES les tables sur Base.metadata.
+import app.models  # noqa: F401
 from app.core.config import settings
 from app.database.base import Base
 from app.database.session import engine
-
-# Importer le paquet `models` enregistre TOUTES les tables sur Base.metadata.
-import app.models  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,9 @@ def _run_migrations() -> None:
         with engine.begin() as conn:
             cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()]
             if "active" not in cols:
-                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1")
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1"
+                )
                 logger.info("Migration : colonne users.active ajoutée")
     except Exception as e:
         logger.error("Migration users.active échouée: %s", e)

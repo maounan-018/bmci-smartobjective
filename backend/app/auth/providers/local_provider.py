@@ -12,7 +12,7 @@ EMPLACEMENT MVC
     Couche "auth" : authentification et récupération de l'identité.
 """
 
-from typing import Optional, List, Dict
+from typing import Optional
 
 from app.auth.identity_provider import IdentityProvider
 from app.core.security import verify_password
@@ -23,7 +23,7 @@ from app.repositories import user_repository
 class LocalDatabaseProvider(IdentityProvider):
     """Authentification via la base locale (provisoire avant intégration IAM)."""
 
-    def authenticate(self, credentials: dict) -> Optional[Dict]:
+    def authenticate(self, credentials: dict) -> Optional[dict]:
         email = (credentials.get("email") or "").strip()
         password = credentials.get("password") or ""
 
@@ -38,7 +38,7 @@ class LocalDatabaseProvider(IdentityProvider):
                 "groups": [user.role],  # En local : le rôle fait office de groupe
             }
 
-    def get_user_groups(self, external_id: str) -> List[str]:
+    def get_user_groups(self, external_id: str) -> list[str]:
         with db_session() as db:
             user = user_repository.get_by_id(db, external_id)
             return [user.role] if user else []

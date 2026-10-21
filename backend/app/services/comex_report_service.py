@@ -44,26 +44,46 @@ PALETTE = [GREEN, SKY, AMBER, VIOLET, TEAL, "#f43f5e", "#6366f1", SLATE]
 
 try:
     import matplotlib
+
     matplotlib.use("Agg")
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import FancyBboxPatch, Rectangle
     import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
+    import numpy as np
     from matplotlib.colors import LinearSegmentedColormap
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import cm
+    from matplotlib.patches import FancyBboxPatch, Rectangle
     from reportlab.lib import colors as rl
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import (BaseDocTemplate, PageTemplate, Frame, Paragraph,
-                                    Spacer, Image, Table, TableStyle, PageBreak)
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        BaseDocTemplate,
+        Frame,
+        Image,
+        PageBreak,
+        PageTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
     HEAT_CMAP = LinearSegmentedColormap.from_list(
-        "bmci_heat", ["#e4715f", "#efa24f", "#f6d06a", "#7bc88f", "#3aab7e"])
-    plt.rcParams.update({
-        "font.family": "DejaVu Sans", "font.size": 9, "text.color": INK,
-        "axes.edgecolor": CARD_BORDER, "axes.linewidth": 0.8, "axes.labelcolor": MUTED,
-        "xtick.color": MUTED, "ytick.color": MUTED, "figure.facecolor": BG,
-        "axes.facecolor": CARD,
-    })
+        "bmci_heat", ["#e4715f", "#efa24f", "#f6d06a", "#7bc88f", "#3aab7e"]
+    )
+    plt.rcParams.update(
+        {
+            "font.family": "DejaVu Sans",
+            "font.size": 9,
+            "text.color": INK,
+            "axes.edgecolor": CARD_BORDER,
+            "axes.linewidth": 0.8,
+            "axes.labelcolor": MUTED,
+            "xtick.color": MUTED,
+            "ytick.color": MUTED,
+            "figure.facecolor": BG,
+            "axes.facecolor": CARD,
+        }
+    )
     REPORT_SUPPORT = True
 except Exception as e:  # pragma: no cover
     REPORT_SUPPORT = False
@@ -81,20 +101,58 @@ def _card_ax(fig, rect, title=None, title_color=None, left=0.07):
     # Ombre douce unique (évite l'effet « escalier / griffe » de l'ancien empilement).
     sh = fig.add_axes([x + 0.002, y - 0.006, w, h])
     sh.axis("off")
-    sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#0f172a", ec="none", alpha=0.06))
+    sh.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=sh.transAxes,
+            boxstyle="round,pad=0.005,rounding_size=0.05",
+            fc="#0f172a",
+            ec="none",
+            alpha=0.06,
+        )
+    )
     fr = fig.add_axes([x, y, w, h])
     fr.axis("off")
-    fr.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=fr.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc=CARD, ec=CARD_BORDER, lw=1.1))
+    fr.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=fr.transAxes,
+            boxstyle="round,pad=0.005,rounding_size=0.05",
+            fc=CARD,
+            ec=CARD_BORDER,
+            lw=1.1,
+        )
+    )
     if title:
-        fr.add_patch(Rectangle((0.04, 0.905), 0.018, 0.05, transform=fr.transAxes,
-                     fc=title_color or GREEN, ec="none"))
-        fr.text(0.075, 0.93, title, transform=fr.transAxes, fontsize=9.5,
-                fontweight="bold", color=title_color or INK, va="center")
+        fr.add_patch(
+            Rectangle(
+                (0.04, 0.905),
+                0.018,
+                0.05,
+                transform=fr.transAxes,
+                fc=title_color or GREEN,
+                ec="none",
+            )
+        )
+        fr.text(
+            0.075,
+            0.93,
+            title,
+            transform=fr.transAxes,
+            fontsize=9.5,
+            fontweight="bold",
+            color=title_color or INK,
+            va="center",
+        )
     pad_top = 0.17 if title else 0.06
     right = 0.06
-    inner = fig.add_axes([x + w * left, y + h * 0.10, w * (1 - left - right), h * (0.92 - pad_top - 0.06)])
+    inner = fig.add_axes(
+        [x + w * left, y + h * 0.10, w * (1 - left - right), h * (0.92 - pad_top - 0.06)]
+    )
     inner.set_facecolor(CARD)
     return inner
 
@@ -104,11 +162,11 @@ def _card_ax(fig, rect, title=None, title_color=None, left=0.07):
 _TONES = {
     "neutral": ("#f1f5f9", "#e2e8f0", "#0f766e", "#94a3b8"),
     "emerald": ("#ecfdf5", "#a7f3d0", "#047857", "#34d399"),
-    "rose":    ("#fff1f2", "#fecdd3", "#be123c", "#fb7185"),
-    "amber":   ("#fffbeb", "#fde68a", "#b45309", "#f59e0b"),
-    "violet":  ("#f5f3ff", "#ddd6fe", "#6d28d9", "#a78bfa"),
-    "sky":     ("#eff6ff", "#bfdbfe", "#1d4ed8", "#60a5fa"),
-    "teal":    ("#f0fdfa", "#99f6e4", "#0f766e", "#2dd4bf"),
+    "rose": ("#fff1f2", "#fecdd3", "#be123c", "#fb7185"),
+    "amber": ("#fffbeb", "#fde68a", "#b45309", "#f59e0b"),
+    "violet": ("#f5f3ff", "#ddd6fe", "#6d28d9", "#a78bfa"),
+    "sky": ("#eff6ff", "#bfdbfe", "#1d4ed8", "#60a5fa"),
+    "teal": ("#f0fdfa", "#99f6e4", "#0f766e", "#2dd4bf"),
 }
 
 
@@ -118,32 +176,93 @@ def _kpi_card(fig, rect, value, label, tone="neutral", icon=""):
     bg, border, valcol, iconcol = _TONES.get(tone, _TONES["neutral"])
     ax = fig.add_axes([x, y, w, h])
     ax.axis("off")
-    ax.add_patch(FancyBboxPatch((0.01, -0.015), 0.98, 0.985, transform=ax.transAxes,
-                 boxstyle="round,pad=0.006,rounding_size=0.12", fc="#0f172a", ec="none", alpha=0.05))
-    ax.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=ax.transAxes,
-                 boxstyle="round,pad=0.006,rounding_size=0.12", fc=bg, ec=border, lw=1.2))
-    ax.text(0.085, 0.63, str(value), transform=ax.transAxes, fontsize=19,
-            fontweight="bold", color=valcol, va="center")
+    ax.add_patch(
+        FancyBboxPatch(
+            (0.01, -0.015),
+            0.98,
+            0.985,
+            transform=ax.transAxes,
+            boxstyle="round,pad=0.006,rounding_size=0.12",
+            fc="#0f172a",
+            ec="none",
+            alpha=0.05,
+        )
+    )
+    ax.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=ax.transAxes,
+            boxstyle="round,pad=0.006,rounding_size=0.12",
+            fc=bg,
+            ec=border,
+            lw=1.2,
+        )
+    )
+    ax.text(
+        0.085,
+        0.63,
+        str(value),
+        transform=ax.transAxes,
+        fontsize=19,
+        fontweight="bold",
+        color=valcol,
+        va="center",
+    )
     if icon:
-        ax.text(0.90, 0.68, icon, transform=ax.transAxes, fontsize=10.5,
-                color=iconcol, va="center", ha="center")
+        ax.text(
+            0.90,
+            0.68,
+            icon,
+            transform=ax.transAxes,
+            fontsize=10.5,
+            color=iconcol,
+            va="center",
+            ha="center",
+        )
     for j, ln in enumerate(textwrap.wrap(label, 24)[:2]):
-        ax.text(0.085, 0.27 - j * 0.155, ln, transform=ax.transAxes,
-                fontsize=7.3, color="#475569", va="center")
+        ax.text(
+            0.085,
+            0.27 - j * 0.155,
+            ln,
+            transform=ax.transAxes,
+            fontsize=7.3,
+            color="#475569",
+            va="center",
+        )
     return ax
 
 
 def _donut(ax, values, labels, colors, center_txt="", center_sub=""):
-    ax.pie(values, colors=colors[:len(values)], startangle=90, counterclock=False, radius=0.92,
-           wedgeprops=dict(width=0.40, edgecolor="white", linewidth=2.6))
-    ax.text(0, 0.10, center_txt, ha="center", va="center", fontsize=16, fontweight="bold", color=INK)
+    ax.pie(
+        values,
+        colors=colors[: len(values)],
+        startangle=90,
+        counterclock=False,
+        radius=0.92,
+        wedgeprops=dict(width=0.40, edgecolor="white", linewidth=2.6),
+    )
+    ax.text(
+        0, 0.10, center_txt, ha="center", va="center", fontsize=16, fontweight="bold", color=INK
+    )
     ax.text(0, -0.18, center_sub, ha="center", va="center", fontsize=7.5, color=MUTED)
     total = sum(values) or 1
-    items = [f"{lab}  {v / total * 100:.0f}%" for lab, v in zip(labels, values)]
+    items = [f"{lab}  {v / total * 100:.0f}%" for lab, v in zip(labels, values, strict=False)]
     handles = [mpatches.Patch(fc=colors[i], label=items[i]) for i in range(len(values))]
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.02), frameon=False,
-              fontsize=7.0, ncol=len(values), labelcolor=INK, handlelength=0.8, handleheight=0.8,
-              columnspacing=1.0, handletextpad=0.4)
+    ax.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.02),
+        frameon=False,
+        fontsize=7.0,
+        ncol=len(values),
+        labelcolor=INK,
+        handlelength=0.8,
+        handleheight=0.8,
+        columnspacing=1.0,
+        handletextpad=0.4,
+    )
     ax.set_aspect("equal")
 
 
@@ -161,9 +280,17 @@ def _hbar(ax, items, color=GREEN, vmax=None, pct=False):
     for i, v in enumerate(vals):
         if v <= 0:
             continue
-        ax.text(v + vmax * 0.015, i, (f"{v}%" if pct else f"{v}"), va="center",
-                fontsize=7.6, fontweight="bold", color=INK, zorder=5,
-                bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none"))
+        ax.text(
+            v + vmax * 0.015,
+            i,
+            (f"{v}%" if pct else f"{v}"),
+            va="center",
+            fontsize=7.6,
+            fontweight="bold",
+            color=INK,
+            zorder=5,
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none"),
+        )
     ax.set_xticks([])
     ax.tick_params(labelsize=7, colors=MUTED, length=0)
     for s in ("top", "right", "left", "bottom"):
@@ -179,7 +306,16 @@ def _bullet(ax, items, vmax=100, target=80):
         ax.barh(i, val, height=0.22, color=GREEN_D, ec="none", zorder=3)
         ax.plot([target, target], [i - 0.30, i + 0.30], color=INK, lw=2, zorder=4)
         ax.text(-1.5, i, name, ha="right", va="center", fontsize=8, color=INK)
-        ax.text(val + 1.2, i, f"{val}", va="center", fontsize=7.6, fontweight="bold", color=GREEN_D, zorder=5)
+        ax.text(
+            val + 1.2,
+            i,
+            f"{val}",
+            va="center",
+            fontsize=7.6,
+            fontweight="bold",
+            color=GREEN_D,
+            zorder=5,
+        )
     ax.set_yticks([])
     ax.set_xticks([0, 25, 50, 75, 100])
     ax.tick_params(labelsize=7, colors=MUTED, length=0)
@@ -199,8 +335,17 @@ def _taux_par_critere(ax, items, target=70):
     ax.set_xlim(0, 100)
     ax.axvline(target, color=INK, lw=1.2, ls="--", zorder=4)
     for i, v in enumerate(vals):
-        ax.text(max(v - 3, 6), i, f"{v}%", va="center", ha="right", fontsize=7.6,
-                fontweight="bold", color="white", zorder=5)
+        ax.text(
+            max(v - 3, 6),
+            i,
+            f"{v}%",
+            va="center",
+            ha="right",
+            fontsize=7.6,
+            fontweight="bold",
+            color="white",
+            zorder=5,
+        )
     ax.set_xticks([])
     ax.tick_params(labelsize=7, colors=MUTED, length=0)
     for s in ("top", "right", "left", "bottom"):
@@ -229,6 +374,7 @@ def _squarify(values, x, y, w, h):
         else:
             rec(vals[:i], x, y + h * (1 - frac), w, h * frac, not horiz)
             rec(vals[i:], x, y, w, h * (1 - frac), not horiz)
+
     rec(list(values), x, y, w, h, True)
     return rects
 
@@ -240,25 +386,58 @@ def _treemap(ax, data):
     ax.set_ylim(0, 1)
     data = [d for d in data if d[1] > 0] or [("—", 1, SLATE)]
     rects = _squarify([d[1] for d in data], 0, 0, 1, 1)
-    for (lab, val, col), (x, y, w, h) in zip(data, rects):
-        ax.add_patch(FancyBboxPatch((x + 0.006, y + 0.008), w - 0.012, h - 0.016,
-                     boxstyle="round,pad=0,rounding_size=0.012", fc=col, ec="white", lw=2.4))
+    for (lab, val, col), (x, y, w, h) in zip(data, rects, strict=False):
+        ax.add_patch(
+            FancyBboxPatch(
+                (x + 0.006, y + 0.008),
+                w - 0.012,
+                h - 0.016,
+                boxstyle="round,pad=0,rounding_size=0.012",
+                fc=col,
+                ec="white",
+                lw=2.4,
+            )
+        )
         # Largeur en caractères proportionnelle au rectangle : le nom complet est
         # enroulé sur 2 lignes plutôt que tronqué.
         chars = max(7, int(w * 34))
         # break_long_words=False : jamais de coupure au milieu d'un mot.
         lines = textwrap.wrap(lab, chars, break_long_words=False)[:2] or [lab]
         if len(lines) == 2 and len(lines[1]) > chars + 4:
-            lines[1] = lines[1][:chars + 3] + "…"
+            lines[1] = lines[1][: chars + 3] + "…"
         if w * h > 0.04:
             fs = min(10.5, 5.2 + 22 * w * h)
             for j, ln in enumerate(lines):
-                ax.text(x + w / 2, y + h / 2 + 0.052 - j * 0.062, ln, ha="center", va="center",
-                        fontsize=fs, color="white", fontweight="bold")
-            ax.text(x + w / 2, y + h / 2 + 0.052 - len(lines) * 0.062, f"{val}", ha="center", va="center",
-                    fontsize=min(9.5, 4.5 + 18 * w * h), color="white", alpha=0.92)
+                ax.text(
+                    x + w / 2,
+                    y + h / 2 + 0.052 - j * 0.062,
+                    ln,
+                    ha="center",
+                    va="center",
+                    fontsize=fs,
+                    color="white",
+                    fontweight="bold",
+                )
+            ax.text(
+                x + w / 2,
+                y + h / 2 + 0.052 - len(lines) * 0.062,
+                f"{val}",
+                ha="center",
+                va="center",
+                fontsize=min(9.5, 4.5 + 18 * w * h),
+                color="white",
+                alpha=0.92,
+            )
         elif w * h > 0.012:
-            ax.text(x + w / 2, y + h / 2, f"{lines[0]}\n{val}", ha="center", va="center", fontsize=5.8, color="white")
+            ax.text(
+                x + w / 2,
+                y + h / 2,
+                f"{lines[0]}\n{val}",
+                ha="center",
+                va="center",
+                fontsize=5.8,
+                color="white",
+            )
 
 
 def _heatmap(ax, data, rows, cols):
@@ -269,15 +448,23 @@ def _heatmap(ax, data, rows, cols):
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels(rows, fontsize=7.6)
     ax.tick_params(colors=MUTED, length=0)
-    ax.set_xticks(np.arange(-.5, len(cols), 1), minor=True)
-    ax.set_yticks(np.arange(-.5, len(rows), 1), minor=True)
+    ax.set_xticks(np.arange(-0.5, len(cols), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(rows), 1), minor=True)
     ax.grid(which="minor", color="white", linewidth=2.5)
     ax.tick_params(which="minor", length=0)
     for i in range(len(rows)):
         for j in range(len(cols)):
             v = data[i][j]
-            ax.text(j, i, f"{v:.0f}", ha="center", va="center", fontsize=7.2,
-                    color="white" if (v < 38 or v > 80) else INK, fontweight="bold")
+            ax.text(
+                j,
+                i,
+                f"{v:.0f}",
+                ha="center",
+                va="center",
+                fontsize=7.2,
+                color="white" if (v < 38 or v > 80) else INK,
+                fontweight="bold",
+            )
     for s in ax.spines.values():
         s.set_visible(False)
 
@@ -290,8 +477,17 @@ def _new_panel(title, subtitle=""):
     fig.patch.set_facecolor(BG)
     acc = fig.add_axes([0.03, 0.957, 0.016, 0.020])
     acc.axis("off")
-    acc.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=acc.transAxes,
-                  boxstyle="round,pad=0,rounding_size=0.35", fc=GREEN, ec="none"))
+    acc.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=acc.transAxes,
+            boxstyle="round,pad=0,rounding_size=0.35",
+            fc=GREEN,
+            ec="none",
+        )
+    )
     fig.text(0.057, 0.963, title, fontsize=16, fontweight="bold", color=INK, va="center")
     if subtitle:
         fig.text(0.057, 0.940, subtitle, fontsize=8.6, color=MUTED, va="center")
@@ -305,17 +501,50 @@ def _text_card(fig, rect, title=None, tcolor=None):
     x, y, w, h = rect
     sh = fig.add_axes([x + 0.002, y - 0.006, w, h])
     sh.axis("off")
-    sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#0f172a", ec="none", alpha=0.06))
+    sh.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=sh.transAxes,
+            boxstyle="round,pad=0.005,rounding_size=0.05",
+            fc="#0f172a",
+            ec="none",
+            alpha=0.06,
+        )
+    )
     fr = fig.add_axes([x, y, w, h])
     fr.axis("off")
     fr.set_xlim(0, 1)
     fr.set_ylim(0, 1)
-    fr.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=fr.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc=CARD, ec=CARD_BORDER, lw=1.1))
+    fr.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=fr.transAxes,
+            boxstyle="round,pad=0.005,rounding_size=0.05",
+            fc=CARD,
+            ec=CARD_BORDER,
+            lw=1.1,
+        )
+    )
     if title:
-        fr.add_patch(Rectangle((0.028, 0.90), 0.011, 0.07, transform=fr.transAxes, fc=tcolor or GREEN, ec="none"))
-        fr.text(0.055, 0.935, title, transform=fr.transAxes, fontsize=10, fontweight="bold", color=INK, va="center")
+        fr.add_patch(
+            Rectangle(
+                (0.028, 0.90), 0.011, 0.07, transform=fr.transAxes, fc=tcolor or GREEN, ec="none"
+            )
+        )
+        fr.text(
+            0.055,
+            0.935,
+            title,
+            transform=fr.transAxes,
+            fontsize=10,
+            fontweight="bold",
+            color=INK,
+            va="center",
+        )
     return fr
 
 
@@ -330,7 +559,17 @@ def _numbered(fr, items, y0=0.84, dy=0.30, fs=9.8, width=90):
     for i, (c, txt) in enumerate(items):
         y = y0 - i * dy
         fr.scatter([0.05], [y], s=210, color=c, zorder=3, edgecolor="white", lw=1)
-        fr.text(0.05, y, str(i + 1), ha="center", va="center", fontsize=8.5, color="white", fontweight="bold", zorder=4)
+        fr.text(
+            0.05,
+            y,
+            str(i + 1),
+            ha="center",
+            va="center",
+            fontsize=8.5,
+            color="white",
+            fontweight="bold",
+            zorder=4,
+        )
         for j, ln in enumerate(textwrap.wrap(txt, width) or [txt]):
             fr.text(0.105, y - j * 0.058, ln, va="center", fontsize=fs, color=INK)
 
@@ -348,14 +587,34 @@ def _ia_box(fig, rect, text):
     x, y, w, h = rect
     sh = fig.add_axes([x + 0.002, y - 0.006, w, h])
     sh.axis("off")
-    sh.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=sh.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#0f172a", ec="none", alpha=0.05))
+    sh.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=sh.transAxes,
+            boxstyle="round,pad=0.005,rounding_size=0.05",
+            fc="#0f172a",
+            ec="none",
+            alpha=0.05,
+        )
+    )
     ax = fig.add_axes([x, y, w, h])
     ax.axis("off")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    ax.add_patch(FancyBboxPatch((0, 0), 1, 1, transform=ax.transAxes,
-                 boxstyle="round,pad=0.005,rounding_size=0.05", fc="#e9f7f1", ec=GREEN, lw=1.2))
+    ax.add_patch(
+        FancyBboxPatch(
+            (0, 0),
+            1,
+            1,
+            transform=ax.transAxes,
+            boxstyle="round,pad=0.005,rounding_size=0.05",
+            fc="#e9f7f1",
+            ec=GREEN,
+            lw=1.2,
+        )
+    )
     ax.add_patch(Rectangle((0.020, 0.70), 0.009, 0.22, transform=ax.transAxes, fc=GREEN, ec="none"))
     ax.text(0.044, 0.81, "Synthèse", fontsize=9, fontweight="bold", color=GREEN_D, va="center")
     lines = textwrap.wrap(text, 110)[:3]
@@ -385,42 +644,57 @@ def _derive(a):
     fmap = {r.get("criteria"): int(r.get("failures") or 0) for r in bp}
     ac = a.get("axis_coverage") or {}
     axes = ac.get("axes") or []
-    al_dist = {r.get("level", ""): int(r.get("count") or 0) for r in (a.get("alignment_distribution") or [])}
+    al_dist = {
+        r.get("level", ""): int(r.get("count") or 0)
+        for r in (a.get("alignment_distribution") or [])
+    }
     faible = next((v for k, v in al_dist.items() if k.lower().startswith("faible")), 0)
     thr = a.get("thresholds") or {}
     smart_thr = thr.get("smart") or 80
     ent = a.get("entity_comparison") or []
     mgr = a.get("manager_comparison") or []
     return {
-        "total": total, "analyzed": analyzed,
-        "smart_rate": round(float(sr.get("rate") or 0)), "smart_ok": smart_ok,
+        "total": total,
+        "analyzed": analyzed,
+        "smart_rate": round(float(sr.get("rate") or 0)),
+        "smart_ok": smart_ok,
         "avg_smart": round(float(avg.get("avg_smart") or 0)),
         "avg_align": round(float(avg.get("avg_alignment") or 0)),
         "a_ajuster": max(0, int(sr.get("total") or 0) - smart_ok),
-        "sans_kpi": fmap.get("M - Mesurable", 0), "sans_echeance": fmap.get("T - Temporel", 0),
+        "sans_kpi": fmap.get("M - Mesurable", 0),
+        "sans_echeance": fmap.get("T - Temporel", 0),
         "flous": fmap.get("S - Spécifique", 0),
         "worst": bp[0].get("criteria") if bp else "—",
         "best": min(bp, key=lambda r: int(r.get("failures") or 0)).get("criteria") if bp else "—",
         "blocking": bp,
-        "crit": {k: round(float(avg.get(f"avg_{k.lower()}") or 0) * 100) for k in ("S", "M", "A", "R", "T")},
-        "axes": axes, "orphans": [x for x in axes if x.get("orphan")],
+        "crit": {
+            k: round(float(avg.get(f"avg_{k.lower()}") or 0) * 100)
+            for k in ("S", "M", "A", "R", "T")
+        },
+        "axes": axes,
+        "orphans": [x for x in axes if x.get("orphan")],
         "over": [x for x in axes if x.get("over_concentrated")],
-        "covered": len([x for x in axes if not x.get("orphan")]), "naxes": len(axes),
+        "covered": len([x for x in axes if not x.get("orphan")]),
+        "naxes": len(axes),
         "total_aligned": int(ac.get("total_aligned") or 0),
         "over_threshold": ac.get("over_concentration_threshold") or 40,
         "low_confidence": int((a.get("low_confidence") or {}).get("count") or 0),
         "validated": int((a.get("global_stats") or {}).get("validated") or 0),
         "align_rate": round(float((a.get("alignment_rate") or {}).get("rate") or 0)),
-        "smart_thr": smart_thr, "faible_align": faible,
+        "smart_thr": smart_thr,
+        "faible_align": faible,
         "alignment_distribution": a.get("alignment_distribution") or [],
-        "entities": ent, "managers": mgr,
+        "entities": ent,
+        "managers": mgr,
         "entities_below": len([e for e in ent if float(e.get("avg_smart") or 0) < smart_thr]),
     }
 
 
 def _entity_axis(objective_rows, axes, max_entities=5):
     """Matrice alignement moyen entité × axe (depuis les top_matches), ou None."""
-    titles = {str(a.get("axis_id")): (a.get("axis_title") or str(a.get("axis_id")))[:20] for a in axes}
+    titles = {
+        str(a.get("axis_id")): (a.get("axis_title") or str(a.get("axis_id")))[:20] for a in axes
+    }
     by_ent = {}
     ent_count = {}
     for o in objective_rows:
@@ -433,7 +707,11 @@ def _entity_axis(objective_rows, axes, max_entities=5):
                 raw = None
         if not isinstance(raw, dict):
             continue
-        matches = [m for m in (raw.get("top_matches") or []) if isinstance(m, dict) and m.get("objective_id") is not None]
+        matches = [
+            m
+            for m in (raw.get("top_matches") or [])
+            if isinstance(m, dict) and m.get("objective_id") is not None
+        ]
         if not matches:
             continue
         aid = str(max(matches, key=lambda m: m.get("score") or 0).get("objective_id"))
@@ -444,12 +722,19 @@ def _entity_axis(objective_rows, axes, max_entities=5):
         ent_count[ent] = ent_count.get(ent, 0) + 1
     if not by_ent:
         return None
-    top_ents = [e for e, _ in sorted(ent_count.items(), key=lambda kv: kv[1], reverse=True)[:max_entities]]
+    top_ents = [
+        e for e, _ in sorted(ent_count.items(), key=lambda kv: kv[1], reverse=True)[:max_entities]
+    ]
     axis_ids = [a for a in titles if any(a in by_ent[e] for e in top_ents)][:5]
     if not axis_ids:
         return None
-    matrix = [[(sum(by_ent[e].get(aid, [])) / len(by_ent[e][aid]) if by_ent[e].get(aid) else 0)
-               for aid in axis_ids] for e in top_ents]
+    matrix = [
+        [
+            (sum(by_ent[e].get(aid, [])) / len(by_ent[e][aid]) if by_ent[e].get(aid) else 0)
+            for aid in axis_ids
+        ]
+        for e in top_ents
+    ]
     return matrix, [e[:22] for e in top_ents], [titles[a] for a in axis_ids]
 
 
@@ -460,46 +745,87 @@ def _attention_points(d):
     """Points d'attention RÉELS déduits de l'analyse (liste de longueur variable)."""
     pts = []
     if d["smart_rate"] < d["smart_thr"]:
-        pts.append((RED, f"Taux d'objectifs SMART à {d['smart_rate']} %, sous la cible de {d['smart_thr']} % — "
-                         f"{d['a_ajuster']} objectif(s) à ajuster."))
+        pts.append(
+            (
+                RED,
+                f"Taux d'objectifs SMART à {d['smart_rate']} %, sous la cible de {d['smart_thr']} % — "
+                f"{d['a_ajuster']} objectif(s) à ajuster.",
+            )
+        )
     if d["worst"] != "—":
         wf = {"S": d["flous"], "M": d["sans_kpi"], "T": d["sans_echeance"]}.get(d["worst"][:1])
         det = f" ({wf} objectif(s) concerné(s))" if wf else ""
         pts.append((AMBER, f"Critère « {d['worst']} » le plus souvent non validé{det}."))
     for x in d["over"]:
-        pts.append((AMBER, f"Axe « {x.get('axis_title', '')} » sur-concentré : {x.get('share_pct', 0)} % "
-                          f"des objectifs (seuil {d['over_threshold']} %)."))
+        pts.append(
+            (
+                AMBER,
+                f"Axe « {x.get('axis_title', '')} » sur-concentré : {x.get('share_pct', 0)} % "
+                f"des objectifs (seuil {d['over_threshold']} %).",
+            )
+        )
     for x in d["orphans"]:
         pts.append((RED, f"Axe « {x.get('axis_title', '')} » orphelin : aucun objectif rattaché."))
     if d["low_confidence"] > 0:
-        pts.append((VIOLET, f"{d['low_confidence']} analyse(s) à faible confiance IA, à faire relire par un humain."))
+        pts.append(
+            (
+                VIOLET,
+                f"{d['low_confidence']} analyse(s) à faible confiance IA, à faire relire par un humain.",
+            )
+        )
     if d["faible_align"] > 0:
-        pts.append((AMBER, f"{d['faible_align']} objectif(s) faiblement aligné(s) sur la stratégie."))
+        pts.append(
+            (AMBER, f"{d['faible_align']} objectif(s) faiblement aligné(s) sur la stratégie.")
+        )
     if d["entities_below"] > 0:
-        pts.append((AMBER, f"{d['entities_below']} entité(s) sous la cible SMART de {d['smart_thr']} %."))
+        pts.append(
+            (AMBER, f"{d['entities_below']} entité(s) sous la cible SMART de {d['smart_thr']} %.")
+        )
     return pts
 
 
 def _p_synthese(d):
-    f = _new_panel("1.  Synthèse exécutive",
-                   "Vue suffisante pour comprendre l'état global des objectifs")
+    f = _new_panel(
+        "1.  Synthèse exécutive", "Vue suffisante pour comprendre l'état global des objectifs"
+    )
     pct = round(d["analyzed"] / d["total"] * 100) if d["total"] else 0
-    _ia_box(f, (0.03, 0.822, 0.94, 0.102),
-            f"{d['analyzed']} objectifs analysés sur {d['total']} importés ({pct} %). "
-            f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %). "
-            f"Critère le plus souvent non validé : {d['worst']}.")
+    _ia_box(
+        f,
+        (0.03, 0.822, 0.94, 0.102),
+        f"{d['analyzed']} objectifs analysés sur {d['total']} importés ({pct} %). "
+        f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %). "
+        f"Critère le plus souvent non validé : {d['worst']}.",
+    )
     # Les 8 KPI EXACTEMENT identiques au tableau de bord RH (mêmes libellés, mêmes valeurs).
-    _kpi_row(f, [(f"{d['analyzed']} / {d['total']}", "Objectifs analysés", "sky", "▤"),
-                 (f"{d['avg_smart']} %", "Score SMART moyen", "emerald", "★"),
-                 (f"{d['avg_align']} %", "Alignement moyen", "teal", "◆"),
-                 (f"{d['validated']}", "Objectifs validés", "violet", "●")],
-             y=0.728, w=0.223, gap=0.016, x0=0.03)
-    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
-                 (f"{d['smart_rate']} %", "Taux d'objectifs SMART", "emerald", "◎"),
-                 (f"{d['align_rate']} %", "Alignement stratégique fort", "amber", "◇"),
-                 (f"{d['low_confidence']}", "Faible confiance IA", "violet", "?")],
-             y=0.618, w=0.223, gap=0.016, x0=0.03)
-    pts = _attention_points(d) or [(GREEN, "Aucun point d'attention majeur sur le périmètre analysé.")]
+    _kpi_row(
+        f,
+        [
+            (f"{d['analyzed']} / {d['total']}", "Objectifs analysés", "sky", "▤"),
+            (f"{d['avg_smart']} %", "Score SMART moyen", "emerald", "★"),
+            (f"{d['avg_align']} %", "Alignement moyen", "teal", "◆"),
+            (f"{d['validated']}", "Objectifs validés", "violet", "●"),
+        ],
+        y=0.728,
+        w=0.223,
+        gap=0.016,
+        x0=0.03,
+    )
+    _kpi_row(
+        f,
+        [
+            (f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
+            (f"{d['smart_rate']} %", "Taux d'objectifs SMART", "emerald", "◎"),
+            (f"{d['align_rate']} %", "Alignement stratégique fort", "amber", "◇"),
+            (f"{d['low_confidence']}", "Faible confiance IA", "violet", "?"),
+        ],
+        y=0.618,
+        w=0.223,
+        gap=0.016,
+        x0=0.03,
+    )
+    pts = _attention_points(d) or [
+        (GREEN, "Aucun point d'attention majeur sur le périmètre analysé.")
+    ]
     n = len(pts)
     titre = f"{n} point d'attention" if n == 1 else f"{n} points d'attention"
     card_h = max(0.30, min(0.52, 0.11 + n * 0.064))
@@ -510,101 +836,205 @@ def _p_synthese(d):
 
 # Une couleur DISTINCTE par axe (rouge réservé à la sur-concentration) : le même
 # axe garde la même couleur entre le treemap et le graphique de couverture.
-_AXIS_PALETTE = [GREEN, SKY, VIOLET, TEAL, "#6366f1", "#ec4899", "#84cc16", "#06b6d4", "#f97316", SLATE]
+_AXIS_PALETTE = [
+    GREEN,
+    SKY,
+    VIOLET,
+    TEAL,
+    "#6366f1",
+    "#ec4899",
+    "#84cc16",
+    "#06b6d4",
+    "#f97316",
+    SLATE,
+]
 
 
 def _axis_palette(axes):
-    return [RED if x.get("over_concentrated") else _AXIS_PALETTE[i % len(_AXIS_PALETTE)]
-            for i, x in enumerate(axes)]
+    return [
+        RED if x.get("over_concentrated") else _AXIS_PALETTE[i % len(_AXIS_PALETTE)]
+        for i, x in enumerate(axes)
+    ]
 
 
 def _p_pilotage_a(d):
-    f = _new_panel("2.  Pilotage stratégique  (1/2) — couverture des axes",
-                   f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique "
-                   f"(une couleur par axe ; rouge = sur-concentré)")
+    f = _new_panel(
+        "2.  Pilotage stratégique  (1/2) — couverture des axes",
+        f"Répartition des {d['total_aligned']} objectifs rattachés à un axe stratégique "
+        f"(une couleur par axe ; rouge = sur-concentré)",
+    )
     cols = _axis_palette(d["axes"])
-    ax = _card_ax(f, (0.03, 0.515, 0.94, 0.380), "Poids des axes stratégiques (nombre d'objectifs)", left=0.04)
-    _treemap(ax, [(x.get("axis_title", ""), int(x.get("count") or 0), c) for x, c in zip(d["axes"], cols)])
+    ax = _card_ax(
+        f, (0.03, 0.515, 0.94, 0.380), "Poids des axes stratégiques (nombre d'objectifs)", left=0.04
+    )
+    _treemap(
+        ax,
+        [
+            (x.get("axis_title", ""), int(x.get("count") or 0), c)
+            for x, c in zip(d["axes"], cols, strict=False)
+        ],
+    )
     ax = _card_ax(f, (0.03, 0.070, 0.94, 0.380), "Couverture par axe (% des objectifs)", left=0.24)
-    _hbar(ax, [(x.get("axis_title", "")[:30], round(float(x.get("share_pct") or 0)), c)
-               for x, c in zip(d["axes"][:8], cols[:8])],
-          pct=True, vmax=max(50, d["over_threshold"] + 10))
+    _hbar(
+        ax,
+        [
+            (x.get("axis_title", "")[:30], round(float(x.get("share_pct") or 0)), c)
+            for x, c in zip(d["axes"][:8], cols[:8], strict=False)
+        ],
+        pct=True,
+        vmax=max(50, d["over_threshold"] + 10),
+    )
     ax.axvline(d["over_threshold"], color=INK, lw=1.2, ls="--")
     return _png(f)
 
 
 def _p_pilotage_b(d, ent_axis):
-    f = _new_panel("2.  Pilotage stratégique  (2/2) — alignement",
-                   "Alignement moyen des objectifs sur les axes stratégiques, par entité")
+    f = _new_panel(
+        "2.  Pilotage stratégique  (2/2) — alignement",
+        "Alignement moyen des objectifs sur les axes stratégiques, par entité",
+    )
     if ent_axis:
         matrix, rows, cols = ent_axis
-        ax = _card_ax(f, (0.03, 0.500, 0.94, 0.395),
-                      "Alignement moyen par entité × axe (score d'alignement sur 100)", left=0.15)
+        ax = _card_ax(
+            f,
+            (0.03, 0.500, 0.94, 0.395),
+            "Alignement moyen par entité × axe (score d'alignement sur 100)",
+            left=0.15,
+        )
         _heatmap(ax, matrix, rows, cols)
     else:
         fr = _text_card(f, (0.03, 0.500, 0.94, 0.395), "Alignement par entité × axe")
-        fr.text(0.5, 0.5, "Données insuffisantes (axes non rattachés)", ha="center", va="center", fontsize=9, color=MUTED)
+        fr.text(
+            0.5,
+            0.5,
+            "Données insuffisantes (axes non rattachés)",
+            ha="center",
+            va="center",
+            fontsize=9,
+            color=MUTED,
+        )
     ax = _card_ax(f, (0.03, 0.075, 0.44, 0.375), "Niveaux d'alignement (% des objectifs)")
     dist = d["alignment_distribution"] or [{"level": "—", "count": 1}]
-    _donut(ax, [int(r.get("count") or 0) for r in dist], [r.get("level", "").split(" (")[0] for r in dist],
-           [GREEN, AMBER, RED], f"{d['avg_align']} %", "alignement moyen")
+    _donut(
+        ax,
+        [int(r.get("count") or 0) for r in dist],
+        [r.get("level", "").split(" (")[0] for r in dist],
+        [GREEN, AMBER, RED],
+        f"{d['avg_align']} %",
+        "alignement moyen",
+    )
     fr = _text_card(f, (0.49, 0.075, 0.48, 0.375), "Constats", GREEN_D)
     # Toujours au moins 3 constats pertinents, déduits des données.
     cons = []
     for x in d["over"]:
-        cons.append(f"Sur-concentration : « {x.get('axis_title', '')} » capte {x.get('share_pct', 0)} % des objectifs.")
+        cons.append(
+            f"Sur-concentration : « {x.get('axis_title', '')} » capte {x.get('share_pct', 0)} % des objectifs."
+        )
     for x in d["orphans"]:
         cons.append(f"Axe orphelin : « {x.get('axis_title', '')} » ne reçoit aucun objectif.")
     actifs = [a for a in d["axes"] if (a.get("count") or 0) > 0]
     if actifs:
         top = actifs[0]
-        cons.append(f"Axe le plus investi : « {top.get('axis_title', '')} » "
-                    f"({top.get('count')} objectifs, {top.get('share_pct')} %).")
+        cons.append(
+            f"Axe le plus investi : « {top.get('axis_title', '')} » "
+            f"({top.get('count')} objectifs, {top.get('share_pct')} %)."
+        )
         low = actifs[-1]
         if low is not top:
-            cons.append(f"Axe le moins investi : « {low.get('axis_title', '')} » "
-                        f"({low.get('count')} objectif(s), {low.get('share_pct')} %).")
-    cons.append(f"{d['covered']} axe(s) couvert(s) sur {d['naxes']} ; alignement moyen : {d['avg_align']} / 100.")
+            cons.append(
+                f"Axe le moins investi : « {low.get('axis_title', '')} » "
+                f"({low.get('count')} objectif(s), {low.get('share_pct')} %)."
+            )
+    cons.append(
+        f"{d['covered']} axe(s) couvert(s) sur {d['naxes']} ; alignement moyen : {d['avg_align']} / 100."
+    )
     _dotted(fr, cons[:4], y0=0.86, dy=0.20, fs=8.2, width=42)
     return _png(f)
 
 
 def _p_qualite(d):
-    f = _new_panel("3.  Qualité SMART",
-                   "Niveau de conformité des objectifs aux 5 critères de la méthode SMART")
-    _kpi_row(f, [(f"{d['sans_kpi']}", "Objectifs sans KPI", "amber", "M"),
-                 (f"{d['sans_echeance']}", "Sans échéance", "amber", "T"),
-                 (f"{d['flous']}", "Objectifs flous", "amber", "S"),
-                 (f"{d['avg_smart']} / 100", "Score SMART moyen", "emerald", "★")],
-             y=0.815, w=0.226, gap=0.0126)
-    ax = _card_ax(f, (0.03, 0.430, 0.56, 0.340), "Taux de conformité par critère SMART (cible 70 %)")
-    _taux_par_critere(ax, [("S", d["crit"]["S"]), ("M", d["crit"]["M"]), ("A", d["crit"]["A"]),
-                           ("R", d["crit"]["R"]), ("T", d["crit"]["T"])], target=70)
+    f = _new_panel(
+        "3.  Qualité SMART", "Niveau de conformité des objectifs aux 5 critères de la méthode SMART"
+    )
+    _kpi_row(
+        f,
+        [
+            (f"{d['sans_kpi']}", "Objectifs sans KPI", "amber", "M"),
+            (f"{d['sans_echeance']}", "Sans échéance", "amber", "T"),
+            (f"{d['flous']}", "Objectifs flous", "amber", "S"),
+            (f"{d['avg_smart']} / 100", "Score SMART moyen", "emerald", "★"),
+        ],
+        y=0.815,
+        w=0.226,
+        gap=0.0126,
+    )
+    ax = _card_ax(
+        f, (0.03, 0.430, 0.56, 0.340), "Taux de conformité par critère SMART (cible 70 %)"
+    )
+    _taux_par_critere(
+        ax,
+        [
+            ("S", d["crit"]["S"]),
+            ("M", d["crit"]["M"]),
+            ("A", d["crit"]["A"]),
+            ("R", d["crit"]["R"]),
+            ("T", d["crit"]["T"]),
+        ],
+        target=70,
+    )
     ax = _card_ax(f, (0.60, 0.430, 0.37, 0.340), "Nombre d'échecs par critère", left=0.24)
     pal = [RED, "#f87171", AMBER, "#fbbf24", "#a3e635"]
-    _hbar(ax, [(r.get("criteria", ""), int(r.get("failures") or 0), pal[i % len(pal)]) for i, r in enumerate(d["blocking"])])
+    _hbar(
+        ax,
+        [
+            (r.get("criteria", ""), int(r.get("failures") or 0), pal[i % len(pal)])
+            for i, r in enumerate(d["blocking"])
+        ],
+    )
     ax = _card_ax(f, (0.03, 0.070, 0.45, 0.330), "Objectifs SMART / non-SMART")
-    _donut(ax, [d["smart_ok"], d["a_ajuster"]], ["Conformes", "À retravailler"],
-           [GREEN, "#fca5a5"], f"{d['smart_rate']} %", "conformes")
+    _donut(
+        ax,
+        [d["smart_ok"], d["a_ajuster"]],
+        ["Conformes", "À retravailler"],
+        [GREEN, "#fca5a5"],
+        f"{d['smart_rate']} %",
+        "conformes",
+    )
     fr = _text_card(f, (0.50, 0.070, 0.47, 0.330), "Lecture rapide", GREEN_D)
-    _dotted(fr, [
-        f"Point fort : critère « {d['best']} » ({d['crit'].get(d['best'][:1], '')} %).",
-        f"Point faible : critère « {d['worst']} » ({d['crit'].get(d['worst'][:1], '')} %).",
-        f"{d['a_ajuster']} objectif(s) à retravailler pour atteindre le seuil SMART de {d['smart_thr']} %.",
-    ], y0=0.80, dy=0.235, fs=8.4, width=46)
+    _dotted(
+        fr,
+        [
+            f"Point fort : critère « {d['best']} » ({d['crit'].get(d['best'][:1], '')} %).",
+            f"Point faible : critère « {d['worst']} » ({d['crit'].get(d['worst'][:1], '')} %).",
+            f"{d['a_ajuster']} objectif(s) à retravailler pour atteindre le seuil SMART de {d['smart_thr']} %.",
+        ],
+        y0=0.80,
+        dy=0.235,
+        fs=8.4,
+        width=46,
+    )
     return _png(f)
 
 
 def _p_comparatifs(d):
-    f = _new_panel("4.  Comparatifs par périmètre",
-                   "Lecture comparative, sans objectif de sanction : repérer où un appui serait le plus utile")
+    f = _new_panel(
+        "4.  Comparatifs par périmètre",
+        "Lecture comparative, sans objectif de sanction : repérer où un appui serait le plus utile",
+    )
     ent = sorted(d["entities"], key=lambda e: float(e.get("avg_smart") or 0), reverse=True)[:6]
-    ax = _card_ax(f, (0.03, 0.470, 0.94, 0.400), "Score SMART moyen par entité (cible 80)", left=0.18)
+    ax = _card_ax(
+        f, (0.03, 0.470, 0.94, 0.400), "Score SMART moyen par entité (cible 80)", left=0.18
+    )
     if ent:
-        _bullet(ax, [((e.get("entity") or "—")[:26], round(float(e.get("avg_smart") or 0))) for e in ent])
+        _bullet(
+            ax,
+            [((e.get("entity") or "—")[:26], round(float(e.get("avg_smart") or 0))) for e in ent],
+        )
     else:
         ax.axis("off")
-        ax.text(0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED)
+        ax.text(
+            0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED
+        )
     mgr = sorted(d["managers"], key=lambda m: float(m.get("avg_smart") or 0), reverse=True)
     top = mgr[:3]
     flop = mgr[-3:] if len(mgr) > 3 else []
@@ -614,34 +1044,69 @@ def _p_comparatifs(d):
         rows = []
         for m in sel:
             v = round(float(m.get("avg_smart") or 0))
-            rows.append(((m.get("manager") or "—")[:28], v, GREEN if v >= d["smart_thr"] else (AMBER if v >= 50 else RED)))
+            rows.append(
+                (
+                    (m.get("manager") or "—")[:28],
+                    v,
+                    GREEN if v >= d["smart_thr"] else (AMBER if v >= 50 else RED),
+                )
+            )
         _hbar(ax, rows, vmax=100, pct=True)
     else:
         ax.axis("off")
-        ax.text(0.5, 0.5, "Aucun manager renseigné", ha="center", va="center", fontsize=9, color=MUTED)
+        ax.text(
+            0.5, 0.5, "Aucun manager renseigné", ha="center", va="center", fontsize=9, color=MUTED
+        )
     return _png(f)
 
 
 def _p_attention(d):
-    f = _new_panel("5.  Points d'attention",
-                   "Signaux à surveiller, formulés en constats — chaque chiffre renvoie aux listes dans l'app")
-    _kpi_row(f, [(f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
-                 (f"{d['faible_align']}", "Objectifs faiblement alignés", "amber", "◇"),
-                 (f"{d['low_confidence']}", "Analyses à faible confiance IA", "violet", "?")], y=0.780)
-    _kpi_row(f, [(f"{len(d['orphans'])}", "Axe(s) stratégique(s) orphelin(s)", "rose", "○"),
-                 (f"{d['entities_below']}", f"Entités sous la cible ({d['smart_thr']} %)", "amber", "▤"),
-                 (f"{len(d['over'])}", "Axe(s) sur-concentré(s)", "rose", "▣")], y=0.692)
+    f = _new_panel(
+        "5.  Points d'attention",
+        "Signaux à surveiller, formulés en constats — chaque chiffre renvoie aux listes dans l'app",
+    )
+    _kpi_row(
+        f,
+        [
+            (f"{d['a_ajuster']}", "Objectifs à ajuster", "rose", "!"),
+            (f"{d['faible_align']}", "Objectifs faiblement alignés", "amber", "◇"),
+            (f"{d['low_confidence']}", "Analyses à faible confiance IA", "violet", "?"),
+        ],
+        y=0.780,
+    )
+    _kpi_row(
+        f,
+        [
+            (f"{len(d['orphans'])}", "Axe(s) stratégique(s) orphelin(s)", "rose", "○"),
+            (f"{d['entities_below']}", f"Entités sous la cible ({d['smart_thr']} %)", "amber", "▤"),
+            (f"{len(d['over'])}", "Axe(s) sur-concentré(s)", "rose", "▣"),
+        ],
+        y=0.692,
+    )
     ent = sorted(d["entities"], key=lambda e: float(e.get("avg_smart") or 0))[:5]
-    ax = _card_ax(f, (0.03, 0.330, 0.57, 0.300), "Périmètres les plus éloignés de la cible (score SMART)", left=0.28)
+    ax = _card_ax(
+        f,
+        (0.03, 0.330, 0.57, 0.300),
+        "Périmètres les plus éloignés de la cible (score SMART)",
+        left=0.28,
+    )
     if ent:
         rows = []
         for e in ent:
             v = round(float(e.get("avg_smart") or 0))
-            rows.append(((e.get("entity") or "—")[:22], v, RED if v < 50 else (AMBER if v < d["smart_thr"] else GREEN)))
+            rows.append(
+                (
+                    (e.get("entity") or "—")[:22],
+                    v,
+                    RED if v < 50 else (AMBER if v < d["smart_thr"] else GREEN),
+                )
+            )
         _hbar(ax, rows, vmax=100, pct=True)
     else:
         ax.axis("off")
-        ax.text(0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED)
+        ax.text(
+            0.5, 0.5, "Aucune entité renseignée", ha="center", va="center", fontsize=9, color=MUTED
+        )
     fr = _text_card(f, (0.61, 0.330, 0.36, 0.300), "Lecture", GREEN_D)
     # Toujours au moins 3 éléments de lecture, déduits des données.
     lect = []
@@ -656,32 +1121,57 @@ def _p_attention(d):
         lect.append(f"Alignement moyen : {d['avg_align']} / 100.")
     _dotted(fr, lect[:4], y0=0.80, dy=0.255, fs=8.2, width=30)
     fr = _text_card(f, (0.03, 0.055, 0.94, 0.215), "Constat de synthèse", RED)
-    _syn = (f"{d['a_ajuster']} objectif(s) à ajuster et {d['faible_align']} objectif(s) faiblement "
-            f"alignés constituent les principaux leviers d'amélioration de la campagne.")
+    _syn = (
+        f"{d['a_ajuster']} objectif(s) à ajuster et {d['faible_align']} objectif(s) faiblement "
+        f"alignés constituent les principaux leviers d'amélioration de la campagne."
+    )
     for j, ln in enumerate(textwrap.wrap(_syn, 98)):
         fr.text(0.04, 0.60 - j * 0.24, ln, fontsize=9, color=INK, va="center")
     return _png(f)
 
 
 def _p_constats(d):
-    f = _new_panel("6.  Synthèse des constats   ·   7.  Annexes",
-                   "Récapitulatif observationnel — les décisions restent prises par les personnes habilitées")
+    f = _new_panel(
+        "6.  Synthèse des constats   ·   7.  Annexes",
+        "Récapitulatif observationnel — les décisions restent prises par les personnes habilitées",
+    )
     fr = _text_card(f, (0.03, 0.470, 0.94, 0.400), "Synthèse des constats", GREEN_D)
-    _dotted(fr, [
-        f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %).",
-        f"Critère le plus souvent non validé : « {d['worst']} ».",
-        f"Alignement stratégique moyen : {d['avg_align']} %.",
-        f"Couverture des axes : {d['covered']}/{d['naxes']} ({len(d['orphans'])} orphelin(s), {len(d['over'])} sur-concentré(s)).",
-        f"{d['a_ajuster']} objectif(s) à ajuster ; {d['low_confidence']} analyse(s) à relire (faible confiance IA).",
-    ], y0=0.83, dy=0.165, fs=8.8)
-    fr = _text_card(f, (0.03, 0.130, 0.94, 0.310), "Annexes — disponibles sur demande auprès de la RH", SKY)
-    _dotted(fr, [
-        "Liste détaillée des objectifs à ajuster (sans KPI, sans échéance, flous, désalignés).",
-        "Propositions de reformulation IA (avant / après), toujours soumises à validation humaine.",
-        "Méthodologie de calcul des scores SMART et d'alignement, et seuils appliqués sur la période.",
-    ], y0=0.78, dy=0.26, fs=8.8)
-    f.text(0.5, 0.075, "Confidentiel — diffusion restreinte   ·   Éléments fournis à titre d'aide à la décision.",
-           ha="center", fontsize=8.5, color=MUTED, style="italic")
+    _dotted(
+        fr,
+        [
+            f"Taux d'objectifs SMART : {d['smart_rate']} % (cible {d['smart_thr']} %).",
+            f"Critère le plus souvent non validé : « {d['worst']} ».",
+            f"Alignement stratégique moyen : {d['avg_align']} %.",
+            f"Couverture des axes : {d['covered']}/{d['naxes']} ({len(d['orphans'])} orphelin(s), {len(d['over'])} sur-concentré(s)).",
+            f"{d['a_ajuster']} objectif(s) à ajuster ; {d['low_confidence']} analyse(s) à relire (faible confiance IA).",
+        ],
+        y0=0.83,
+        dy=0.165,
+        fs=8.8,
+    )
+    fr = _text_card(
+        f, (0.03, 0.130, 0.94, 0.310), "Annexes — disponibles sur demande auprès de la RH", SKY
+    )
+    _dotted(
+        fr,
+        [
+            "Liste détaillée des objectifs à ajuster (sans KPI, sans échéance, flous, désalignés).",
+            "Propositions de reformulation IA (avant / après), toujours soumises à validation humaine.",
+            "Méthodologie de calcul des scores SMART et d'alignement, et seuils appliqués sur la période.",
+        ],
+        y0=0.78,
+        dy=0.26,
+        fs=8.8,
+    )
+    f.text(
+        0.5,
+        0.075,
+        "Confidentiel — diffusion restreinte   ·   Éléments fournis à titre d'aide à la décision.",
+        ha="center",
+        fontsize=8.5,
+        color=MUTED,
+        style="italic",
+    )
     return _png(f)
 
 
@@ -692,6 +1182,7 @@ def _format_period(p):
     """Formule la période le plus précisément possible sur la page de garde :
     année -> plage de dates, trimestre/semestre -> libellé + plage, sinon tel quel."""
     import re
+
     p = (p or "").strip()
     if not p or p.lower() in ("toutes périodes", "toutes periodes", "campagne en cours"):
         return "Campagne en cours"
@@ -703,8 +1194,12 @@ def _format_period(p):
     if m:
         q, y = int(m.group(1)), m.group(2)
         lib = {1: "1er", 2: "2e", 3: "3e", 4: "4e"}[q]
-        rng = {1: ("01/01", "31/03"), 2: ("01/04", "30/06"),
-               3: ("01/07", "30/09"), 4: ("01/10", "31/12")}[q]
+        rng = {
+            1: ("01/01", "31/03"),
+            2: ("01/04", "30/06"),
+            3: ("01/07", "30/09"),
+            4: ("01/10", "31/12"),
+        }[q]
         return f"{lib} trimestre {y}  ·  du {rng[0]}/{y} au {rng[1]}/{y}"
     m = re.search(r"S\s*([12])\D*(20\d{2})", p, re.I)
     if m:
@@ -718,8 +1213,10 @@ def _format_period(p):
 def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
     """Construit le rapport COMEX (PDF portrait) à partir des agrégats RH."""
     if not REPORT_SUPPORT:
-        raise HTTPException(status_code=500,
-                            detail="matplotlib/reportlab non installés. Exécutez: pip install -r requirements.txt")
+        raise HTTPException(
+            status_code=500,
+            detail="matplotlib/reportlab non installés. Exécutez: pip install -r requirements.txt",
+        )
     meta = meta or {}
     d = _derive(analytics)
     when = meta.get("generated_at") or datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -727,18 +1224,38 @@ def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
     scope = meta.get("scope") or "Groupe BMCI — toutes entités"
 
     ss = getSampleStyleSheet()
-    cap = ParagraphStyle("cap", parent=ss["Normal"], fontSize=8, leading=10,
-                         textColor=rl.HexColor(MUTED), alignment=1, spaceBefore=1, spaceAfter=6)
+    cap = ParagraphStyle(
+        "cap",
+        parent=ss["Normal"],
+        fontSize=8,
+        leading=10,
+        textColor=rl.HexColor(MUTED),
+        alignment=1,
+        spaceBefore=1,
+        spaceAfter=6,
+    )
     story = []
 
     if d["analyzed"] == 0:
-        story += [Spacer(1, 5 * cm),
-                  Paragraph("Rapport de pilotage des objectifs — Direction / COMEX",
-                            ParagraphStyle("t", parent=ss["Title"], fontSize=20,
-                                           textColor=rl.HexColor(GREEN_D), alignment=1)),
-                  Spacer(1, 1 * cm),
-                  Paragraph("Données insuffisantes : aucun objectif analysé sur le périmètre sélectionné. "
-                            "Importez et analysez des objectifs avant de générer ce rapport.", cap)]
+        story += [
+            Spacer(1, 5 * cm),
+            Paragraph(
+                "Rapport de pilotage des objectifs — Direction / COMEX",
+                ParagraphStyle(
+                    "t",
+                    parent=ss["Title"],
+                    fontSize=20,
+                    textColor=rl.HexColor(GREEN_D),
+                    alignment=1,
+                ),
+            ),
+            Spacer(1, 1 * cm),
+            Paragraph(
+                "Données insuffisantes : aucun objectif analysé sur le périmètre sélectionné. "
+                "Importez et analysez des objectifs avant de générer ce rapport.",
+                cap,
+            ),
+        ]
         return _assemble(story, when, period, scope)
 
     ent_axis = None
@@ -751,28 +1268,65 @@ def generate(analytics, objective_rows=None, meta=None) -> StreamingResponse:
     # Couverture
     story += [
         Spacer(1, 5.2 * cm),
-        Paragraph("Rapport de pilotage des objectifs",
-                  ParagraphStyle("t1", parent=ss["Title"], fontSize=25, textColor=rl.HexColor(GREEN_D), alignment=1, spaceAfter=6)),
-        Paragraph("Synthèse SMART &amp; alignement stratégique — Direction / COMEX",
-                  ParagraphStyle("t2", parent=ss["Normal"], fontSize=13, textColor=rl.HexColor(MUTED), alignment=1)),
+        Paragraph(
+            "Rapport de pilotage des objectifs",
+            ParagraphStyle(
+                "t1",
+                parent=ss["Title"],
+                fontSize=25,
+                textColor=rl.HexColor(GREEN_D),
+                alignment=1,
+                spaceAfter=6,
+            ),
+        ),
+        Paragraph(
+            "Synthèse SMART &amp; alignement stratégique — Direction / COMEX",
+            ParagraphStyle(
+                "t2", parent=ss["Normal"], fontSize=13, textColor=rl.HexColor(MUTED), alignment=1
+            ),
+        ),
         Spacer(1, 26),
-        Table([[Paragraph(f"<b>Période</b><br/>{period}", cap),
-                Paragraph(f"<b>Périmètre</b><br/>{scope}", cap),
-                Paragraph(f"<b>Édité le</b><br/>{when}", cap)]],
-              colWidths=[6.0 * cm] * 3, style=TableStyle([
-                  ("BOX", (0, 0), (-1, -1), 0.6, rl.HexColor("#dbe3ea")),
-                  ("INNERGRID", (0, 0), (-1, -1), 0.6, rl.HexColor("#dbe3ea")),
-                  ("TOPPADDING", (0, 0), (-1, -1), 9), ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
-                  ("ALIGN", (0, 0), (-1, -1), "CENTER")])),
+        Table(
+            [
+                [
+                    Paragraph(f"<b>Période</b><br/>{period}", cap),
+                    Paragraph(f"<b>Périmètre</b><br/>{scope}", cap),
+                    Paragraph(f"<b>Édité le</b><br/>{when}", cap),
+                ]
+            ],
+            colWidths=[6.0 * cm] * 3,
+            style=TableStyle(
+                [
+                    ("BOX", (0, 0), (-1, -1), 0.6, rl.HexColor("#dbe3ea")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.6, rl.HexColor("#dbe3ea")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 9),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ]
+            ),
+        ),
         Spacer(1, 60),
-        Paragraph("Confidentiel — diffusion restreinte",
-                  ParagraphStyle("cf", parent=ss["Normal"], fontSize=11, textColor=rl.HexColor(RED_BMCI), alignment=1)),
-        Paragraph("Document préparé par la RH. La Direction ne se connecte pas à l'application.", cap),
+        Paragraph(
+            "Confidentiel — diffusion restreinte",
+            ParagraphStyle(
+                "cf", parent=ss["Normal"], fontSize=11, textColor=rl.HexColor(RED_BMCI), alignment=1
+            ),
+        ),
+        Paragraph(
+            "Document préparé par la RH. La Direction ne se connecte pas à l'application.", cap
+        ),
         PageBreak(),
     ]
 
-    panels = [_p_synthese(d), _p_pilotage_a(d), _p_pilotage_b(d, ent_axis), _p_qualite(d),
-              _p_comparatifs(d), _p_attention(d), _p_constats(d)]
+    panels = [
+        _p_synthese(d),
+        _p_pilotage_a(d),
+        _p_pilotage_b(d, ent_axis),
+        _p_qualite(d),
+        _p_comparatifs(d),
+        _p_attention(d),
+        _p_constats(d),
+    ]
     # Marges réduites au minimum : la page sert le contenu, pas le blanc.
     L = 0.55 * cm
     img_w = A4[0] - 2 * L
@@ -800,7 +1354,9 @@ def _assemble(story, when, period, scope):
         else:
             canvas.setFillColor(rl.HexColor(GREEN_D))
             canvas.setFont("Helvetica-Bold", 8.5)
-            canvas.drawString(L, A4[1] - 0.85 * cm, "BMCI Smart Objectives — Rapport Direction / COMEX")
+            canvas.drawString(
+                L, A4[1] - 0.85 * cm, "BMCI Smart Objectives — Rapport Direction / COMEX"
+            )
             canvas.setFillColor(rl.HexColor(RED_BMCI))
             canvas.setFont("Helvetica", 8)
             canvas.drawRightString(A4[0] - L, A4[1] - 0.85 * cm, "Confidentiel")
@@ -810,13 +1366,22 @@ def _assemble(story, when, period, scope):
         canvas.drawRightString(A4[0] - L, 0.75 * cm, f"Page {doc.page}")
         canvas.restoreState()
 
-    doc = BaseDocTemplate(output, pagesize=A4, leftMargin=L, rightMargin=L,
-                          topMargin=1.05 * cm, bottomMargin=1.0 * cm,
-                          title="BMCI - Rapport Direction / COMEX")
+    doc = BaseDocTemplate(
+        output,
+        pagesize=A4,
+        leftMargin=L,
+        rightMargin=L,
+        topMargin=1.05 * cm,
+        bottomMargin=1.0 * cm,
+        title="BMCI - Rapport Direction / COMEX",
+    )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="f")
     doc.addPageTemplates([PageTemplate(id="p", frames=[frame], onPage=on_page)])
     doc.build(story)
     output.seek(0)
     filename = f"Rapport_COMEX_BMCI_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    return StreamingResponse(output, media_type="application/pdf",
-                             headers={"Content-Disposition": f"attachment; filename={filename}"})
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

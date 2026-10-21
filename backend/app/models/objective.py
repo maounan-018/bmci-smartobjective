@@ -12,10 +12,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Text, ForeignKey, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import ForeignKey, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Objective(Base):
@@ -30,9 +29,7 @@ class Objective(Base):
     context: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     status: Mapped[str | None] = mapped_column(String, server_default=text("'draft'"))
-    progress: Mapped[str | None] = mapped_column(
-        String, server_default=text("'not_started'")
-    )
+    progress: Mapped[str | None] = mapped_column(String, server_default=text("'not_started'"))
 
     # Analyses IA sérialisées en JSON (TEXT). Parsées par la couche service.
     smart_analysis: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -47,12 +44,8 @@ class Objective(Base):
     period: Mapped[str | None] = mapped_column(String, nullable=True)
     import_batch_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    created_at: Mapped[str | None] = mapped_column(
-        String, server_default=text("CURRENT_TIMESTAMP")
-    )
-    updated_at: Mapped[str | None] = mapped_column(
-        String, server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at: Mapped[str | None] = mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[str | None] = mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
 
     user: Mapped["User"] = relationship(back_populates="objectives")  # noqa: F821
 

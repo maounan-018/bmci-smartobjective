@@ -7,9 +7,8 @@ propres, et calcul du périmètre de données par rôle (COLLAB / MANAGER / HR).
 """
 
 import pytest
-from fastapi import HTTPException
-
 from app.services import permission_service as perm
+from fastapi import HTTPException
 
 
 def test_require_role_allows_and_denies():

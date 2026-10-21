@@ -10,11 +10,13 @@ EMPLACEMENT MVC
 """
 
 from typing import Optional
+
 from pydantic import BaseModel
 
 
 class UserPublic(BaseModel):
     """Représentation publique d'un utilisateur."""
+
     id: str
     email: str
     name: str
@@ -25,6 +27,7 @@ class UserPublic(BaseModel):
 
 class ManagerPublic(BaseModel):
     """Manager exposé à l'inscription (sans email, anti-énumération)."""
+
     id: str
     name: str
     team: Optional[str] = None

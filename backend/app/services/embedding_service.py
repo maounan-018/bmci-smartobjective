@@ -21,9 +21,8 @@ EMPLACEMENT MVC
 import logging
 
 import requests
-from fastapi import HTTPException
-
 from app.core.config import settings
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -55,14 +54,21 @@ def embed_text(text: str) -> list[float]:
         response.raise_for_status()
         vector = response.json().get("embedding")
     except requests.exceptions.ConnectionError:
-        raise HTTPException(status_code=503, detail="Ollama n'est pas démarré. Lancez 'ollama serve' puis réessayez.")
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama n'est pas démarré. Lancez 'ollama serve' puis réessayez.",
+        )
     except requests.exceptions.Timeout:
-        raise HTTPException(status_code=504, detail="Le modèle d'embedding met trop de temps à répondre.")
+        raise HTTPException(
+            status_code=504, detail="Le modèle d'embedding met trop de temps à répondre."
+        )
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Erreur d'embedding Ollama: %s", e)
-        raise HTTPException(status_code=500, detail="Erreur interne lors de la génération de l'embedding.")
+        raise HTTPException(
+            status_code=500, detail="Erreur interne lors de la génération de l'embedding."
+        )
 
     if not vector or not isinstance(vector, list):
         logger.error("Embedding vide ou invalide (modèle '%s').", settings.OLLAMA_EMBED_MODEL)
@@ -73,9 +79,13 @@ def embed_text(text: str) -> list[float]:
         # tôt et clairement plutôt que de corrompre la table vectorielle vec0.
         logger.error(
             "Dimension d'embedding inattendue: %d (attendu %d). Modèle '%s' ?",
-            len(vector), settings.RAG_EMBEDDING_DIM, settings.OLLAMA_EMBED_MODEL,
+            len(vector),
+            settings.RAG_EMBEDDING_DIM,
+            settings.OLLAMA_EMBED_MODEL,
         )
-        raise HTTPException(status_code=500, detail="Dimension d'embedding incohérente avec la configuration.")
+        raise HTTPException(
+            status_code=500, detail="Dimension d'embedding incohérente avec la configuration."
+        )
 
     return vector
 

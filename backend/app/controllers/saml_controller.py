@@ -27,18 +27,17 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import RedirectResponse, Response
-from pydantic import BaseModel
-
-from app.core.config import settings
+from app.auth.providers.saml_provider import SamlNotInstalled, SamlProvider, extract_profile
 from app.auth.saml_settings import build_saml_settings
-from app.auth.providers.saml_provider import SamlProvider, SamlNotInstalled, extract_profile
+from app.controllers.auth_controller import set_session_cookies
+from app.core.config import settings
 from app.database.session import db_session
 from app.repositories import sso_code_repository
 from app.services import auth_service
-from app.controllers.auth_controller import set_session_cookies
 from app.utils.helpers import request_meta
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import RedirectResponse, Response
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/auth/saml", tags=["SSO SAML"])
 

@@ -16,14 +16,14 @@ EMPLACEMENT MVC
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict
+from typing import Optional
 
 
 class IdentityProvider(ABC):
     """Contrat commun à tout fournisseur d'identité."""
 
     @abstractmethod
-    def authenticate(self, credentials: dict) -> Optional[Dict]:
+    def authenticate(self, credentials: dict) -> Optional[dict]:
         """
         Valide l'identité et retourne un profil normalisé, ou None.
         Profil attendu : {external_id, email, display_name, groups: [...]}.
@@ -31,7 +31,7 @@ class IdentityProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_user_groups(self, external_id: str) -> List[str]:
+    def get_user_groups(self, external_id: str) -> list[str]:
         """Retourne les groupes/rôles de l'utilisateur dans le système d'identité."""
         raise NotImplementedError
 
@@ -45,7 +45,7 @@ BANK_GROUP_TO_ROLE = {
 }
 
 
-def map_groups_to_role(groups: List[str]) -> str:
+def map_groups_to_role(groups: list[str]) -> str:
     """Convertit des groupes bancaires en rôle applicatif (priorité décroissante)."""
     priority = ["ADMIN", "HR", "MANAGER", "COLLAB"]
     assigned = [BANK_GROUP_TO_ROLE.get(g, g) for g in groups]
@@ -65,4 +65,5 @@ def get_identity_provider() -> IdentityProvider:
     (le provider importe ce module pour le contrat `IdentityProvider`).
     """
     from app.auth.providers.local_provider import LocalDatabaseProvider
+
     return LocalDatabaseProvider()

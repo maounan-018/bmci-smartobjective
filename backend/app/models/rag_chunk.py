@@ -16,10 +16,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Integer, Text, ForeignKey, Index
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class RagChunk(Base):
@@ -37,7 +36,9 @@ class RagChunk(Base):
     # Périmètre, dénormalisé depuis le document (filtrage rapide au retrieve).
     scope: Mapped[str] = mapped_column(String, nullable=False, default="GLOBAL")
 
-    document: Mapped["RagDocument"] = relationship(back_populates="chunks")
+    # Forward reference : RagDocument est resolu par la registry SQLAlchemy a runtime.
+    # ruff ne peut pas voir cette resolution dynamique, d'ou le noqa.
+    document: Mapped["RagDocument"] = relationship(back_populates="chunks")  # noqa: F821
 
     __table_args__ = (
         Index("ix_rag_chunks_document", "document_id"),

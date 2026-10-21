@@ -11,12 +11,12 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from typing import List, Optional, Sequence
-
-from sqlalchemy import select, update, delete, func, or_
-from sqlalchemy.orm import Session, selectinload
+from collections.abc import Sequence
+from typing import Optional
 
 from app.models.objective import Objective
+from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy.orm import Session, selectinload
 
 
 def get(db: Session, obj_id: str) -> Optional[Objective]:
@@ -30,7 +30,7 @@ def get_with_user(db: Session, obj_id: str) -> Optional[Objective]:
     return db.scalars(stmt).first()
 
 
-def list_by_user_ids(db: Session, user_ids: Sequence[str]) -> List[Objective]:
+def list_by_user_ids(db: Session, user_ids: Sequence[str]) -> list[Objective]:
     """Objectifs des utilisateurs donnés (utilisateur chargé), récents d'abord."""
     if not user_ids:
         return []
@@ -43,7 +43,7 @@ def list_by_user_ids(db: Session, user_ids: Sequence[str]) -> List[Objective]:
     return list(db.scalars(stmt).all())
 
 
-def list_team_active(db: Session, team_ids: Sequence[str]) -> List[Objective]:
+def list_team_active(db: Session, team_ids: Sequence[str]) -> list[Objective]:
     """
     Objectifs d'équipe pour la vue MANAGER : exclut les objectifs importés/analysés
     par le RH (data_scope='HR' ou import_batch_id LIKE 'obj-%').
@@ -91,6 +91,7 @@ def merge(db: Session, values: dict) -> Objective:
 
 # ---- Agrégations d'équipe -----------------------------------------------------
 
+
 def count_by_user_ids(db: Session, user_ids: Sequence[str]) -> int:
     """Nombre total d'objectifs pour un ensemble d'utilisateurs."""
     if not user_ids:
@@ -99,7 +100,7 @@ def count_by_user_ids(db: Session, user_ids: Sequence[str]) -> int:
     return int(db.scalar(stmt) or 0)
 
 
-def get_smart_analyses(db: Session, user_ids: Sequence[str]) -> List[str]:
+def get_smart_analyses(db: Session, user_ids: Sequence[str]) -> list[str]:
     """JSON bruts des analyses SMART non nulles pour un ensemble d'utilisateurs."""
     if not user_ids:
         return []
@@ -109,7 +110,7 @@ def get_smart_analyses(db: Session, user_ids: Sequence[str]) -> List[str]:
     return list(db.scalars(stmt).all())
 
 
-def get_alignment_analyses(db: Session, user_ids: Sequence[str]) -> List[str]:
+def get_alignment_analyses(db: Session, user_ids: Sequence[str]) -> list[str]:
     """JSON bruts des analyses d'alignement non nulles."""
     if not user_ids:
         return []
@@ -119,7 +120,7 @@ def get_alignment_analyses(db: Session, user_ids: Sequence[str]) -> List[str]:
     return list(db.scalars(stmt).all())
 
 
-def get_progress_counts(db: Session, user_ids: Sequence[str]) -> List[tuple]:
+def get_progress_counts(db: Session, user_ids: Sequence[str]) -> list[tuple]:
     """Répartition (progress, count) des objectifs d'un ensemble d'utilisateurs."""
     if not user_ids:
         return []
@@ -133,7 +134,8 @@ def get_progress_counts(db: Session, user_ids: Sequence[str]) -> List[tuple]:
 
 # ---- Sélection pour analyse en lot (RH) --------------------------------------
 
-def list_unanalyzed_hr(db: Session, limit: int = 100) -> List[Objective]:
+
+def list_unanalyzed_hr(db: Session, limit: int = 100) -> list[Objective]:
     """Objectifs RH non encore analysés (smart_analysis NULL), bornés."""
     stmt = (
         select(Objective)
@@ -146,7 +148,7 @@ def list_unanalyzed_hr(db: Session, limit: int = 100) -> List[Objective]:
     return list(db.scalars(stmt).all())
 
 
-def list_hr_by_ids(db: Session, obj_ids: Sequence[str]) -> List[Objective]:
+def list_hr_by_ids(db: Session, obj_ids: Sequence[str]) -> list[Objective]:
     """Objectifs RH ciblés par id (filtrés sur le périmètre HR)."""
     if not obj_ids:
         return []
@@ -157,7 +159,7 @@ def list_hr_by_ids(db: Session, obj_ids: Sequence[str]) -> List[Objective]:
     return list(db.scalars(stmt).all())
 
 
-def list_hr_all(db: Session, limit: int = 500) -> List[Objective]:
+def list_hr_all(db: Session, limit: int = 500) -> list[Objective]:
     """TOUS les objectifs RH (pour une ré-analyse forcée), bornés."""
     stmt = (
         select(Objective)

@@ -124,14 +124,15 @@ def _extract_pdf(content: bytes) -> str:
 # Moteur OCR chargé paresseusement puis réutilisé (le chargement des modèles
 # ONNX coûte ~1-2 s ; inutile de le refaire à chaque téléversement).
 _ocr_engine = None
-_OCR_DPI = 200          # compromis qualité/vitesse pour l'OCR des pages
-_OCR_MAX_PAGES = 50     # borne anti-emballement sur de très gros documents
+_OCR_DPI = 200  # compromis qualité/vitesse pour l'OCR des pages
+_OCR_MAX_PAGES = 50  # borne anti-emballement sur de très gros documents
 
 
 def _get_ocr_engine():
     global _ocr_engine
     if _ocr_engine is None:
         from rapidocr_onnxruntime import RapidOCR  # import tardif : lourd (onnx)
+
         _ocr_engine = RapidOCR()
     return _ocr_engine
 
@@ -151,8 +152,11 @@ def _ocr_pdf_pages(doc) -> str:
 
     n_pages = min(doc.page_count, _OCR_MAX_PAGES)
     if doc.page_count > _OCR_MAX_PAGES:
-        logger.warning("OCR limité aux %d premières pages (document de %d pages).",
-                       _OCR_MAX_PAGES, doc.page_count)
+        logger.warning(
+            "OCR limité aux %d premières pages (document de %d pages).",
+            _OCR_MAX_PAGES,
+            doc.page_count,
+        )
     parts = []
     for i in range(n_pages):
         try:
@@ -170,6 +174,7 @@ def _ocr_pdf_pages(doc) -> str:
 
 def _extract_docx(content: bytes) -> str:
     import docx
+
     document = docx.Document(io.BytesIO(content))
     parts = [p.text for p in document.paragraphs if p.text and p.text.strip()]
     # Tables Word : on aplatit chaque ligne (cellules séparées par « | »).
@@ -183,6 +188,7 @@ def _extract_docx(content: bytes) -> str:
 
 def _extract_xlsx(content: bytes) -> str:
     from openpyxl import load_workbook
+
     wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     parts = []
     for ws in wb.worksheets:

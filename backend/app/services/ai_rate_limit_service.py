@@ -17,11 +17,10 @@ EMPLACEMENT MVC
 
 from datetime import datetime, timedelta
 
-from fastapi import HTTPException
-
 from app.core.config import settings
 from app.database.session import db_session
 from app.repositories import ai_call_repository
+from fastapi import HTTPException
 
 
 def enforce(user_id: str) -> None:

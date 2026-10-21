@@ -20,8 +20,8 @@ EMPLACEMENT MVC
     Couche "core" : sécurité transverse, réutilisable par les services.
 """
 
-import hmac
 import hashlib
+import hmac
 import secrets
 
 from app.core.config import settings
@@ -30,9 +30,7 @@ from app.core.config import settings
 def hash_password(password: str) -> str:
     """Hache un mot de passe avec PBKDF2-HMAC-SHA256 + sel aléatoire."""
     salt = secrets.token_bytes(16)
-    dk = hashlib.pbkdf2_hmac(
-        "sha256", password.encode("utf-8"), salt, settings.PBKDF2_ITERATIONS
-    )
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, settings.PBKDF2_ITERATIONS)
     return f"pbkdf2_sha256${settings.PBKDF2_ITERATIONS}${salt.hex()}${dk.hex()}"
 
 
@@ -56,8 +54,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
         if algo != "pbkdf2_sha256":
             return False
         dk = hashlib.pbkdf2_hmac(
-            "sha256", password.encode("utf-8"),
-            bytes.fromhex(salt_hex), int(iterations)
+            "sha256", password.encode("utf-8"), bytes.fromhex(salt_hex), int(iterations)
         )
         return hmac.compare_digest(dk.hex(), hash_hex)
     except (ValueError, AttributeError):

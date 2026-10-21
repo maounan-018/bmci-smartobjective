@@ -16,20 +16,17 @@ EMPLACEMENT MVC
     Couche "services" : logique d'autorisation, séparée de l'authentification.
 """
 
-from typing import List
-
-from fastapi import HTTPException, status
-
 from app.database.session import db_session
 from app.repositories import user_repository
+from fastapi import HTTPException, status
 
 
-def require_role(current_user: dict, allowed_roles: List[str]) -> None:
+def require_role(current_user: dict, allowed_roles: list[str]) -> None:
     """Lève 403 si le rôle de l'utilisateur n'est pas autorisé."""
     if current_user.get("role") not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Accès refusé. Rôle requis : {', '.join(allowed_roles)}"
+            detail=f"Accès refusé. Rôle requis : {', '.join(allowed_roles)}",
         )
 
 
@@ -40,8 +37,7 @@ def require_admin(current_user: dict) -> None:
     """
     if current_user.get("role") not in ("HR", "ADMIN"):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès réservé aux administrateurs."
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux administrateurs."
         )
 
 
@@ -50,8 +46,7 @@ def require_super_admin(current_user: dict) -> None:
     La RH n'est PAS administrateur des comptes."""
     if current_user.get("role") != "ADMIN":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Accès réservé à l'administrateur."
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé à l'administrateur."
         )
 
 
@@ -62,18 +57,18 @@ def require_own_resource(current_user: dict, resource_user_id: str) -> None:
     if current_user.get("id") != resource_user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous ne pouvez accéder qu'à vos propres données."
+            detail="Vous ne pouvez accéder qu'à vos propres données.",
         )
 
 
 # ============= RBAC MÉTIER (périmètre de données par rôle) =============
 
+
 def check_collab_access(current_user: dict, target_user_id: str) -> None:
     """Un collaborateur ne peut accéder qu'à SES propres données."""
     if current_user["role"] == "COLLAB" and current_user["id"] != target_user_id:
         raise HTTPException(
-            status_code=403,
-            detail="Accès refusé. Vous ne pouvez voir que vos propres données."
+            status_code=403, detail="Accès refusé. Vous ne pouvez voir que vos propres données."
         )
 
 
@@ -85,11 +80,11 @@ def check_manager_access(current_user: dict, target_user_id: str) -> None:
             if manager_id != current_user["id"]:
                 raise HTTPException(
                     status_code=403,
-                    detail="Accès refusé. Ce collaborateur n'est pas dans votre équipe."
+                    detail="Accès refusé. Ce collaborateur n'est pas dans votre équipe.",
                 )
 
 
-def get_accessible_user_ids(current_user: dict) -> List[str]:
+def get_accessible_user_ids(current_user: dict) -> list[str]:
     """
     Retourne la liste des user_ids accessibles selon le rôle (RÈGLE STRICTE) :
       - COLLAB  : uniquement ses propres données
@@ -110,7 +105,7 @@ def get_accessible_user_ids(current_user: dict) -> List[str]:
     return []
 
 
-def get_manager_team_ids(manager_id: str) -> List[str]:
+def get_manager_team_ids(manager_id: str) -> list[str]:
     """Retourne uniquement les IDs des collaborateurs d'un manager donné."""
     with db_session() as db:
         return user_repository.get_team_ids(db, manager_id)

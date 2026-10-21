@@ -31,8 +31,9 @@ def test_health_is_public(client):
 def test_login_success(client, make_user):
     """Une connexion valide retourne un token et le profil utilisateur."""
     make_user(email="login@bmci.test", password="GoodPass1!", role="HR")
-    resp = client.post("/api/auth/login",
-                       json={"email": "login@bmci.test", "password": "GoodPass1!"})
+    resp = client.post(
+        "/api/auth/login", json={"email": "login@bmci.test", "password": "GoodPass1!"}
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["success"] is True
@@ -46,8 +47,7 @@ def test_login_success(client, make_user):
 def test_login_wrong_password(client, make_user):
     """Un mot de passe incorrect renvoie 401."""
     make_user(email="wrong@bmci.test", password="GoodPass1!")
-    resp = client.post("/api/auth/login",
-                       json={"email": "wrong@bmci.test", "password": "BadPass"})
+    resp = client.post("/api/auth/login", json={"email": "wrong@bmci.test", "password": "BadPass"})
     assert resp.status_code == 401
 
 
@@ -91,8 +91,7 @@ def test_login_rejects_invalid_email_format(client):
 
 def test_login_rejects_oversize_password(client):
     """Un mot de passe géant est rejeté (borne anti-DoS PBKDF2)."""
-    resp = client.post("/api/auth/login",
-                       json={"email": "user@bmci.ma", "password": "a" * 200})
+    resp = client.post("/api/auth/login", json={"email": "user@bmci.ma", "password": "a" * 200})
     assert resp.status_code == 422
 
 
@@ -100,8 +99,6 @@ def test_login_rate_limiting(client, make_user):
     """Après plusieurs échecs, le compte est temporairement bloqué (429)."""
     make_user(email="rl@bmci.test", password="GoodPass1!")
     for _ in range(5):
-        client.post("/api/auth/login",
-                    json={"email": "rl@bmci.test", "password": "WRONG"})
-    resp = client.post("/api/auth/login",
-                       json={"email": "rl@bmci.test", "password": "GoodPass1!"})
+        client.post("/api/auth/login", json={"email": "rl@bmci.test", "password": "WRONG"})
+    resp = client.post("/api/auth/login", json={"email": "rl@bmci.test", "password": "GoodPass1!"})
     assert resp.status_code == 429

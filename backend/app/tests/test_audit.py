@@ -7,15 +7,18 @@ sensibles, référence de session non réversible (jamais le token brut),
 et lecture paginée.
 """
 
-from app.services import audit_service as audit
 from app.models.audit_log import AuditEventType
+from app.services import audit_service as audit
 
 
 def test_log_event_and_fetch():
     """Un évènement journalisé doit être relu via fetch_logs."""
     audit.log_event(
-        AuditEventType.LOGIN_SUCCESS, "Connexion de Test",
-        user_id="u-1", username="user@bmci.test", role="COLLAB",
+        AuditEventType.LOGIN_SUCCESS,
+        "Connexion de Test",
+        user_id="u-1",
+        username="user@bmci.test",
+        role="COLLAB",
         event_status="SUCCESS",
     )
     logs = audit.fetch_logs(limit=10)

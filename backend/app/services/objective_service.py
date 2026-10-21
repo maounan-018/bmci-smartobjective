@@ -15,8 +15,7 @@ import io
 import json
 import logging
 import secrets
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 
 import openpyxl
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -24,11 +23,10 @@ from openpyxl.styles import Font, PatternFill
 
 logger = logging.getLogger(__name__)
 
-from fastapi import HTTPException
-
 from app.database.session import db_session
-from app.repositories import objective_repository, company_objective_repository
+from app.repositories import company_objective_repository, objective_repository
 from app.services import permission_service as perm
+from fastapi import HTTPException
 
 _EMPTY_DISTRIBUTION = {"not_started": 0, "in_progress": 0, "completed": 0, "on_hold": 0}
 
@@ -45,6 +43,7 @@ def _parse_analyses(obj: dict) -> dict:
 
 
 # ============= OBJECTIFS PERSONNELS =============
+
 
 def list_objectives(current_user: dict) -> dict:
     """Liste les objectifs accessibles selon le rôle."""
@@ -112,7 +111,9 @@ def update_objective(objective_id: str, request, current_user: dict) -> dict:
         if not o:
             raise HTTPException(status_code=404, detail="Objectif non trouvé.")
         if current_user["role"] != "HR" and o.user_id != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que vos propres objectifs.")
+            raise HTTPException(
+                status_code=403, detail="Vous ne pouvez modifier que vos propres objectifs."
+            )
 
         values: dict = {}
         if request.title is not None:
@@ -129,10 +130,12 @@ def update_objective(objective_id: str, request, current_user: dict) -> dict:
             values["alignment_analysis"] = json.dumps(request.alignment_analysis)
 
         if values:
-            values["updated_at"] = datetime.now(timezone.utc).isoformat()
+            values["updated_at"] = datetime.now(UTC).isoformat()
             objective_repository.update_fields(db, objective_id, values)
         else:
-            logger.debug("update_objective: aucun champ fourni pour %s, rien à faire.", objective_id)
+            logger.debug(
+                "update_objective: aucun champ fourni pour %s, rien à faire.", objective_id
+            )
 
     return {"success": True}
 
@@ -144,17 +147,22 @@ def delete_objective(objective_id: str, current_user: dict) -> dict:
         if not o:
             raise HTTPException(status_code=404, detail="Objectif non trouvé.")
         if current_user["role"] != "HR" and o.user_id != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Vous ne pouvez supprimer que vos propres objectifs.")
+            raise HTTPException(
+                status_code=403, detail="Vous ne pouvez supprimer que vos propres objectifs."
+            )
         objective_repository.delete_by_id(db, objective_id)
     return {"success": True}
 
 
 # ============= OBJECTIFS STRATÉGIQUES (CATALOGUE ENTREPRISE) =============
 
+
 def list_company_objectives() -> dict:
     """Liste le catalogue stratégique (lecture publique)."""
     with db_session() as db:
-        return {"company_objectives": [c.to_dict() for c in company_objective_repository.list_all(db)]}
+        return {
+            "company_objectives": [c.to_dict() for c in company_objective_repository.list_all(db)]
+        }
 
 
 def create_company_objective(request, current_user: dict) -> dict:
@@ -174,7 +182,7 @@ def create_company_objective(request, current_user: dict) -> dict:
     return {"success": True, "id": obj_id}
 
 
-def batch_create_company_objectives(objectives: List, current_user: dict) -> dict:
+def batch_create_company_objectives(objectives: list, current_user: dict) -> dict:
     """Import batch d'objectifs stratégiques (HR ou Manager seulement)."""
     _require_manager_or_hr(current_user)
 
@@ -184,13 +192,16 @@ def batch_create_company_objectives(objectives: List, current_user: dict) -> dic
         for obj in objectives:
             obj_id = obj.id or f"STRAT-{secrets.token_hex(4)}"
             try:
-                company_objective_repository.merge(db, {
-                    "id": obj_id,
-                    "title": obj.title,
-                    "description": obj.description,
-                    "department": obj.department,
-                    "created_by": current_user["id"],
-                })
+                company_objective_repository.merge(
+                    db,
+                    {
+                        "id": obj_id,
+                        "title": obj.title,
+                        "description": obj.description,
+                        "department": obj.department,
+                        "created_by": current_user["id"],
+                    },
+                )
                 created += 1
             except Exception as exc:
                 logger.warning("Objectif ignoré lors de l'import batch (id=%s) : %s", obj_id, exc)
@@ -200,8 +211,10 @@ def batch_create_company_objectives(objectives: List, current_user: dict) -> dic
 
 def _require_manager_or_hr(current_user: dict):
     if current_user["role"] not in ("MANAGER", "HR"):
-        raise HTTPException(status_code=403,
-                            detail="Seuls les managers et RH peuvent gérer les objectifs stratégiques.")
+        raise HTTPException(
+            status_code=403,
+            detail="Seuls les managers et RH peuvent gérer les objectifs stratégiques.",
+        )
 
 
 def update_company_objective(objective_id: str, request, current_user: dict) -> dict:
@@ -255,7 +268,7 @@ def export_company_objectives_excel(current_user: dict):
         # Modèle vide : deux lignes d'exemple pour guider la saisie.
         ws.append(["AXE-01", "Transformation digitale", "Description de l'axe...", "Direction", 1])
         ws.append(["", "Nouvel axe (ID laisse vide = genere automatiquement)", "", "", 1])
-    for col, width in zip("ABCDE", (12, 40, 55, 20, 10)):
+    for col, width in zip("ABCDE", (12, 40, 55, 20, 10), strict=False):
         ws.column_dimensions[col].width = width
 
     buf = io.BytesIO()
@@ -271,7 +284,8 @@ def export_company_objectives_excel(current_user: dict):
 
 # ============= STATISTIQUES D'ÉQUIPE (génériques) =============
 
-def compute_team_stats(team_ids: List[str]) -> dict:
+
+def compute_team_stats(team_ids: list[str]) -> dict:
     """
     Cœur de calcul des statistiques d'équipe (réutilisé par les domaines
     génériques et manager). Retourne total, taux SMART, alignement moyen et
@@ -315,7 +329,9 @@ def compute_team_stats(team_ids: List[str]) -> dict:
                 continue
             if "alignment_score" in analysis:
                 alignment_scores.append(analysis["alignment_score"])
-        avg_alignment = round(sum(alignment_scores) / len(alignment_scores)) if alignment_scores else None
+        avg_alignment = (
+            round(sum(alignment_scores) / len(alignment_scores)) if alignment_scores else None
+        )
 
         progress_dist = dict(_EMPTY_DISTRIBUTION)
         for progress, count in objective_repository.get_progress_counts(db, team_ids):

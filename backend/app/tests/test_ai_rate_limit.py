@@ -8,10 +8,9 @@ que l'endpoint IA renvoie 429 AVANT de solliciter Ollama quand le quota est plei
 """
 
 import pytest
-from fastapi import HTTPException
-
 from app.core.config import settings
 from app.services import ai_rate_limit_service
+from fastapi import HTTPException
 
 
 def test_ai_rate_limit_blocks_after_max():

@@ -22,12 +22,11 @@ ACTIVATION
     réel est configuré, ces routes n'existent pas (404).
 """
 
-from fastapi import APIRouter, Form, HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse
-
+from app.controllers.saml_controller import issue_sso_code
 from app.core.config import settings
 from app.services import auth_service
-from app.controllers.saml_controller import issue_sso_code
+from fastapi import APIRouter, Form, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 router = APIRouter(prefix="/api/auth/saml", tags=["SSO SAML (simulation)"])
 

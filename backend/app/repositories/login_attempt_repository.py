@@ -11,10 +11,9 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
+from app.models.login_attempt import LoginAttempt
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
-
-from app.models.login_attempt import LoginAttempt
 
 
 def count_since(db: Session, identifier: str, since_iso: str) -> int:

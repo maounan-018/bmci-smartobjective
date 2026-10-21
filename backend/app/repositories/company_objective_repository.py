@@ -11,26 +11,23 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from typing import List
-
+from app.models.company_objective import CompanyObjective
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.company_objective import CompanyObjective
 
-
-def list_all(db: Session) -> List[CompanyObjective]:
+def list_all(db: Session) -> list[CompanyObjective]:
     """Catalogue stratégique complet, récents d'abord."""
     stmt = select(CompanyObjective).order_by(CompanyObjective.created_at.desc())
     return list(db.scalars(stmt).all())
 
 
-def list_for_alignment(db: Session) -> List[dict]:
+def list_for_alignment(db: Session) -> list[dict]:
     """Projection {id, title, description} utilisée par l'analyse d'alignement IA."""
-    stmt = select(
-        CompanyObjective.id, CompanyObjective.title, CompanyObjective.description
-    )
-    return [{"id": r.id, "title": r.title, "description": r.description} for r in db.execute(stmt).all()]
+    stmt = select(CompanyObjective.id, CompanyObjective.title, CompanyObjective.description)
+    return [
+        {"id": r.id, "title": r.title, "description": r.description} for r in db.execute(stmt).all()
+    ]
 
 
 def create(db: Session, **fields) -> CompanyObjective:

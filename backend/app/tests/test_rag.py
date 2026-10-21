@@ -9,7 +9,6 @@ réelle de bge-m3 est validée séparément (hors suite automatisée).
 """
 
 import pytest
-
 from app.services import rag_service
 
 
@@ -46,8 +45,12 @@ def cleanup_docs():
 
 
 def test_retrieve_returns_closest_chunk(cleanup_docs):
-    a = rag_service.ingest_document("Sujet alpha : bancarisation des PME.", filename="a.txt", scope="GLOBAL")
-    b = rag_service.ingest_document("Sujet beta : conformite reglementaire.", filename="b.txt", scope="GLOBAL")
+    a = rag_service.ingest_document(
+        "Sujet alpha : bancarisation des PME.", filename="a.txt", scope="GLOBAL"
+    )
+    b = rag_service.ingest_document(
+        "Sujet beta : conformite reglementaire.", filename="b.txt", scope="GLOBAL"
+    )
     cleanup_docs += [a["id"], b["id"]]
 
     res = rag_service.retrieve("une question au sujet de alpha", scope="GLOBAL", top_k=1)
@@ -72,10 +75,12 @@ def test_scope_isolation(cleanup_docs):
 def test_retrieve_filters_by_uploaded_by(cleanup_docs):
     """Base privée : une recherche filtrée par `uploaded_by` ne renvoie que les
     documents de cet utilisateur."""
-    a = rag_service.ingest_document("alpha doc de alice", filename="a.txt",
-                                    scope="GLOBAL", uploaded_by="alice")
-    b = rag_service.ingest_document("alpha doc de bob", filename="b.txt",
-                                    scope="GLOBAL", uploaded_by="bob")
+    a = rag_service.ingest_document(
+        "alpha doc de alice", filename="a.txt", scope="GLOBAL", uploaded_by="alice"
+    )
+    b = rag_service.ingest_document(
+        "alpha doc de bob", filename="b.txt", scope="GLOBAL", uploaded_by="bob"
+    )
     cleanup_docs += [a["id"], b["id"]]
 
     res = rag_service.retrieve("alpha", scope="GLOBAL", top_k=10, uploaded_by="alice")
@@ -94,6 +99,7 @@ def test_delete_removes_document_and_vectors(cleanup_docs):
 
 
 # ============= API : base de connaissances (rag_controller) =============
+
 
 def test_upload_allowed_for_collab_and_hr(client, make_user, auth_token):
     """Base de connaissances partagée : COLLAB et HR peuvent désormais téléverser (200)."""
@@ -129,7 +135,8 @@ def test_documents_are_private_per_user(client, make_user, auth_token):
     resp = client.post(
         "/api/rag/documents",
         files={"file": ("prive.txt", b"alpha document prive du proprietaire", "text/plain")},
-        data={"scope": "GLOBAL"}, headers=owner,
+        data={"scope": "GLOBAL"},
+        headers=owner,
     )
     assert resp.status_code == 200, resp.text
     doc_id = resp.json()["id"]
@@ -163,7 +170,9 @@ def test_upload_list_delete_cycle(client, make_user, auth_token):
 
     resp = client.post(
         "/api/rag/documents",
-        files={"file": ("strategie.txt", b"alpha : axe strategique de test pour le rag", "text/plain")},
+        files={
+            "file": ("strategie.txt", b"alpha : axe strategique de test pour le rag", "text/plain")
+        },
         data={"scope": "GLOBAL", "title": "Strategie test"},
         headers=headers,
     )

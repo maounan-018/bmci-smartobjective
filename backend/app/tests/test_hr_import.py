@@ -75,8 +75,12 @@ def test_import_existing_user_not_recreated(client, make_user, auth_token):
 
     # Collab existant : son email est celui DÉRIVÉ DE SON NOM (l'import reconnaît
     # un compte par l'email dérivé du nom, pas par l'email du fichier).
-    make_user(user_id="u-existing", email="existing.user@bmci.local",
-              name="Existing User", role="COLLAB")
+    make_user(
+        user_id="u-existing",
+        email="existing.user@bmci.local",
+        name="Existing User",
+        role="COLLAB",
+    )
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -89,8 +93,13 @@ def test_import_existing_user_not_recreated(client, make_user, auth_token):
 
     resp = client.post(
         "/api/hr/import-objectives",
-        files={"file": ("test.xlsx", buf,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={
+            "file": (
+                "test.xlsx",
+                buf,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
         headers={"Authorization": f"Bearer {token}"},
     )
 

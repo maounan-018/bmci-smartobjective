@@ -11,10 +11,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, ForeignKey, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import ForeignKey, String, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Session(Base):
@@ -26,8 +25,6 @@ class Session(Base):
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     expires_at: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[str | None] = mapped_column(
-        String, server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at: Mapped[str | None] = mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
 
     user: Mapped["User"] = relationship(back_populates="sessions")  # noqa: F821

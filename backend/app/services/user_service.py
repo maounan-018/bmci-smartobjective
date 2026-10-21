@@ -13,13 +13,12 @@ EMPLACEMENT MVC
 
 import secrets
 
-from fastapi import HTTPException
-
 from app.core import security
 from app.core.emails import is_valid_bnp_email
 from app.database.session import db_session
-from app.repositories import user_repository, session_repository
+from app.repositories import session_repository, user_repository
 from app.services.permission_service import require_super_admin
+from fastapi import HTTPException
 
 
 def get_team_members(current_user: dict) -> dict:
@@ -46,8 +45,12 @@ def get_team_members(current_user: dict) -> dict:
         return {
             "members": [
                 {
-                    "id": m.id, "name": m.name, "email": m.email,
-                    "role": m.role, "manager_id": m.manager_id, "created_at": m.created_at,
+                    "id": m.id,
+                    "name": m.name,
+                    "email": m.email,
+                    "role": m.role,
+                    "manager_id": m.manager_id,
+                    "created_at": m.created_at,
                 }
                 for m in members
             ],
@@ -60,9 +63,14 @@ def get_team_members(current_user: dict) -> dict:
 # ============================================================================
 def _user_admin_dict(u) -> dict:
     return {
-        "id": u.id, "email": u.email, "name": u.name, "role": u.role,
-        "manager_id": u.manager_id, "entity": u.entity,
-        "active": bool(getattr(u, "active", 1)), "created_at": u.created_at,
+        "id": u.id,
+        "email": u.email,
+        "name": u.name,
+        "role": u.role,
+        "manager_id": u.manager_id,
+        "entity": u.entity,
+        "active": bool(getattr(u, "active", 1)),
+        "created_at": u.created_at,
     }
 
 
@@ -79,16 +87,20 @@ def admin_create_user(current_user: dict, request) -> dict:
     require_super_admin(current_user)
     email = (request.email or "").strip().lower()
     if not is_valid_bnp_email(email):
-        raise HTTPException(status_code=400,
-                            detail="L'email doit être au format prenom.nom@bmci.local.")
+        raise HTTPException(
+            status_code=400, detail="L'email doit être au format prenom.nom@bmci.local."
+        )
     with db_session() as db:
         if user_repository.get_by_email(db, email):
             raise HTTPException(status_code=409, detail="Un compte existe déjà avec cet email.")
         user_id = f"user-{secrets.token_hex(4)}"
         user_repository.create(
-            db, user_id=user_id, email=email,
+            db,
+            user_id=user_id,
+            email=email,
             password_hash=security.hash_password(request.password),
-            name=request.name.strip(), role=request.role,
+            name=request.name.strip(),
+            role=request.role,
             manager_id=(request.manager_id or None),
             entity=(request.entity or None),
         )
@@ -110,8 +122,14 @@ def admin_update_user(current_user: dict, user_id: str, request) -> dict:
         if request.entity is not None:
             values["entity"] = request.entity or None
         if request.role is not None and request.role != target.role:
-            if target.role == "HR" and target.active == 1 and user_repository.count_active_by_role(db, "HR") <= 1:
-                raise HTTPException(status_code=400, detail="Impossible : c'est le dernier compte RH actif.")
+            if (
+                target.role == "HR"
+                and target.active == 1
+                and user_repository.count_active_by_role(db, "HR") <= 1
+            ):
+                raise HTTPException(
+                    status_code=400, detail="Impossible : c'est le dernier compte RH actif."
+                )
             values["role"] = request.role
         user_repository.update_fields(db, user_id, values)
     return {"success": True, "id": user_id}
@@ -121,13 +139,21 @@ def admin_set_user_active(current_user: dict, user_id: str, active: bool) -> dic
     """Active ou désactive un compte (données conservées ; sessions purgées si désactivé)."""
     require_super_admin(current_user)
     if not active and user_id == current_user["id"]:
-        raise HTTPException(status_code=400, detail="Vous ne pouvez pas désactiver votre propre compte.")
+        raise HTTPException(
+            status_code=400, detail="Vous ne pouvez pas désactiver votre propre compte."
+        )
     with db_session() as db:
         target = user_repository.get_by_id(db, user_id)
         if target is None:
             raise HTTPException(status_code=404, detail="Compte introuvable.")
-        if not active and target.role == "HR" and user_repository.count_active_by_role(db, "HR") <= 1:
-            raise HTTPException(status_code=400, detail="Impossible : c'est le dernier compte RH actif.")
+        if (
+            not active
+            and target.role == "HR"
+            and user_repository.count_active_by_role(db, "HR") <= 1
+        ):
+            raise HTTPException(
+                status_code=400, detail="Impossible : c'est le dernier compte RH actif."
+            )
         user_repository.set_active(db, user_id, active)
         if not active:
             session_repository.delete_by_user(db, user_id)
@@ -149,12 +175,20 @@ def admin_delete_user(current_user: dict, user_id: str) -> dict:
     """Supprime définitivement un compte (cascade objectifs/sessions)."""
     require_super_admin(current_user)
     if user_id == current_user["id"]:
-        raise HTTPException(status_code=400, detail="Vous ne pouvez pas supprimer votre propre compte.")
+        raise HTTPException(
+            status_code=400, detail="Vous ne pouvez pas supprimer votre propre compte."
+        )
     with db_session() as db:
         target = user_repository.get_by_id(db, user_id)
         if target is None:
             raise HTTPException(status_code=404, detail="Compte introuvable.")
-        if target.role == "HR" and target.active == 1 and user_repository.count_active_by_role(db, "HR") <= 1:
-            raise HTTPException(status_code=400, detail="Impossible : c'est le dernier compte RH actif.")
+        if (
+            target.role == "HR"
+            and target.active == 1
+            and user_repository.count_active_by_role(db, "HR") <= 1
+        ):
+            raise HTTPException(
+                status_code=400, detail="Impossible : c'est le dernier compte RH actif."
+            )
         user_repository.delete_by_id(db, user_id)
     return {"success": True}

@@ -13,10 +13,9 @@ EMPLACEMENT MVC
     (déléguée à services/ai_rate_limit_service).
 """
 
-from fastapi import Depends
-
 from app.controllers.auth_controller import get_current_user
 from app.services import ai_rate_limit_service
+from fastapi import Depends
 
 
 def ai_rate_limited_user(current_user: dict = Depends(get_current_user)) -> dict:

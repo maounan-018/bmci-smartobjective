@@ -10,10 +10,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Text, Integer, Float, ForeignKey, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class CompanyObjective(Base):
@@ -25,13 +24,9 @@ class CompanyObjective(Base):
     department: Mapped[str | None] = mapped_column(String, nullable=True)
     priority: Mapped[int | None] = mapped_column(Integer, server_default=text("1"))
     weight: Mapped[float | None] = mapped_column(Float, server_default=text("1.0"))
-    created_by: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
-    )
+    created_by: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
     import_batch_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[str | None] = mapped_column(
-        String, server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at: Mapped[str | None] = mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
 
     creator: Mapped["User | None"] = relationship()  # noqa: F821
 

@@ -16,10 +16,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Integer, Index
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.database.base import Base
+from sqlalchemy import Index, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class LoginAttempt(Base):
@@ -32,6 +31,4 @@ class LoginAttempt(Base):
     attempted_at: Mapped[str] = mapped_column(String, nullable=False)
 
     # Index composite : le comptage filtre sur (identifier, attempted_at > fenêtre).
-    __table_args__ = (
-        Index("ix_login_attempts_identifier_time", "identifier", "attempted_at"),
-    )
+    __table_args__ = (Index("ix_login_attempts_identifier_time", "identifier", "attempted_at"),)

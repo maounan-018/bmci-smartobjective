@@ -19,21 +19,21 @@ EMPLACEMENT MVC
     Couche "services" : logique métier RAG, sans route HTTP.
 """
 
-import re
 import json
 import logging
+import re
 from datetime import datetime
 
-from sqlalchemy import text
-
 from app.database.session import db_session
-from app.models import RagDocument, RagChunk
-from app.services.embedding_service import embed_text, embed_batch
+from app.models import RagChunk, RagDocument
+from app.services.embedding_service import embed_batch, embed_text
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
 
 # ============= DÉCOUPAGE =============
+
 
 def _chunk_text(content: str, max_chars: int = 1000, overlap: int = 150) -> list[str]:
     """Découpe un texte en passages d'environ `max_chars` caractères.
@@ -62,7 +62,7 @@ def _chunk_text(content: str, max_chars: int = 1000, overlap: int = 150) -> list
             start = 0
             step = max(1, max_chars - overlap)
             while start < len(para):
-                piece = para[start:start + max_chars].strip()
+                piece = para[start : start + max_chars].strip()
                 if piece:
                     chunks.append(piece)
                 start += step
@@ -76,9 +76,16 @@ def _chunk_text(content: str, max_chars: int = 1000, overlap: int = 150) -> list
 
 # ============= INGESTION =============
 
-def ingest_document(content: str, *, filename: str, title: str = None,
-                    scope: str = "GLOBAL", source_type: str = "manual",
-                    uploaded_by: str = None) -> dict:
+
+def ingest_document(
+    content: str,
+    *,
+    filename: str,
+    title: str | None = None,
+    scope: str = "GLOBAL",
+    source_type: str = "manual",
+    uploaded_by: str | None = None,
+) -> dict:
     """Indexe un document : découpe, embeddings, stockage (chunks + vecteurs).
 
     Renvoie la fiche du document créé. Lève ValueError si le contenu est vide.
@@ -93,16 +100,24 @@ def ingest_document(content: str, *, filename: str, title: str = None,
     now = datetime.now().isoformat()
     with db_session() as db:
         doc = RagDocument(
-            filename=filename, title=(title or filename), source_type=source_type,
-            scope=scope, status="ready", chunk_count=len(chunks),
-            uploaded_by=uploaded_by, created_at=now,
+            filename=filename,
+            title=(title or filename),
+            source_type=source_type,
+            scope=scope,
+            status="ready",
+            chunk_count=len(chunks),
+            uploaded_by=uploaded_by,
+            created_at=now,
         )
         db.add(doc)
         db.flush()  # assigne doc.id
 
-        for index, (chunk_text, vector) in enumerate(zip(chunks, vectors)):
+        for index, (chunk_text, vector) in enumerate(zip(chunks, vectors, strict=False)):
             chunk = RagChunk(
-                document_id=doc.id, chunk_index=index, text=chunk_text, scope=scope,
+                document_id=doc.id,
+                chunk_index=index,
+                text=chunk_text,
+                scope=scope,
             )
             db.add(chunk)
             db.flush()  # assigne chunk.id (== rowid de la table vectorielle)
@@ -114,20 +129,35 @@ def ingest_document(content: str, *, filename: str, title: str = None,
             )
 
         info = {
-            "id": doc.id, "title": doc.title, "filename": doc.filename,
-            "scope": doc.scope, "source_type": doc.source_type,
-            "status": doc.status, "chunk_count": doc.chunk_count,
+            "id": doc.id,
+            "title": doc.title,
+            "filename": doc.filename,
+            "scope": doc.scope,
+            "source_type": doc.source_type,
+            "status": doc.status,
+            "chunk_count": doc.chunk_count,
             "created_at": doc.created_at,
         }
-        logger.info("RAG: document '%s' indexé (%d chunks, scope=%s).",
-                    doc.title, doc.chunk_count, doc.scope)
+        logger.info(
+            "RAG: document '%s' indexé (%d chunks, scope=%s).",
+            doc.title,
+            doc.chunk_count,
+            doc.scope,
+        )
         return info
 
 
 # ============= RECHERCHE =============
 
-def retrieve(query: str, *, scope: str = "GLOBAL", top_k: int = 4,
-             max_distance: float = None, uploaded_by: str = None) -> list[dict]:
+
+def retrieve(
+    query: str,
+    *,
+    scope: str = "GLOBAL",
+    top_k: int = 4,
+    max_distance: float | None = None,
+    uploaded_by: str | None = None,
+) -> list[dict]:
     """Retourne les passages les plus proches sémantiquement de `query`.
 
     - Filtre de périmètre : seuls les chunks de `scope` ou de scope GLOBAL.
@@ -168,23 +198,31 @@ def retrieve(query: str, *, scope: str = "GLOBAL", top_k: int = 4,
     """)
 
     with db_session() as db:
-        rows = db.execute(sql, {"qvec": qjson, "scope": scope, "uploaded_by": uploaded_by}).fetchall()
+        rows = db.execute(
+            sql, {"qvec": qjson, "scope": scope, "uploaded_by": uploaded_by}
+        ).fetchall()
 
     results: list[dict] = []
     for r in rows:
         if max_distance is not None and r.distance > max_distance:
             continue
-        results.append({
-            "chunk_id": r.id, "document_id": r.document_id,
-            "chunk_index": r.chunk_index, "text": r.text,
-            "scope": r.scope, "distance": r.distance,
-        })
+        results.append(
+            {
+                "chunk_id": r.id,
+                "document_id": r.document_id,
+                "chunk_index": r.chunk_index,
+                "text": r.text,
+                "scope": r.scope,
+                "distance": r.distance,
+            }
+        )
     return results
 
 
 # ============= GESTION DES DOCUMENTS =============
 
-def list_documents(uploaded_by: str = None) -> list[dict]:
+
+def list_documents(uploaded_by: str | None = None) -> list[dict]:
     """Liste les fiches documents (pour l'UI base de connaissances).
 
     `uploaded_by` (optionnel) : ne renvoie que les documents de cet utilisateur
@@ -195,14 +233,22 @@ def list_documents(uploaded_by: str = None) -> list[dict]:
         if uploaded_by is not None:
             q = q.filter(RagDocument.uploaded_by == uploaded_by)
         docs = q.order_by(RagDocument.created_at.desc()).all()
-        return [{
-            "id": d.id, "title": d.title, "filename": d.filename, "scope": d.scope,
-            "source_type": d.source_type, "status": d.status,
-            "chunk_count": d.chunk_count, "created_at": d.created_at,
-        } for d in docs]
+        return [
+            {
+                "id": d.id,
+                "title": d.title,
+                "filename": d.filename,
+                "scope": d.scope,
+                "source_type": d.source_type,
+                "status": d.status,
+                "chunk_count": d.chunk_count,
+                "created_at": d.created_at,
+            }
+            for d in docs
+        ]
 
 
-def delete_document(doc_id: int, uploaded_by: str = None) -> int:
+def delete_document(doc_id: int, uploaded_by: str | None = None) -> int:
     """Supprime un document, ses chunks (cascade ORM) ET ses vecteurs vec0.
 
     `uploaded_by` (optionnel) : si fourni, la suppression n'a lieu QUE si le

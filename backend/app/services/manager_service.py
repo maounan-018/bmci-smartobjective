@@ -15,19 +15,18 @@ import json
 import secrets
 from datetime import datetime
 
-from fastapi import HTTPException
-
 from app.database.session import db_session
 from app.repositories import (
-    user_repository,
-    objective_repository,
-    company_objective_repository,
     analysis_repository,
+    company_objective_repository,
+    objective_repository,
+    user_repository,
 )
 from app.services import objective_service
-from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
+from app.services.ai_service import analyze_alignment_internal, analyze_smart_internal
 from app.services.export_service import generate_manager_excel, generate_manager_pdf
 from app.utils.helpers import safe_int, smart_flags_score, smart_values
+from fastapi import HTTPException
 
 
 def _require_manager(current_user: dict) -> None:
@@ -56,6 +55,7 @@ def _finalize_result(result: dict) -> dict:
 
 
 # ============= OBJECTIFS / ÉQUIPE =============
+
 
 def get_objectives(current_user: dict) -> dict:
     """Objectifs de l'équipe (hors objectifs importés/analysés par le RH)."""
@@ -102,11 +102,15 @@ def get_team(current_user: dict) -> dict:
 
 # ============= RÉSULTATS D'ANALYSE PRIVÉS =============
 
+
 def get_analysis_results(current_user: dict) -> dict:
     """Résultats d'analyse Manager (table privée, invisible pour le RH)."""
     _require_manager(current_user)
     with db_session() as db:
-        results = [_finalize_result(r) for r in analysis_repository.list_manager_results(db, current_user["id"])]
+        results = [
+            _finalize_result(r)
+            for r in analysis_repository.list_manager_results(db, current_user["id"])
+        ]
         stats = analysis_repository.manager_stats(db, current_user["id"])
     return {
         "results": results,
@@ -133,7 +137,10 @@ def get_collab_analysis_results(current_user: dict) -> dict:
     if current_user["role"] != "COLLAB":
         raise HTTPException(status_code=403, detail="Accès réservé aux collaborateurs.")
     with db_session() as db:
-        results = [_finalize_result(r) for r in analysis_repository.list_collab_results(db, current_user["id"])]
+        results = [
+            _finalize_result(r)
+            for r in analysis_repository.list_collab_results(db, current_user["id"])
+        ]
         stats = analysis_repository.collab_stats(db, current_user["id"])
     return {
         "results": results,
@@ -157,6 +164,7 @@ def get_collab_analysis_results(current_user: dict) -> dict:
 
 # ============= ANALYSES IA =============
 
+
 def analyze_personal(request, current_user: dict) -> dict:
     """Analyse SMART de l'objectif PERSONNEL du Manager (table privée)."""
     _require_manager(current_user)
@@ -168,25 +176,32 @@ def analyze_personal(request, current_user: dict) -> dict:
     if company_objectives:
         alignment_result = analyze_alignment_internal(request.title, company_objectives)
     else:
-        alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
+        alignment_result = {
+            "alignment_score": 0,
+            "top_matches": [],
+            "gaps": ["Aucun objectif stratégique défini"],
+        }
 
     smart_score = smart_flags_score(smart_result)
     sv = smart_values(smart_result)
     result_id = f"mgr-personal-{secrets.token_hex(6)}"
 
     with db_session() as db:
-        analysis_repository.insert_manager(db, {
-            "id": result_id,
-            "objective_id": f"personal-{result_id}",
-            "manager_id": current_user["id"],
-            "objective_title": request.title,
-            "smart_analysis": json.dumps(smart_result),
-            "alignment_analysis": json.dumps(alignment_result),
-            "smart_score": smart_score,
-            "alignment_score": alignment_result.get("alignment_score", 0),
-            "analyzed_at": datetime.now().isoformat(),
-            **sv,
-        })
+        analysis_repository.insert_manager(
+            db,
+            {
+                "id": result_id,
+                "objective_id": f"personal-{result_id}",
+                "manager_id": current_user["id"],
+                "objective_title": request.title,
+                "smart_analysis": json.dumps(smart_result),
+                "alignment_analysis": json.dumps(alignment_result),
+                "smart_score": smart_score,
+                "alignment_score": alignment_result.get("alignment_score", 0),
+                "analyzed_at": datetime.now().isoformat(),
+                **sv,
+            },
+        )
 
     return {
         "success": True,
@@ -209,7 +224,9 @@ def analyze_objective(objective_id: str, current_user: dict) -> dict:
         if not o:
             raise HTTPException(status_code=404, detail="Objectif non trouvé.")
         if not o.user or o.user.manager_id != current_user["id"]:
-            raise HTTPException(status_code=403, detail="Cet objectif n'appartient pas à votre équipe.")
+            raise HTTPException(
+                status_code=403, detail="Cet objectif n'appartient pas à votre équipe."
+            )
         title = o.title
         description = o.description or ""
         company_objectives = company_objective_repository.list_for_alignment(db)
@@ -218,33 +235,44 @@ def analyze_objective(objective_id: str, current_user: dict) -> dict:
     if company_objectives:
         alignment_result = analyze_alignment_internal(title, company_objectives)
     else:
-        alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
+        alignment_result = {
+            "alignment_score": 0,
+            "top_matches": [],
+            "gaps": ["Aucun objectif stratégique défini"],
+        }
 
     smart_score = smart_flags_score(smart_result)
     sv = smart_values(smart_result)
 
     with db_session() as db:
-        objective_repository.update_fields(db, objective_id, {
-            "smart_analysis": json.dumps(smart_result),
-            "alignment_analysis": json.dumps(alignment_result),
-            "analyzed_by_role": "MANAGER",
-            "analyzed_by_user_id": current_user["id"],
-            "data_scope": "MANAGER",
-            "status": "analyzed",
-            "updated_at": datetime.now().isoformat(),
-        })
-        analysis_repository.upsert_manager(db, {
-            "id": f"mgr-res-{objective_id}",
-            "objective_id": objective_id,
-            "manager_id": current_user["id"],
-            "objective_title": title,
-            "smart_analysis": json.dumps(smart_result),
-            "alignment_analysis": json.dumps(alignment_result),
-            "smart_score": smart_score,
-            "alignment_score": alignment_result.get("alignment_score", 0),
-            "analyzed_at": datetime.now().isoformat(),
-            **sv,
-        })
+        objective_repository.update_fields(
+            db,
+            objective_id,
+            {
+                "smart_analysis": json.dumps(smart_result),
+                "alignment_analysis": json.dumps(alignment_result),
+                "analyzed_by_role": "MANAGER",
+                "analyzed_by_user_id": current_user["id"],
+                "data_scope": "MANAGER",
+                "status": "analyzed",
+                "updated_at": datetime.now().isoformat(),
+            },
+        )
+        analysis_repository.upsert_manager(
+            db,
+            {
+                "id": f"mgr-res-{objective_id}",
+                "objective_id": objective_id,
+                "manager_id": current_user["id"],
+                "objective_title": title,
+                "smart_analysis": json.dumps(smart_result),
+                "alignment_analysis": json.dumps(alignment_result),
+                "smart_score": smart_score,
+                "alignment_score": alignment_result.get("alignment_score", 0),
+                "analyzed_at": datetime.now().isoformat(),
+                **sv,
+            },
+        )
 
     return {
         "success": True,
@@ -256,6 +284,7 @@ def analyze_objective(objective_id: str, current_user: dict) -> dict:
 
 
 # ============= EXPORT =============
+
 
 def export_data(export_format: str, current_user: dict):
     """Export Excel (défaut) ou PDF des données d'équipe du Manager."""

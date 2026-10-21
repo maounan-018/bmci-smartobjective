@@ -23,10 +23,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
+from app.database.base import Base
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.database.base import Base
 
 
 class SsoCode(Base):

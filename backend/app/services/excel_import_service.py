@@ -19,20 +19,19 @@ EMPLACEMENT MVC
     Couche "services" : logique d'import/analyse, sans route HTTP.
 """
 
-import re
 import io
 import json
 import logging
+import re
 import secrets
 from datetime import datetime
-from typing import Optional, List, Dict, Any
 from difflib import SequenceMatcher
+from typing import Any, Optional
 
-from fastapi import HTTPException
-
-from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
 from app.database.session import db_session
-from app.repositories import company_objective_repository, analysis_repository
+from app.repositories import analysis_repository, company_objective_repository
+from app.services.ai_service import analyze_alignment_internal, analyze_smart_internal
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,8 @@ logger = logging.getLogger(__name__)
 try:
     import openpyxl
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Alignment, Font, PatternFill
+
     EXCEL_SUPPORT = True
 except Exception as e:  # pragma: no cover
     EXCEL_SUPPORT = False
@@ -51,17 +51,52 @@ class ExcelColumnDetector:
     """Détecteur intelligent de colonnes pour fichiers Excel désordonnés."""
 
     OBJECTIVE_KEYWORDS = [
-        'objectif', 'objectifs', 'objective', 'objectives', 'goal', 'goals',
-        'strategic goal', 'objectif stratégique', 'objectifs stratégiques',
-        'titre', 'title', 'intitulé', 'libellé', 'nom', 'name',
-        'kpi', 'indicateur', 'target', 'cible', 'but', 'finalité'
+        "objectif",
+        "objectifs",
+        "objective",
+        "objectives",
+        "goal",
+        "goals",
+        "strategic goal",
+        "objectif stratégique",
+        "objectifs stratégiques",
+        "titre",
+        "title",
+        "intitulé",
+        "libellé",
+        "nom",
+        "name",
+        "kpi",
+        "indicateur",
+        "target",
+        "cible",
+        "but",
+        "finalité",
     ]
 
     DESCRIPTION_KEYWORDS = [
-        'description', 'desc', 'détail', 'détails', 'detail', 'details',
-        'commentaire', 'commentaires', 'comment', 'comments', 'note', 'notes',
-        'justification', 'explication', 'explanation', 'contexte', 'context',
-        'précision', 'information', 'info', 'remarque', 'observation'
+        "description",
+        "desc",
+        "détail",
+        "détails",
+        "detail",
+        "details",
+        "commentaire",
+        "commentaires",
+        "comment",
+        "comments",
+        "note",
+        "notes",
+        "justification",
+        "explication",
+        "explanation",
+        "contexte",
+        "context",
+        "précision",
+        "information",
+        "info",
+        "remarque",
+        "observation",
     ]
 
     @staticmethod
@@ -70,11 +105,25 @@ class ExcelColumnDetector:
         if not text:
             return ""
         text = str(text).lower().strip()
-        replacements = {'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-                        'à': 'a', 'â': 'a', 'ä': 'a',
-                        'ù': 'u', 'û': 'u', 'ü': 'u',
-                        'î': 'i', 'ï': 'i', 'ô': 'o', 'ö': 'o',
-                        'ç': 'c', '_': ' ', '-': ' '}
+        replacements = {
+            "é": "e",
+            "è": "e",
+            "ê": "e",
+            "ë": "e",
+            "à": "a",
+            "â": "a",
+            "ä": "a",
+            "ù": "u",
+            "û": "u",
+            "ü": "u",
+            "î": "i",
+            "ï": "i",
+            "ô": "o",
+            "ö": "o",
+            "ç": "c",
+            "_": " ",
+            "-": " ",
+        }
         for old, new in replacements.items():
             text = text.replace(old, new)
         return text
@@ -85,7 +134,7 @@ class ExcelColumnDetector:
         return SequenceMatcher(None, text1, text2).ratio()
 
     @classmethod
-    def score_column_as_objective(cls, col_name: str, sample_values: List[str]) -> float:
+    def score_column_as_objective(cls, col_name: str, sample_values: list[str]) -> float:
         """Score une colonne comme potentielle colonne d'objectifs (0-1)."""
         score = 0.0
         normalized_name = cls.normalize_text(col_name)
@@ -106,9 +155,24 @@ class ExcelColumnDetector:
             elif avg_length > 200:
                 score += 0.1
 
-            action_words = ['augmenter', 'réduire', 'améliorer', 'développer', 'atteindre',
-                            'optimiser', 'renforcer', 'mettre en place', 'déployer', 'implémenter',
-                            'increase', 'reduce', 'improve', 'develop', 'achieve', 'implement']
+            action_words = [
+                "augmenter",
+                "réduire",
+                "améliorer",
+                "développer",
+                "atteindre",
+                "optimiser",
+                "renforcer",
+                "mettre en place",
+                "déployer",
+                "implémenter",
+                "increase",
+                "reduce",
+                "improve",
+                "develop",
+                "achieve",
+                "implement",
+            ]
             for val in sample_values[:5]:
                 val_lower = cls.normalize_text(str(val))
                 if any(word in val_lower for word in action_words):
@@ -118,7 +182,7 @@ class ExcelColumnDetector:
         return min(score, 1.0)
 
     @classmethod
-    def score_column_as_description(cls, col_name: str, sample_values: List[str]) -> float:
+    def score_column_as_description(cls, col_name: str, sample_values: list[str]) -> float:
         """Score une colonne comme potentielle colonne de description (0-1)."""
         score = 0.0
         normalized_name = cls.normalize_text(col_name)
@@ -142,14 +206,14 @@ class ExcelColumnDetector:
         return min(score, 1.0)
 
 
-def scan_excel_file(wb) -> Dict[str, Any]:
+def scan_excel_file(wb) -> dict[str, Any]:
     """Scanne un classeur Excel et identifie la meilleure feuille/colonne d'objectifs."""
     scan_result = {
         "sheets": [],
         "total_sheets": len(wb.sheetnames),
         "best_sheet": None,
         "best_objective_column": None,
-        "best_description_column": None
+        "best_description_column": None,
     }
 
     best_obj_score = 0
@@ -163,7 +227,7 @@ def scan_excel_file(wb) -> Dict[str, Any]:
             "row_count": ws.max_row,
             "col_count": ws.max_column,
             "detected_objective_col": None,
-            "detected_description_col": None
+            "detected_description_col": None,
         }
 
         headers = []
@@ -186,7 +250,7 @@ def scan_excel_file(wb) -> Dict[str, Any]:
                 "name": header,
                 "sample_values": sample_values[:3],
                 "objective_score": round(obj_score, 2),
-                "description_score": round(desc_score, 2)
+                "description_score": round(desc_score, 2),
             }
             sheet_info["columns"].append(col_info)
 
@@ -194,16 +258,20 @@ def scan_excel_file(wb) -> Dict[str, Any]:
                 best_obj_score = obj_score
                 scan_result["best_sheet"] = sheet_name
                 scan_result["best_objective_column"] = {
-                    "sheet": sheet_name, "index": col_idx,
-                    "name": header, "score": round(obj_score, 2)
+                    "sheet": sheet_name,
+                    "index": col_idx,
+                    "name": header,
+                    "score": round(obj_score, 2),
                 }
                 sheet_info["detected_objective_col"] = col_idx
 
             if desc_score > best_desc_score:
                 best_desc_score = desc_score
                 scan_result["best_description_column"] = {
-                    "sheet": sheet_name, "index": col_idx,
-                    "name": header, "score": round(desc_score, 2)
+                    "sheet": sheet_name,
+                    "index": col_idx,
+                    "name": header,
+                    "score": round(desc_score, 2),
                 }
                 sheet_info["detected_description_col"] = col_idx
 
@@ -216,8 +284,8 @@ def extract_objectives_from_excel(
     wb,
     objective_col: Optional[int] = None,
     description_col: Optional[int] = None,
-    sheet_name: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    sheet_name: Optional[str] = None,
+) -> list[dict[str, Any]]:
     """Extrait, nettoie et déduplique les objectifs d'un classeur Excel."""
     if objective_col is None:
         scan = scan_excel_file(wb)
@@ -228,7 +296,9 @@ def extract_objectives_from_excel(
             description_col = scan["best_description_column"]["index"]
 
     if objective_col is None:
-        raise ValueError("Impossible de détecter la colonne des objectifs. Vérifiez la structure du fichier.")
+        raise ValueError(
+            "Impossible de détecter la colonne des objectifs. Vérifiez la structure du fichier."
+        )
 
     if sheet_name and sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
@@ -245,7 +315,7 @@ def extract_objectives_from_excel(
             continue
 
         title = str(title_cell).strip()
-        title = re.sub(r'\s+', ' ', title).strip()
+        title = re.sub(r"\s+", " ", title).strip()
 
         if not title or len(title) < 3:
             continue
@@ -259,36 +329,40 @@ def extract_objectives_from_excel(
         if description_col:
             desc_cell = ws.cell(row=row_idx, column=description_col).value
             if desc_cell:
-                description = re.sub(r'\s+', ' ', str(desc_cell).strip())
+                description = re.sub(r"\s+", " ", str(desc_cell).strip())
 
-        objectives.append({
-            "objective_id": len(objectives) + 1,
-            "title": title,
-            "description": description,
-            "origin": {
-                "sheet_name": ws.title,
-                "row_index": row_idx,
-                "objective_col": objective_col,
-                "description_col": description_col
+        objectives.append(
+            {
+                "objective_id": len(objectives) + 1,
+                "title": title,
+                "description": description,
+                "origin": {
+                    "sheet_name": ws.title,
+                    "row_index": row_idx,
+                    "objective_col": objective_col,
+                    "description_col": description_col,
+                },
             }
-        })
+        )
 
     return objectives
 
 
-def build_ai_payload(objectives: List[Dict[str, Any]]) -> str:
+def build_ai_payload(objectives: list[dict[str, Any]]) -> str:
     """Construit le payload JSON ordonné à envoyer au modèle IA."""
     payload = {
         "total_objectives": len(objectives),
         "objectives": [
             {"id": obj["objective_id"], "title": obj["title"], "description": obj["description"]}
             for obj in objectives
-        ]
+        ],
     }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
-def analyze_objectives_batch(objectives: List[Dict[str, Any]], company_objectives: List[Dict]) -> List[Dict[str, Any]]:
+def analyze_objectives_batch(
+    objectives: list[dict[str, Any]], company_objectives: list[dict]
+) -> list[dict[str, Any]]:
     """Analyse un lot d'objectifs (SMART + alignement), IDs et ordre préservés."""
     results = []
 
@@ -301,14 +375,18 @@ def analyze_objectives_batch(objectives: List[Dict[str, Any]], company_objective
                 alignment_result = analyze_alignment_internal(obj["title"], company_objectives)
 
             smart_score = (
-                (1 if smart_result.get('S') else 0) +
-                (1 if smart_result.get('M') else 0) +
-                (1 if smart_result.get('A') else 0) +
-                (1 if smart_result.get('R') else 0) +
-                (1 if smart_result.get('T') else 0)
-            ) / 5 * 100
+                (
+                    (1 if smart_result.get("S") else 0)
+                    + (1 if smart_result.get("M") else 0)
+                    + (1 if smart_result.get("A") else 0)
+                    + (1 if smart_result.get("R") else 0)
+                    + (1 if smart_result.get("T") else 0)
+                )
+                / 5
+                * 100
+            )
 
-            align_score = alignment_result.get('alignment_score', 0)
+            align_score = alignment_result.get("alignment_score", 0)
             if align_score >= 70:
                 alignment_text = "Fort"
             elif align_score >= 40:
@@ -316,55 +394,61 @@ def analyze_objectives_batch(objectives: List[Dict[str, Any]], company_objective
             else:
                 alignment_text = "Faible"
 
-            issues = smart_result.get('issues', [])
-            recommendations = [issue.get('fix', issue.get('suggestion', '')) for issue in issues[:3] if issue]
+            issues = smart_result.get("issues", [])
+            recommendations = [
+                issue.get("fix", issue.get("suggestion", "")) for issue in issues[:3] if issue
+            ]
 
-            results.append({
-                "objective_id": obj["objective_id"],
-                "title": obj["title"],
-                "description": obj["description"],
-                "origin": obj["origin"],
-                "analysis": {
-                    "smart_score": round(smart_score, 1),
-                    "alignment_score": align_score,
-                    "alignment_text": alignment_text,
-                    "s_score": 1 if smart_result.get('S') else 0,
-                    "m_score": 1 if smart_result.get('M') else 0,
-                    "a_score": 1 if smart_result.get('A') else 0,
-                    "r_score": 1 if smart_result.get('R') else 0,
-                    "t_score": 1 if smart_result.get('T') else 0,
-                    "issues_count": len(issues),
-                    "top_issue": issues[0].get('problem', '') if issues else '',
-                    "recommendations": recommendations,
-                    "risks_or_gaps": alignment_result.get('gaps', []),
-                    "rewrite_fr": smart_result.get('rewrite_fr', ''),
-                    "rewrite_en": smart_result.get('rewrite_en', ''),
-                    "full_smart_analysis": smart_result,
-                    "full_alignment_analysis": alignment_result
-                },
-                "success": True
-            })
+            results.append(
+                {
+                    "objective_id": obj["objective_id"],
+                    "title": obj["title"],
+                    "description": obj["description"],
+                    "origin": obj["origin"],
+                    "analysis": {
+                        "smart_score": round(smart_score, 1),
+                        "alignment_score": align_score,
+                        "alignment_text": alignment_text,
+                        "s_score": 1 if smart_result.get("S") else 0,
+                        "m_score": 1 if smart_result.get("M") else 0,
+                        "a_score": 1 if smart_result.get("A") else 0,
+                        "r_score": 1 if smart_result.get("R") else 0,
+                        "t_score": 1 if smart_result.get("T") else 0,
+                        "issues_count": len(issues),
+                        "top_issue": issues[0].get("problem", "") if issues else "",
+                        "recommendations": recommendations,
+                        "risks_or_gaps": alignment_result.get("gaps", []),
+                        "rewrite_fr": smart_result.get("rewrite_fr", ""),
+                        "rewrite_en": smart_result.get("rewrite_en", ""),
+                        "full_smart_analysis": smart_result,
+                        "full_alignment_analysis": alignment_result,
+                    },
+                    "success": True,
+                }
+            )
 
         except Exception as e:
-            results.append({
-                "objective_id": obj["objective_id"],
-                "title": obj["title"],
-                "description": obj["description"],
-                "origin": obj["origin"],
-                "analysis": None,
-                "error": str(e),
-                "success": False
-            })
+            results.append(
+                {
+                    "objective_id": obj["objective_id"],
+                    "title": obj["title"],
+                    "description": obj["description"],
+                    "origin": obj["origin"],
+                    "analysis": None,
+                    "error": str(e),
+                    "success": False,
+                }
+            )
 
     return results
 
 
 def create_result_excel(
     original_wb,
-    analysis_results: List[Dict[str, Any]],
+    analysis_results: list[dict[str, Any]],
     original_objective_col: int,
     original_description_col: Optional[int],
-    sheet_name: Optional[str] = None
+    sheet_name: Optional[str] = None,
 ) -> io.BytesIO:
     """Crée un Excel reprenant la structure d'origine + colonnes d'analyse."""
     result_wb = Workbook()
@@ -395,7 +479,7 @@ def create_result_excel(
         ("Recommandations", "recommendations"),
         ("Gaps_Risques", "risks_or_gaps"),
         ("Reformulation_FR", "rewrite_fr"),
-        ("Reformulation_EN", "rewrite_en")
+        ("Reformulation_EN", "rewrite_en"),
     ]
 
     start_col = source_ws.max_column + 1
@@ -469,9 +553,13 @@ _ALLOWED_IMPORT_ROLES = ("COLLAB", "MANAGER", "HR")
 def _load_workbook_or_400(content: bytes, filename: str):
     """Charge le classeur en validant le support et l'extension (sinon 4xx/5xx)."""
     if not EXCEL_SUPPORT:
-        raise HTTPException(status_code=500, detail="Support Excel non disponible. Installez openpyxl.")
+        raise HTTPException(
+            status_code=500, detail="Support Excel non disponible. Installez openpyxl."
+        )
     if not filename or not filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(status_code=400, detail="Format de fichier non supporté. Utilisez .xlsx ou .xls")
+        raise HTTPException(
+            status_code=400, detail="Format de fichier non supporté. Utilisez .xlsx ou .xls"
+        )
     return openpyxl.load_workbook(io.BytesIO(content), data_only=True)
 
 
@@ -483,33 +571,50 @@ def _store_result_by_role(db, role: str, user_id: str, result: dict) -> None:
     common = {
         "smart_score": analysis["smart_score"],
         "alignment_score": analysis["alignment_score"],
-        "s_score": analysis["s_score"], "m_score": analysis["m_score"],
-        "a_score": analysis["a_score"], "r_score": analysis["r_score"],
+        "s_score": analysis["s_score"],
+        "m_score": analysis["m_score"],
+        "a_score": analysis["a_score"],
+        "r_score": analysis["r_score"],
         "t_score": analysis["t_score"],
-        "issues_count": analysis["issues_count"], "top_issue": analysis["top_issue"],
+        "issues_count": analysis["issues_count"],
+        "top_issue": analysis["top_issue"],
         "objective_title": result["title"],
         "smart_analysis": json.dumps(analysis["full_smart_analysis"]),
         "alignment_analysis": json.dumps(analysis["full_alignment_analysis"]),
         "analyzed_at": now,
     }
     if role == "MANAGER":
-        analysis_repository.insert_manager(db, {
-            "id": result_id, "objective_id": f"imported-{result_id}",
-            "manager_id": user_id, **common,
-        })
+        analysis_repository.insert_manager(
+            db,
+            {
+                "id": result_id,
+                "objective_id": f"imported-{result_id}",
+                "manager_id": user_id,
+                **common,
+            },
+        )
     elif role == "HR":
-        analysis_repository.insert_hr(db, {
-            "id": result_id, "objective_id": f"hr-obj-{result_id}", **common,
-        })
+        analysis_repository.insert_hr(
+            db,
+            {
+                "id": result_id,
+                "objective_id": f"hr-obj-{result_id}",
+                **common,
+            },
+        )
     elif role == "COLLAB":
-        analysis_repository.insert_collab(db, {
-            "id": result_id, "objective_id": f"imported-{result_id}",
-            "user_id": user_id,
-            "objective_description": result.get("description", ""),
-            "rewrite_fr": analysis.get("rewrite_fr", ""),
-            "rewrite_en": analysis.get("rewrite_en", ""),
-            **common,
-        })
+        analysis_repository.insert_collab(
+            db,
+            {
+                "id": result_id,
+                "objective_id": f"imported-{result_id}",
+                "user_id": user_id,
+                "objective_description": result.get("description", ""),
+                "rewrite_fr": analysis.get("rewrite_fr", ""),
+                "rewrite_en": analysis.get("rewrite_en", ""),
+                **common,
+            },
+        )
 
 
 def run_scan(content: bytes, filename: str) -> dict:
@@ -539,12 +644,18 @@ def run_import_analyze(content: bytes, filename: str, current_user: dict) -> dic
             )
 
         objective_col = scan_result["best_objective_column"]["index"]
-        description_col = scan_result["best_description_column"]["index"] if scan_result["best_description_column"] else None
+        description_col = (
+            scan_result["best_description_column"]["index"]
+            if scan_result["best_description_column"]
+            else None
+        )
         sheet_name = scan_result["best_objective_column"]["sheet"]
 
         objectives = extract_objectives_from_excel(wb, objective_col, description_col, sheet_name)
         if not objectives:
-            raise HTTPException(status_code=400, detail="Aucun objectif valide trouvé dans le fichier.")
+            raise HTTPException(
+                status_code=400, detail="Aucun objectif valide trouvé dans le fichier."
+            )
 
         with db_session() as db:
             company_objectives = company_objective_repository.list_for_alignment(db)
@@ -575,18 +686,28 @@ def run_import_analyze(content: bytes, filename: str, current_user: dict) -> dic
                     "title": r["title"],
                     "description": r["description"],
                     "smart_score": r["analysis"]["smart_score"] if r.get("analysis") else None,
-                    "alignment_score": r["analysis"]["alignment_score"] if r.get("analysis") else None,
-                    "alignment_text": r["analysis"]["alignment_text"] if r.get("analysis") else None,
+                    "alignment_score": r["analysis"]["alignment_score"]
+                    if r.get("analysis")
+                    else None,
+                    "alignment_text": r["analysis"]["alignment_text"]
+                    if r.get("analysis")
+                    else None,
                     "s_score": r["analysis"]["s_score"] if r.get("analysis") else 0,
                     "m_score": r["analysis"]["m_score"] if r.get("analysis") else 0,
                     "a_score": r["analysis"]["a_score"] if r.get("analysis") else 0,
                     "r_score": r["analysis"]["r_score"] if r.get("analysis") else 0,
                     "t_score": r["analysis"]["t_score"] if r.get("analysis") else 0,
-                    "recommendations": r["analysis"]["recommendations"] if r.get("analysis") else [],
+                    "recommendations": r["analysis"]["recommendations"]
+                    if r.get("analysis")
+                    else [],
                     "rewrite_fr": r["analysis"]["rewrite_fr"] if r.get("analysis") else "",
                     "rewrite_en": r["analysis"]["rewrite_en"] if r.get("analysis") else "",
-                    "smart_analysis": r["analysis"]["full_smart_analysis"] if r.get("analysis") else None,
-                    "alignment_analysis": r["analysis"]["full_alignment_analysis"] if r.get("analysis") else None,
+                    "smart_analysis": r["analysis"]["full_smart_analysis"]
+                    if r.get("analysis")
+                    else None,
+                    "alignment_analysis": r["analysis"]["full_alignment_analysis"]
+                    if r.get("analysis")
+                    else None,
                     "success": r["success"],
                     "error": r.get("error"),
                 }
@@ -611,10 +732,16 @@ def run_import_export(content: bytes, filename: str, current_user: dict) -> io.B
     try:
         scan_result = scan_excel_file(wb)
         if not scan_result["best_objective_column"]:
-            raise HTTPException(status_code=400, detail="Impossible de détecter une colonne d'objectifs.")
+            raise HTTPException(
+                status_code=400, detail="Impossible de détecter une colonne d'objectifs."
+            )
 
         objective_col = scan_result["best_objective_column"]["index"]
-        description_col = scan_result["best_description_column"]["index"] if scan_result["best_description_column"] else None
+        description_col = (
+            scan_result["best_description_column"]["index"]
+            if scan_result["best_description_column"]
+            else None
+        )
         sheet_name = scan_result["best_objective_column"]["sheet"]
 
         objectives = extract_objectives_from_excel(wb, objective_col, description_col, sheet_name)
@@ -631,4 +758,6 @@ def run_import_export(content: bytes, filename: str, current_user: dict) -> io.B
         raise
     except Exception as e:
         logger.error("Erreur export Excel: %s", e)
-        raise HTTPException(status_code=500, detail="Erreur lors de la génération du fichier Excel.")
+        raise HTTPException(
+            status_code=500, detail="Erreur lors de la génération du fichier Excel."
+        )

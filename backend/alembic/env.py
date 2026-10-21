@@ -2,8 +2,6 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
 
 # Ajoute backend/ au sys.path pour que "from app..." fonctionne dans cet env.py
@@ -13,12 +11,13 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 # Charge le .env avant d'importer settings (ALLOWED_ORIGINS requis au boot).
-from app.core.config import load_dotenv, Settings  # noqa: E402
+from app.core.config import Settings, load_dotenv
+
 load_dotenv(os.path.join(_HERE, ".env"))
 _settings = Settings()
 
 # Importe TOUS les modèles pour que Base.metadata les connaisse.
-from app.models import Base  # noqa: E402, F401
+from app.models import Base
 
 config = context.config
 

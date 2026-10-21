@@ -18,15 +18,13 @@ EMPLACEMENT MVC
 """
 
 import logging
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
-
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import Session, sessionmaker
 
 import sqlite_vec
-
 from app.core.config import settings
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +77,7 @@ def _configure_connection(dbapi_connection, connection_record):
         dbapi_connection.enable_load_extension(False)
     except Exception as e:  # pragma: no cover - dépend de l'environnement SQLite
         logger.error("sqlite-vec non chargé (RAG indisponible): %s", e)
+
 
 # Fabrique de sessions. `expire_on_commit=False` permet de continuer à lire les
 # attributs d'un objet après commit (utile pour renvoyer un dict au controller).

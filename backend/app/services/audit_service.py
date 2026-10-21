@@ -15,18 +15,28 @@ EMPLACEMENT MVC
 import hashlib
 import logging
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 from app.database.session import db_session
-from app.repositories import audit_repository
 from app.models.audit_log import AuditEventType
+from app.repositories import audit_repository
 
 logger = logging.getLogger(__name__)
 
 # Mots-clés interdits dans les descriptions — protection anti-fuite
 _FORBIDDEN = (
-    "password", "mot_de_passe", "passwd", "pwd", "token", "access_token",
-    "cookie", "secret", "api_key", "private_key", "otp", "pin",
+    "password",
+    "mot_de_passe",
+    "passwd",
+    "pwd",
+    "token",
+    "access_token",
+    "cookie",
+    "secret",
+    "api_key",
+    "private_key",
+    "otp",
+    "pin",
 )
 
 
@@ -34,6 +44,7 @@ def init_audit_table() -> None:
     """Crée la table d'audit (et les autres tables manquantes) — idempotent."""
     # L'initialisation du schéma est centralisée dans database/init_db.py.
     from app.database.init_db import init_db
+
     init_db()
 
 
@@ -74,7 +85,9 @@ def log_event(
             "user_id": user_id,
             "username": username,
             "role": role,
-            "event_type": event_type.value if isinstance(event_type, AuditEventType) else str(event_type),
+            "event_type": event_type.value
+            if isinstance(event_type, AuditEventType)
+            else str(event_type),
             "event_status": event_status,
             "ip_address": ip_address,
             "user_agent": (user_agent or "")[:500] or None,
@@ -95,7 +108,7 @@ def fetch_logs(
     offset: int = 0,
     event_type: Optional[str] = None,
     user_id: Optional[str] = None,
-) -> List[dict]:
+) -> list[dict]:
     """Récupère les logs avec pagination et filtres (route admin uniquement)."""
     with db_session() as db:
         logs = audit_repository.fetch(

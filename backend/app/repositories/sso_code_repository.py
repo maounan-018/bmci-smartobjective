@@ -14,11 +14,10 @@ EMPLACEMENT MVC
 
 from typing import Optional
 
-from sqlalchemy import delete
-from sqlalchemy.orm import Session
-
 from app.core.security import hash_token
 from app.models.sso_code import SsoCode
+from sqlalchemy import delete
+from sqlalchemy.orm import Session
 
 
 def create(db: Session, *, code: str, user_id: str, expires_at: str) -> None:

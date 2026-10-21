@@ -10,12 +10,11 @@ EMPLACEMENT MVC
     Couche "controllers" : routes FastAPI.
 """
 
-from fastapi import APIRouter, Depends
-
 from app.controllers.auth_controller import get_current_user
 from app.controllers.dependencies import ai_rate_limited_user
 from app.schemas.analysis_schema import ManagerPersonalAnalysisRequest
 from app.services import manager_service
+from fastapi import APIRouter, Depends
 
 router = APIRouter(prefix="/api", tags=["Manager"])
 
@@ -60,7 +59,9 @@ def manager_analyze_personal_objective(
 
 
 @router.post("/manager/analyze-objective/{objective_id}")
-def manager_analyze_objective(objective_id: str, current_user: dict = Depends(ai_rate_limited_user)):
+def manager_analyze_objective(
+    objective_id: str, current_user: dict = Depends(ai_rate_limited_user)
+):
     """Analyse un objectif d'un collaborateur de l'équipe (quota IA appliqué)."""
     return manager_service.analyze_objective(objective_id, current_user)
 

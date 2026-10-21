@@ -11,10 +11,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Integer, ForeignKey, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import ForeignKey, Integer, String, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class HRImport(Base):
@@ -25,9 +24,7 @@ class HRImport(Base):
     filename: Mapped[str | None] = mapped_column(String, nullable=True)
     records_count: Mapped[int | None] = mapped_column(Integer, server_default=text("0"))
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[str | None] = mapped_column(
-        String, server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at: Mapped[str | None] = mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
 
     user: Mapped["User | None"] = relationship()  # noqa: F821
 

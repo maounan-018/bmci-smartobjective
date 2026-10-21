@@ -11,11 +11,10 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from sqlalchemy import delete
-from sqlalchemy.orm import Session
-
 from app.core.security import hash_token
 from app.models.session import Session as SessionModel
+from sqlalchemy import delete
+from sqlalchemy.orm import Session
 
 
 def create(db: Session, token: str, user_id: str, expires_at: str) -> SessionModel:

@@ -8,23 +8,23 @@ que les `relationship` inter-modèles se résolvent correctement.
 """
 
 from app.database.base import Base
-from app.models.user import User
-from app.models.session import Session
-from app.models.sso_code import SsoCode
-from app.models.objective import Objective
-from app.models.company_objective import CompanyObjective
+from app.models.ai_call import AiCall
 from app.models.analysis_result import (
     AnalysisResult,
+    CollabAnalysisResult,
     HRAnalysisResult,
     ManagerAnalysisResult,
-    CollabAnalysisResult,
 )
-from app.models.audit_log import AuditLog, AuditEventType
+from app.models.audit_log import AuditEventType, AuditLog
+from app.models.company_objective import CompanyObjective
 from app.models.hr_import import HRImport
 from app.models.login_attempt import LoginAttempt
-from app.models.ai_call import AiCall
-from app.models.rag_document import RagDocument
+from app.models.objective import Objective
 from app.models.rag_chunk import RagChunk
+from app.models.rag_document import RagDocument
+from app.models.session import Session
+from app.models.sso_code import SsoCode
+from app.models.user import User
 
 __all__ = [
     "Base",

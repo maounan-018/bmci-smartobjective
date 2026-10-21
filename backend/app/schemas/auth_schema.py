@@ -9,6 +9,7 @@ RÔLE
 
 import re
 from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 # Validation email simple, sans dépendance externe (email-validator).
@@ -17,6 +18,7 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 class LoginRequest(BaseModel):
     """Corps de la requête de connexion."""
+
     email: str = Field(min_length=3, max_length=254)
     # max 128 : borne le coût PBKDF2 (anti-DoS par mot de passe géant).
     password: str = Field(min_length=1, max_length=128)
@@ -32,6 +34,7 @@ class LoginRequest(BaseModel):
 
 class UserPublic(BaseModel):
     """Représentation publique d'un utilisateur (jamais le hash du mot de passe)."""
+
     id: str
     email: str
     name: str

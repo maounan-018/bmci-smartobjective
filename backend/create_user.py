@@ -54,11 +54,15 @@ def _list_users() -> None:
 def _create_user(args) -> None:
     role = (args.role or "").strip().upper()
     if role not in ROLES:
-        sys.exit(f"[ERREUR] Rôle invalide : '{args.role}' (attendu : COLLAB | MANAGER | HR | ADMIN)")
+        sys.exit(
+            f"[ERREUR] Rôle invalide : '{args.role}' (attendu : COLLAB | MANAGER | HR | ADMIN)"
+        )
 
     email = (args.email or "").strip().lower()
     if not is_valid_bnp_email(email):
-        sys.exit(f"[ERREUR] Email invalide : '{args.email}' (format attendu : prenom.nom@bmci.local)")
+        sys.exit(
+            f"[ERREUR] Email invalide : '{args.email}' (format attendu : prenom.nom@bmci.local)"
+        )
 
     password = args.password or secrets.token_urlsafe(12)
     if len(password) < MIN_PASSWORD_LEN:

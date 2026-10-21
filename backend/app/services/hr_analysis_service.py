@@ -15,24 +15,24 @@ import json
 import logging
 import secrets
 from datetime import datetime
-from typing import List
 
+from app.core.config import settings
 from app.database.session import db_session
 from app.repositories import (
-    objective_repository,
-    company_objective_repository,
     analysis_repository,
+    company_objective_repository,
     hr_import_repository,
+    objective_repository,
 )
-from app.services.ai_service import analyze_smart_internal, analyze_alignment_internal
-from app.utils.helpers import smart_flags_score, smart_values
+from app.services.ai_service import analyze_alignment_internal, analyze_smart_internal
 from app.services.hr_common import require_hr
-from app.core.config import settings
+from app.utils.helpers import smart_flags_score, smart_values
 
 logger = logging.getLogger(__name__)
 
 
 # ============= ANALYSE PERSONNELLE RH =============
+
 
 def analyze_personal(request, current_user: dict) -> dict:
     """Analyse SMART d'un objectif personnel RH, stockée dans hr_analysis_results."""
@@ -45,24 +45,31 @@ def analyze_personal(request, current_user: dict) -> dict:
     if company_objectives:
         alignment_result = analyze_alignment_internal(request.title, company_objectives)
     else:
-        alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
+        alignment_result = {
+            "alignment_score": 0,
+            "top_matches": [],
+            "gaps": ["Aucun objectif stratégique défini"],
+        }
 
     smart_score = smart_flags_score(smart_result)
     sv = smart_values(smart_result)
     result_id = f"hr-personal-{secrets.token_hex(6)}"
 
     with db_session() as db:
-        analysis_repository.insert_hr(db, {
-            "id": result_id,
-            "objective_id": f"hr-obj-{result_id}",
-            "objective_title": request.title,
-            "smart_analysis": json.dumps(smart_result),
-            "alignment_analysis": json.dumps(alignment_result),
-            "smart_score": smart_score,
-            "alignment_score": alignment_result.get("alignment_score", 0),
-            "analyzed_at": datetime.now().isoformat(),
-            **sv,
-        })
+        analysis_repository.insert_hr(
+            db,
+            {
+                "id": result_id,
+                "objective_id": f"hr-obj-{result_id}",
+                "objective_title": request.title,
+                "smart_analysis": json.dumps(smart_result),
+                "alignment_analysis": json.dumps(alignment_result),
+                "smart_score": smart_score,
+                "alignment_score": alignment_result.get("alignment_score", 0),
+                "analyzed_at": datetime.now().isoformat(),
+                **sv,
+            },
+        )
 
     return {
         "success": True,
@@ -92,7 +99,9 @@ def get_analysis_results(current_user: dict) -> dict:
                 except (json.JSONDecodeError, TypeError):
                     result[key] = None
         if not result.get("objective_title"):
-            result["objective_title"] = result.get("obj_title") or f"Objectif {result.get('objective_id', 'N/A')}"
+            result["objective_title"] = (
+                result.get("obj_title") or f"Objectif {result.get('objective_id', 'N/A')}"
+            )
         results.append(result)
 
     return {
@@ -108,7 +117,8 @@ def get_analysis_results(current_user: dict) -> dict:
 
 # ============= ANALYSE EN LOT (SSE) =============
 
-def build_batch_generator(objective_ids: List[str], current_user: dict, force: bool = False):
+
+def build_batch_generator(objective_ids: list[str], current_user: dict, force: bool = False):
     """
     Prépare l'analyse en lot et retourne un générateur SSE (text/event-stream).
     Seuls les objectifs de périmètre HR sont analysés.
@@ -144,51 +154,81 @@ def build_batch_generator(objective_ids: List[str], current_user: dict, force: b
                 try:
                     smart_result = analyze_smart_internal(obj["title"], obj.get("description", ""))
                 except Exception:
-                    smart_result = {"S": False, "M": False, "A": False, "R": False, "T": False, "overall": False, "confidence": 0, "issues": []}
+                    smart_result = {
+                        "S": False,
+                        "M": False,
+                        "A": False,
+                        "R": False,
+                        "T": False,
+                        "overall": False,
+                        "confidence": 0,
+                        "issues": [],
+                    }
 
                 if company_objectives:
                     try:
-                        alignment_result = analyze_alignment_internal(obj["title"], company_objectives)
+                        alignment_result = analyze_alignment_internal(
+                            obj["title"], company_objectives
+                        )
                     except Exception:
                         alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": []}
                 else:
-                    alignment_result = {"alignment_score": 0, "top_matches": [], "gaps": ["Aucun objectif stratégique défini"]}
+                    alignment_result = {
+                        "alignment_score": 0,
+                        "top_matches": [],
+                        "gaps": ["Aucun objectif stratégique défini"],
+                    }
 
                 smart_score = smart_flags_score(smart_result)
                 sv = smart_values(smart_result)
 
                 with db_session() as db:
-                    objective_repository.update_fields(db, obj["id"], {
-                        "smart_analysis": json.dumps(smart_result),
-                        "alignment_analysis": json.dumps(alignment_result),
-                        "analyzed_by_role": "HR",
-                        "analyzed_by_user_id": user_id,
-                        "data_scope": "HR",
-                        "status": "analyzed",
-                        "updated_at": datetime.now().isoformat(),
-                    })
-                    analysis_repository.upsert_hr(db, {
-                        "id": f"res-{obj['id']}",
-                        "objective_id": obj["id"],
+                    objective_repository.update_fields(
+                        db,
+                        obj["id"],
+                        {
+                            "smart_analysis": json.dumps(smart_result),
+                            "alignment_analysis": json.dumps(alignment_result),
+                            "analyzed_by_role": "HR",
+                            "analyzed_by_user_id": user_id,
+                            "data_scope": "HR",
+                            "status": "analyzed",
+                            "updated_at": datetime.now().isoformat(),
+                        },
+                    )
+                    analysis_repository.upsert_hr(
+                        db,
+                        {
+                            "id": f"res-{obj['id']}",
+                            "objective_id": obj["id"],
+                            "smart_score": smart_score,
+                            "alignment_score": alignment_result.get("alignment_score", 0),
+                            "issues_count": sv["issues_count"],
+                            "top_issue": sv["top_issue"],
+                            "analyzed_at": datetime.now().isoformat(),
+                            "s_score": sv["s_score"],
+                            "m_score": sv["m_score"],
+                            "a_score": sv["a_score"],
+                            "r_score": sv["r_score"],
+                            "t_score": sv["t_score"],
+                        },
+                    )
+
+                results.append(
+                    {
+                        "id": obj["id"],
+                        "title": obj["title"],
                         "smart_score": smart_score,
                         "alignment_score": alignment_result.get("alignment_score", 0),
-                        "issues_count": sv["issues_count"],
-                        "top_issue": sv["top_issue"],
-                        "analyzed_at": datetime.now().isoformat(),
-                        "s_score": sv["s_score"], "m_score": sv["m_score"], "a_score": sv["a_score"],
-                        "r_score": sv["r_score"], "t_score": sv["t_score"],
-                    })
-
-                results.append({
-                    "id": obj["id"], "title": obj["title"],
-                    "smart_score": smart_score,
-                    "alignment_score": alignment_result.get("alignment_score", 0),
-                    "success": True,
-                })
+                        "success": True,
+                    }
+                )
                 analyzed += 1
             except Exception as e:
-                logger.error("Erreur analyse en lot pour %s: %s", obj['id'], e)
-                results.append({"id": obj["id"], "title": obj["title"], "success": False, "error": str(e)})
+                logger.error("Erreur analyse en lot pour %s: %s", obj["id"], e)
+                results.append(
+                    {"id": obj["id"], "title": obj["title"], "success": False, "error": str(e)}
+                )
                 errors += 1
 
         yield f"data: {json.dumps({'type': 'done', 'success': True, 'analyzed': analyzed, 'errors': errors, 'results': results})}\n\n"
@@ -197,6 +237,7 @@ def build_batch_generator(objective_ids: List[str], current_user: dict, force: b
 
 
 # ============= ANALYTICS / DÉTAILS / HISTORIQUE =============
+
 
 def _compute_axis_coverage(axes: list, objective_rows: list, over_threshold: float) -> dict:
     """Couverture stratégique par axe (E4).
@@ -218,8 +259,11 @@ def _compute_axis_coverage(axes: list, objective_rows: list, over_threshold: flo
                 raw = None
         if not isinstance(raw, dict):
             continue
-        matches = [m for m in (raw.get("top_matches") or [])
-                   if isinstance(m, dict) and m.get("objective_id") is not None]
+        matches = [
+            m
+            for m in (raw.get("top_matches") or [])
+            if isinstance(m, dict) and m.get("objective_id") is not None
+        ]
         if not matches:
             continue
         primary = max(matches, key=lambda m: m.get("score") or 0)
@@ -231,11 +275,16 @@ def _compute_axis_coverage(axes: list, objective_rows: list, over_threshold: flo
     coverage = []
     for aid, cnt in counts.items():
         share = round(cnt / total_aligned * 100, 1) if total_aligned else 0.0
-        coverage.append({
-            "axis_id": aid, "axis_title": titles.get(aid, aid),
-            "count": cnt, "share_pct": share,
-            "orphan": cnt == 0, "over_concentrated": share > over_threshold,
-        })
+        coverage.append(
+            {
+                "axis_id": aid,
+                "axis_title": titles.get(aid, aid),
+                "count": cnt,
+                "share_pct": share,
+                "orphan": cnt == 0,
+                "over_concentrated": share > over_threshold,
+            }
+        )
     coverage.sort(key=lambda x: x["count"], reverse=True)
     return {
         "axes": coverage,
@@ -262,7 +311,7 @@ def _compute_low_confidence(objective_rows: list, threshold: float) -> dict:
         if not isinstance(raw, dict):
             continue  # objectif non analysé -> hors périmètre relecture
         conf = raw.get("confidence")
-        if isinstance(conf, (int, float)) and conf < threshold:
+        if isinstance(conf, int | float) and conf < threshold:
             count += 1
     return {"count": count, "threshold": threshold}
 
@@ -274,25 +323,31 @@ def get_analytics(current_user: dict, entity=None, manager=None, period=None) ->
         data = analysis_repository.hr_analytics(db, entity, manager, period)
         # Taux SMART conforme (E1) et alignement fort (E2) — seuils configurables.
         data["smart_rate"] = analysis_repository.hr_score_rate(
-            db, "smart_score", settings.KPI_SMART_THRESHOLD, entity, manager, period)
+            db, "smart_score", settings.KPI_SMART_THRESHOLD, entity, manager, period
+        )
         data["alignment_rate"] = analysis_repository.hr_score_rate(
-            db, "alignment_score", settings.KPI_ALIGNMENT_STRONG, entity, manager, period)
+            db, "alignment_score", settings.KPI_ALIGNMENT_STRONG, entity, manager, period
+        )
         # Couverture stratégique par axe (E4) : axes + objectifs (avec alignement).
         axes = company_objective_repository.list_for_alignment(db)
         objective_rows = analysis_repository.hr_objectives_details(db, entity, manager, period)
 
     data["axis_coverage"] = _compute_axis_coverage(
-        axes, objective_rows, settings.KPI_AXIS_OVERCONCENTRATION)
+        axes, objective_rows, settings.KPI_AXIS_OVERCONCENTRATION
+    )
 
     # Faible confiance IA (#2) : analyses à relire par un humain.
-    data["low_confidence"] = _compute_low_confidence(
-        objective_rows, settings.KPI_AI_CONFIDENCE_MIN)
+    data["low_confidence"] = _compute_low_confidence(objective_rows, settings.KPI_AI_CONFIDENCE_MIN)
 
     # Volumétrie (E5) : sur quel volume reposent les chiffres.
     g = data.get("global_stats", {}) or {}
     total = g.get("total", 0) or 0
     analyzed = g.get("analyzed", 0) or 0
-    data["volumetry"] = {"total": total, "analyzed": analyzed, "not_analyzed": max(0, total - analyzed)}
+    data["volumetry"] = {
+        "total": total,
+        "analyzed": analyzed,
+        "not_analyzed": max(0, total - analyzed),
+    }
 
     # Seuils exposés au frontend (filtrage cohérent côté UI : « à ajuster » = < seuil SMART).
     data["thresholds"] = {
@@ -306,8 +361,12 @@ def get_analytics(current_user: dict, entity=None, manager=None, period=None) ->
 
 
 def get_objectives_details(
-    current_user: dict, entity=None, manager=None, period=None,
-    smart_filter=None, alignment_filter=None,
+    current_user: dict,
+    entity=None,
+    manager=None,
+    period=None,
+    smart_filter=None,
+    alignment_filter=None,
 ) -> dict:
     """Liste détaillée des objectifs RH avec filtres."""
     require_hr(current_user)

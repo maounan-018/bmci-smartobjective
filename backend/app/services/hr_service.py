@@ -17,14 +17,14 @@ EMPLACEMENT MVC
 
 from app.services.hr_analysis_service import (
     analyze_personal,
-    get_analysis_results,
     build_batch_generator,
+    get_analysis_results,
     get_analytics,
-    get_objectives_details,
     get_imports,
+    get_objectives_details,
 )
-from app.services.hr_import_service import import_strategy, import_objectives
 from app.services.hr_export_service import export_excel, export_pdf
+from app.services.hr_import_service import import_objectives, import_strategy
 
 __all__ = [
     "analyze_personal",

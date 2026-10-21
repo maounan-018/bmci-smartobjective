@@ -14,21 +14,20 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from typing import List, Optional, Tuple
-
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.models.analysis_result import (
+    CollabAnalysisResult,
     HRAnalysisResult,
     ManagerAnalysisResult,
-    CollabAnalysisResult,
 )
-
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 # ============================================================================
 # ÉCRITURES (ORM)
 # ============================================================================
+
 
 def insert_hr(db: Session, values: dict) -> HRAnalysisResult:
     """Insère un résultat d'analyse RH."""
@@ -100,9 +99,12 @@ _MANAGER_STATS_SQL = text(
 )
 
 
-def list_manager_results(db: Session, manager_id: str) -> List[dict]:
+def list_manager_results(db: Session, manager_id: str) -> list[dict]:
     """Résultats d'analyse Manager enrichis (titres/analyses via COALESCE)."""
-    return [dict(r) for r in db.execute(_MANAGER_RESULTS_SQL, {"manager_id": manager_id}).mappings().all()]
+    return [
+        dict(r)
+        for r in db.execute(_MANAGER_RESULTS_SQL, {"manager_id": manager_id}).mappings().all()
+    ]
 
 
 def manager_stats(db: Session, manager_id: str) -> dict:
@@ -145,7 +147,7 @@ _COLLAB_STATS_SQL = text(
 )
 
 
-def list_collab_results(db: Session, user_id: str) -> List[dict]:
+def list_collab_results(db: Session, user_id: str) -> list[dict]:
     """Résultats d'analyse Collaborateur enrichis."""
     return [dict(r) for r in db.execute(_COLLAB_RESULTS_SQL, {"user_id": user_id}).mappings().all()]
 
@@ -181,7 +183,7 @@ _HR_PERSONAL_STATS_SQL = text(
 )
 
 
-def list_hr_personal_results(db: Session) -> List[dict]:
+def list_hr_personal_results(db: Session) -> list[dict]:
     """Analyses personnelles RH (objectifs saisis par un membre RH)."""
     return [dict(r) for r in db.execute(_HR_PERSONAL_RESULTS_SQL).mappings().all()]
 
@@ -196,7 +198,10 @@ def hr_personal_stats(db: Session) -> dict:
 # ANALYTICS RH (tableaux de bord) — données HR uniquement
 # ============================================================================
 
-def _hr_filters(entity: Optional[str], manager: Optional[str], period: Optional[str]) -> Tuple[str, dict]:
+
+def _hr_filters(
+    entity: Optional[str], manager: Optional[str], period: Optional[str]
+) -> tuple[str, dict]:
     """
     Construit la clause WHERE (sans le mot-clé WHERE) restreinte aux données RH,
     avec filtres optionnels, et les paramètres nommés associés.
@@ -224,34 +229,69 @@ def hr_analytics(
     """Agrège l'ensemble des indicateurs du tableau de bord RH."""
     where, p = _hr_filters(entity, manager, period)
 
-    global_stats = dict(db.execute(text(f"""
+    global_stats = dict(
+        db.execute(
+            text(f"""
         SELECT COUNT(*) AS total,
                COUNT(CASE WHEN smart_analysis IS NOT NULL THEN 1 END) AS analyzed,
                COUNT(CASE WHEN status = 'validated' THEN 1 END) AS validated
         FROM objectives o WHERE {where}
-    """), p).mappings().first() or {})
+    """),
+            p,
+        )
+        .mappings()
+        .first()
+        or {}
+    )
 
-    avg_scores = dict(db.execute(text(f"""
+    avg_scores = dict(
+        db.execute(
+            text(f"""
         SELECT AVG(r.smart_score) AS avg_smart, AVG(r.alignment_score) AS avg_alignment,
                AVG(r.s_score) AS avg_s, AVG(r.m_score) AS avg_m, AVG(r.a_score) AS avg_a,
                AVG(r.r_score) AS avg_r, AVG(r.t_score) AS avg_t
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where}
-    """), p).mappings().first() or {})
+    """),
+            p,
+        )
+        .mappings()
+        .first()
+        or {}
+    )
 
-    smart_evolution = [dict(r) for r in db.execute(text(f"""
+    smart_evolution = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT strftime('%Y-%m', r.analyzed_at) AS month, AVG(r.smart_score) AS avg_smart, COUNT(*) AS count
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where} GROUP BY strftime('%Y-%m', r.analyzed_at) ORDER BY month
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    alignment_evolution = [dict(r) for r in db.execute(text(f"""
+    alignment_evolution = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT strftime('%Y-%m', r.analyzed_at) AS month, AVG(r.alignment_score) AS avg_alignment, COUNT(*) AS count
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where} GROUP BY strftime('%Y-%m', r.analyzed_at) ORDER BY month
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    smart_distribution = [dict(r) for r in db.execute(text(f"""
+    smart_distribution = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT CASE
                  WHEN r.smart_score >= 80 THEN 'Excellent (80-100%)'
                  WHEN r.smart_score >= 60 THEN 'Bon (60-79%)'
@@ -263,9 +303,17 @@ def hr_analytics(
         ORDER BY CASE level
                  WHEN 'Excellent (80-100%)' THEN 1 WHEN 'Bon (60-79%)' THEN 2
                  WHEN 'Moyen (40-59%)' THEN 3 ELSE 4 END
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    alignment_distribution = [dict(r) for r in db.execute(text(f"""
+    alignment_distribution = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT CASE
                  WHEN r.alignment_score >= 80 THEN 'Fort (80-100%)'
                  WHEN r.alignment_score >= 50 THEN 'Moyen (50-79%)'
@@ -273,9 +321,17 @@ def hr_analytics(
                END AS level, COUNT(*) AS count
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where} GROUP BY level
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    blocking_points = [dict(r) for r in db.execute(text(f"""
+    blocking_points = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT 'S - Spécifique' AS criteria, SUM(1 - r.s_score) AS failures
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id WHERE {where}
         UNION ALL
@@ -287,28 +343,57 @@ def hr_analytics(
         UNION ALL
         SELECT 'T - Temporel', SUM(1 - r.t_score) FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id WHERE {where}
         ORDER BY failures DESC
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    entity_comparison = [dict(r) for r in db.execute(text(f"""
+    entity_comparison = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT COALESCE(NULLIF(o.entity, ''), 'Non spécifié') AS entity,
                AVG(r.smart_score) AS avg_smart, AVG(r.alignment_score) AS avg_alignment, COUNT(*) AS count
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where} GROUP BY entity ORDER BY avg_smart DESC
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    manager_comparison = [dict(r) for r in db.execute(text(f"""
+    manager_comparison = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT COALESCE(NULLIF(o.manager_name, ''), 'Non spécifié') AS manager,
                AVG(r.smart_score) AS avg_smart, AVG(r.alignment_score) AS avg_alignment, COUNT(*) AS count
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where} GROUP BY manager ORDER BY avg_smart DESC
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
-    period_comparison = [dict(r) for r in db.execute(text(f"""
+    period_comparison = [
+        dict(r)
+        for r in db.execute(
+            text(f"""
         SELECT COALESCE(NULLIF(o.period, ''), 'Non spécifié') AS period,
                AVG(r.smart_score) AS avg_smart, AVG(r.alignment_score) AS avg_alignment, COUNT(*) AS count
         FROM hr_analysis_results r JOIN objectives o ON r.objective_id = o.id
         WHERE {where} GROUP BY period ORDER BY period
-    """), p).mappings().all()]
+    """),
+            p,
+        )
+        .mappings()
+        .all()
+    ]
 
     return {
         "global_stats": global_stats,
@@ -329,7 +414,7 @@ def hr_analytics(
     }
 
 
-def distinct_values(db: Session, column: str) -> List[str]:
+def distinct_values(db: Session, column: str) -> list[str]:
     """Valeurs distinctes non vides d'une colonne d'objectifs (filtres UI)."""
     if column not in {"entity", "manager_name", "period"}:
         raise ValueError(f"Colonne non autorisée: {column}")
@@ -340,8 +425,9 @@ def distinct_values(db: Session, column: str) -> List[str]:
     return [r[0] for r in db.execute(sql).all()]
 
 
-def hr_score_rate(db: Session, score_col: str, threshold: float,
-                  entity=None, manager=None, period=None) -> dict:
+def hr_score_rate(
+    db: Session, score_col: str, threshold: float, entity=None, manager=None, period=None
+) -> dict:
     """Taux d'objectifs dont le score atteint le seuil (E1 SMART / E2 alignement fort).
 
     Renvoie {total, ok, rate} où rate = % d'objectifs analysés dont le score >= seuil.
@@ -368,6 +454,7 @@ def hr_score_rate(db: Session, score_col: str, threshold: float,
 # LISTE DÉTAILLÉE + EXPORTS RH
 # ============================================================================
 
+
 def hr_objectives_details(
     db: Session,
     entity: Optional[str] = None,
@@ -375,7 +462,7 @@ def hr_objectives_details(
     period: Optional[str] = None,
     smart_filter: Optional[str] = None,
     alignment_filter: Optional[str] = None,
-) -> List[dict]:
+) -> list[dict]:
     """Liste détaillée des objectifs RH avec filtres SMART/alignement."""
     where, p = _hr_filters(entity, manager, period)
     if smart_filter == "smart":
@@ -407,7 +494,7 @@ def hr_objectives_details(
     return [dict(r) for r in db.execute(sql, p).mappings().all()]
 
 
-def hr_export_detailed(db: Session, entity=None, manager=None, period=None) -> List[tuple]:
+def hr_export_detailed(db: Session, entity=None, manager=None, period=None) -> list[tuple]:
     """Lignes détaillées pour l'export Excel RH (ordre de colonnes figé)."""
     where, p = _hr_filters(entity, manager, period)
     sql = text(f"""
@@ -424,7 +511,7 @@ def hr_export_detailed(db: Session, entity=None, manager=None, period=None) -> L
     return [tuple(r) for r in db.execute(sql, p).all()]
 
 
-def hr_export_entity_stats(db: Session, entity=None, manager=None, period=None) -> List[tuple]:
+def hr_export_entity_stats(db: Session, entity=None, manager=None, period=None) -> list[tuple]:
     """Stats par entité pour l'export Excel."""
     where, p = _hr_filters(entity, manager, period)
     sql = text(f"""
@@ -437,7 +524,7 @@ def hr_export_entity_stats(db: Session, entity=None, manager=None, period=None) 
     return [tuple(r) for r in db.execute(sql, p).all()]
 
 
-def hr_export_manager_stats(db: Session, entity=None, manager=None, period=None) -> List[tuple]:
+def hr_export_manager_stats(db: Session, entity=None, manager=None, period=None) -> list[tuple]:
     """Stats par manager pour l'export Excel."""
     where, p = _hr_filters(entity, manager, period)
     sql = text(f"""
@@ -453,7 +540,9 @@ def hr_export_manager_stats(db: Session, entity=None, manager=None, period=None)
 def hr_count_objectives(db: Session, entity=None, manager=None, period=None) -> int:
     """Nombre d'objectifs dans le périmètre RH filtré."""
     where, p = _hr_filters(entity, manager, period)
-    return int(db.execute(text(f"SELECT COUNT(*) FROM objectives o WHERE {where}"), p).scalar() or 0)
+    return int(
+        db.execute(text(f"SELECT COUNT(*) FROM objectives o WHERE {where}"), p).scalar() or 0
+    )
 
 
 def hr_criteria_failures(db: Session, col_name: str, entity=None, manager=None, period=None) -> int:
@@ -469,7 +558,7 @@ def hr_criteria_failures(db: Session, col_name: str, entity=None, manager=None, 
     return int(db.execute(sql, p).scalar() or 0)
 
 
-def hr_export_pdf_rows(db: Session, entity=None, manager=None, period=None) -> List[dict]:
+def hr_export_pdf_rows(db: Session, entity=None, manager=None, period=None) -> list[dict]:
     """Objectifs (limités) pour le rapport PDF RH."""
     where, p = _hr_filters(entity, manager, period)
     sql = text(f"""
@@ -536,11 +625,21 @@ _MANAGER_EXPORT_PERSONAL_SQL = text(
 )
 
 
-def manager_export_objectives(db: Session, manager_id: str) -> List[dict]:
+def manager_export_objectives(db: Session, manager_id: str) -> list[dict]:
     """Objectifs d'équipe (avec scores) pour l'export Manager."""
-    return [dict(r) for r in db.execute(_MANAGER_EXPORT_OBJECTIVES_SQL, {"manager_id": manager_id}).mappings().all()]
+    return [
+        dict(r)
+        for r in db.execute(_MANAGER_EXPORT_OBJECTIVES_SQL, {"manager_id": manager_id})
+        .mappings()
+        .all()
+    ]
 
 
-def manager_export_personal(db: Session, manager_id: str) -> List[dict]:
+def manager_export_personal(db: Session, manager_id: str) -> list[dict]:
     """Analyses personnelles du Manager pour l'export."""
-    return [dict(r) for r in db.execute(_MANAGER_EXPORT_PERSONAL_SQL, {"manager_id": manager_id}).mappings().all()]
+    return [
+        dict(r)
+        for r in db.execute(_MANAGER_EXPORT_PERSONAL_SQL, {"manager_id": manager_id})
+        .mappings()
+        .all()
+    ]

@@ -16,10 +16,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Integer, Index
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.database.base import Base
+from sqlalchemy import Index, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class AiCall(Base):
@@ -31,6 +30,4 @@ class AiCall(Base):
     called_at: Mapped[str] = mapped_column(String, nullable=False)
 
     # Index composite : le comptage filtre sur (user_id, called_at > fenêtre).
-    __table_args__ = (
-        Index("ix_ai_calls_user_time", "user_id", "called_at"),
-    )
+    __table_args__ = (Index("ix_ai_calls_user_time", "user_id", "called_at"),)

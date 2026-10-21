@@ -18,10 +18,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Text, Integer, Float, text
-from sqlalchemy.orm import Mapped, mapped_column, declared_attr
-
 from app.database.base import Base
+from sqlalchemy import Float, Integer, String, Text, text
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 
 class AnalysisResultMixin:
@@ -44,7 +43,7 @@ class AnalysisResultMixin:
     top_issue: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     @declared_attr
-    def analyzed_at(cls) -> Mapped[str | None]:  # noqa: N805
+    def analyzed_at(cls) -> Mapped[str | None]:
         return mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
 
     def to_dict(self) -> dict:
@@ -53,11 +52,13 @@ class AnalysisResultMixin:
 
 class HRAnalysisResult(AnalysisResultMixin, Base):
     """Résultats d'analyse RH (privés, invisibles pour les managers)."""
+
     __tablename__ = "hr_analysis_results"
 
 
 class ManagerAnalysisResult(AnalysisResultMixin, Base):
     """Résultats d'analyse Manager (privés, invisibles pour le RH)."""
+
     __tablename__ = "manager_analysis_results"
 
     manager_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -65,6 +66,7 @@ class ManagerAnalysisResult(AnalysisResultMixin, Base):
 
 class CollabAnalysisResult(AnalysisResultMixin, Base):
     """Résultats d'analyse personnels du collaborateur (table privée)."""
+
     __tablename__ = "collab_analysis_results"
 
     user_id: Mapped[str] = mapped_column(String, nullable=False, index=True)

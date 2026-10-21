@@ -20,25 +20,24 @@ import logging
 from contextlib import asynccontextmanager
 
 import requests
-from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-
+from app.controllers.admin_controller import router as admin_router
+from app.controllers.ai_controller import router as ai_router
+from app.controllers.auth_controller import router as auth_router
+from app.controllers.hr_controller import router as hr_router
+from app.controllers.manager_controller import router as manager_router
+from app.controllers.objective_controller import router as objective_router
+from app.controllers.rag_controller import router as rag_router
+from app.controllers.saml_controller import router as saml_router
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.database.init_db import init_db
+from app.database.seed import seed_demo_accounts
 from app.database.session import db_session
 from app.middlewares.request_size import LimitRequestSizeMiddleware
 from app.middlewares.security_headers import SecurityHeadersMiddleware
-from app.database.init_db import init_db
-from app.database.seed import seed_demo_accounts
-from app.controllers.auth_controller import router as auth_router
-from app.controllers.saml_controller import router as saml_router
-from app.controllers.admin_controller import router as admin_router
-from app.controllers.objective_controller import router as objective_router
-from app.controllers.manager_controller import router as manager_router
-from app.controllers.hr_controller import router as hr_router
-from app.controllers.ai_controller import router as ai_router
-from app.controllers.rag_controller import router as rag_router
+from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +96,7 @@ def create_app() -> FastAPI:
     # [SIMULATION] Routes de simulation SSO — montées UNIQUEMENT en dev (jetable).
     if settings.saml_simulation_active:
         from app.controllers.saml_simulation_controller import router as saml_sim_router
+
         app.include_router(saml_sim_router)
 
     @app.get("/health")
@@ -130,7 +130,10 @@ def create_app() -> FastAPI:
             r = requests.get(f"{base}/api/tags", timeout=2)
             r.raise_for_status()
             models = [m.get("name", "") for m in r.json().get("models", [])]
-            if any(n == settings.OLLAMA_MODEL or n.startswith(f"{settings.OLLAMA_MODEL}:") for n in models):
+            if any(
+                n == settings.OLLAMA_MODEL or n.startswith(f"{settings.OLLAMA_MODEL}:")
+                for n in models
+            ):
                 checks["ollama"] = "ok"
             else:
                 ollama_ok = False

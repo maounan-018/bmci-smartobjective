@@ -16,10 +16,9 @@ EMPLACEMENT MVC
     Couche "models" : structure des données persistées.
 """
 
-from sqlalchemy import String, Integer, ForeignKey, CheckConstraint, text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.base import Base
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class User(Base):
@@ -31,17 +30,13 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     # Rôle applicatif : COLLAB, MANAGER, HR (ADMIN à venir)
     role: Mapped[str] = mapped_column(String, nullable=False)
-    manager_id: Mapped[str | None] = mapped_column(
-        String, ForeignKey("users.id"), nullable=True
-    )
+    manager_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
     team: Mapped[str | None] = mapped_column(String, nullable=True)
     entity: Mapped[str | None] = mapped_column(String, nullable=True)
     # Compte actif (1) ou désactivé (0) : un compte désactivé ne peut plus se
     # connecter mais ses données (objectifs, analyses) sont conservées.
     active: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
-    created_at: Mapped[str | None] = mapped_column(
-        String, server_default=text("CURRENT_TIMESTAMP")
-    )
+    created_at: Mapped[str | None] = mapped_column(String, server_default=text("CURRENT_TIMESTAMP"))
 
     __table_args__ = (
         CheckConstraint("role IN ('COLLAB', 'MANAGER', 'HR', 'ADMIN')", name="ck_users_role"),
@@ -52,9 +47,7 @@ class User(Base):
     manager: Mapped["User | None"] = relationship(
         "User", remote_side="User.id", back_populates="subordinates"
     )
-    subordinates: Mapped[list["User"]] = relationship(
-        "User", back_populates="manager"
-    )
+    subordinates: Mapped[list["User"]] = relationship("User", back_populates="manager")
 
     objectives: Mapped[list["Objective"]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"

@@ -11,12 +11,11 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from typing import List, Optional
-
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.models.audit_log import AuditLog
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 
 def insert(db: Session, values: dict) -> AuditLog:
@@ -33,7 +32,7 @@ def fetch(
     offset: int = 0,
     event_type: Optional[str] = None,
     user_id: Optional[str] = None,
-) -> List[AuditLog]:
+) -> list[AuditLog]:
     """Relit les évènements avec pagination et filtres optionnels."""
     stmt = select(AuditLog)
     if event_type:

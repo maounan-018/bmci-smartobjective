@@ -11,10 +11,12 @@ EMPLACEMENT MVC
 """
 
 from typing import Optional
+
 from pydantic import BaseModel
 
 
 class HRPersonalAnalysisRequest(BaseModel):
     """Analyse SMART de l'objectif personnel d'un membre RH."""
+
     title: str
     description: Optional[str] = ""

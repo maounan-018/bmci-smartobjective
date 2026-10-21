@@ -11,14 +11,13 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
-from typing import List, Optional
-
-from sqlalchemy import select, update, func
-from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.core.security import hash_token
-from app.models.user import User
 from app.models.session import Session as SessionModel
+from app.models.user import User
+from sqlalchemy import func, select, update
+from sqlalchemy.orm import Session
 
 
 def get_by_id(db: Session, user_id: str) -> Optional[User]:
@@ -83,36 +82,37 @@ def get_manager_id(db: Session, user_id: str) -> Optional[str]:
     return db.scalars(select(User.manager_id).where(User.id == user_id)).first()
 
 
-def get_team_ids(db: Session, manager_id: str) -> List[str]:
+def get_team_ids(db: Session, manager_id: str) -> list[str]:
     """IDs des collaborateurs rattachés à un manager."""
     return list(db.scalars(select(User.id).where(User.manager_id == manager_id)).all())
 
 
-def get_all_ids(db: Session) -> List[str]:
+def get_all_ids(db: Session) -> list[str]:
     """IDs de tous les utilisateurs (périmètre HR)."""
     return list(db.scalars(select(User.id)).all())
 
 
-def get_team_members(db: Session, manager_id: str) -> List[User]:
+def get_team_members(db: Session, manager_id: str) -> list[User]:
     """Membres de l'équipe d'un manager."""
     return list(db.scalars(select(User).where(User.manager_id == manager_id)).all())
 
 
-def get_all_members(db: Session) -> List[User]:
+def get_all_members(db: Session) -> list[User]:
     """Tous les utilisateurs (vue HR globale)."""
     return list(db.scalars(select(User)).all())
 
 
-def list_all_ordered(db: Session) -> List[User]:
+def list_all_ordered(db: Session) -> list[User]:
     """Tous les utilisateurs, triés par rôle puis email (administration des comptes)."""
     return list(db.scalars(select(User).order_by(User.role, User.email)).all())
 
 
 def count_active_by_role(db: Session, role: str) -> int:
     """Nombre de comptes ACTIFS pour un rôle (garde-fou « dernier administrateur »)."""
-    return db.scalar(
-        select(func.count()).select_from(User).where(User.role == role, User.active == 1)
-    ) or 0
+    return (
+        db.scalar(select(func.count()).select_from(User).where(User.role == role, User.active == 1))
+        or 0
+    )
 
 
 def set_active(db: Session, user_id: str, active: bool) -> None:

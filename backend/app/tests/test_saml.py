@@ -12,16 +12,15 @@ Aucun de ces tests n'importe python3-saml : ils exercent la logique pure.
 """
 
 import pytest
-from fastapi import HTTPException
-
-from app.services import auth_service
 from app.auth.identity_provider import map_groups_to_role
 from app.auth.providers.saml_provider import extract_profile
 from app.database.session import db_session
 from app.repositories import user_repository
-
+from app.services import auth_service
+from fastapi import HTTPException
 
 # ----------------------- Dégradation propre (non configuré) -----------------------
+
 
 def test_saml_status_disabled_by_default(client):
     """En l'absence de config SAML, /status indique enabled=false (et pas de simulation)."""
@@ -50,6 +49,7 @@ def test_sso_code_exchange_single_use(client, make_user):
     puis devient invalide. Le code mappe vers un utilisateur, jamais vers un token."""
     make_user(user_id="u-sso-x", email="ssox@bmci.ma", role="COLLAB")
     from app.controllers.saml_controller import issue_sso_code
+
     code = issue_sso_code("u-sso-x")
 
     r1 = client.post("/api/auth/saml/exchange", json={"code": code})
@@ -91,22 +91,28 @@ def test_sso_code_exchange_invalid(client):
 def test_saml_simulation_disabled_by_default(client):
     """Sans SAML_SIMULATION=true, les routes de simulation n'existent pas (404)."""
     assert client.get("/api/auth/saml/simulate", follow_redirects=False).status_code == 404
-    assert client.post(
-        "/api/auth/saml/simulate",
-        data={"email": "x@bmci.ma", "role": "HR"},
-        follow_redirects=False,
-    ).status_code == 404
+    assert (
+        client.post(
+            "/api/auth/saml/simulate",
+            data={"email": "x@bmci.ma", "role": "HR"},
+            follow_redirects=False,
+        ).status_code
+        == 404
+    )
 
 
 # ----------------------- JIT provisioning (login fédéré) -----------------------
 
+
 def test_login_from_federated_creates_user_with_mapped_role(client):
     """Un email inconnu est provisionné avec le rôle déduit des groupes."""
-    result = auth_service.login_from_federated({
-        "email": "ssomgr@bmci.ma",
-        "display_name": "SSO Manager",
-        "groups": ["GRP_MANAGERS"],
-    })
+    result = auth_service.login_from_federated(
+        {
+            "email": "ssomgr@bmci.ma",
+            "display_name": "SSO Manager",
+            "groups": ["GRP_MANAGERS"],
+        }
+    )
     assert result["success"] is True
     assert result["user"]["role"] == "MANAGER"
     assert result["user"]["email"] == "ssomgr@bmci.ma"
@@ -119,31 +125,37 @@ def test_login_from_federated_creates_user_with_mapped_role(client):
 
 def test_login_from_federated_admin_group_clamped_to_hr(client):
     """ADMIN (interdit en base) est ramené à HR."""
-    result = auth_service.login_from_federated({
-        "email": "ssoadmin@bmci.ma",
-        "display_name": "SSO Admin",
-        "groups": ["GRP_ADMIN_OBJECTIFS"],
-    })
+    result = auth_service.login_from_federated(
+        {
+            "email": "ssoadmin@bmci.ma",
+            "display_name": "SSO Admin",
+            "groups": ["GRP_ADMIN_OBJECTIFS"],
+        }
+    )
     assert result["user"]["role"] == "HR"
 
 
 def test_login_from_federated_unknown_group_defaults_collab(client):
-    result = auth_service.login_from_federated({
-        "email": "ssouser@bmci.ma",
-        "display_name": "SSO User",
-        "groups": ["GROUPE_INCONNU"],
-    })
+    result = auth_service.login_from_federated(
+        {
+            "email": "ssouser@bmci.ma",
+            "display_name": "SSO User",
+            "groups": ["GROUPE_INCONNU"],
+        }
+    )
     assert result["user"]["role"] == "COLLAB"
 
 
 def test_login_from_federated_existing_user_no_duplicate(client, make_user):
     """Un email déjà connu réutilise le compte (pas de doublon, rôle conservé)."""
     make_user(user_id="u-exist", email="exist@bmci.ma", role="COLLAB")
-    result = auth_service.login_from_federated({
-        "email": "exist@bmci.ma",
-        "display_name": "Existant",
-        "groups": ["GRP_MANAGERS"],  # ne doit PAS écraser le rôle existant
-    })
+    result = auth_service.login_from_federated(
+        {
+            "email": "exist@bmci.ma",
+            "display_name": "Existant",
+            "groups": ["GRP_MANAGERS"],  # ne doit PAS écraser le rôle existant
+        }
+    )
     assert result["user"]["id"] == "u-exist"
     assert result["user"]["role"] == "COLLAB"
     with db_session() as db:
@@ -157,6 +169,7 @@ def test_login_from_federated_missing_email_raises(client):
 
 
 # ----------------------- Mapping & extraction -----------------------
+
 
 def test_map_groups_to_role_priority():
     assert map_groups_to_role(["GRP_COLLABORATEURS", "GRP_RH"]) == "HR"

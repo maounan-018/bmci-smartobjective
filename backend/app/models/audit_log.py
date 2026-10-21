@@ -13,14 +13,14 @@ EMPLACEMENT MVC
 
 from enum import Enum
 
-from sqlalchemy import String, Text, Integer, text
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.database.base import Base
+from sqlalchemy import Integer, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class AuditEventType(str, Enum):
     """Types d'évènements de sécurité traçables."""
+
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
     LOGIN_FAILED = "LOGIN_FAILED"
     LOGOUT_MANUAL = "LOGOUT_MANUAL"

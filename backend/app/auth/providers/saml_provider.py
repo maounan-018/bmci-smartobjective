@@ -40,6 +40,7 @@ class SamlProvider:
         try:
             from onelogin.saml2.auth import OneLogin_Saml2_Auth
             from onelogin.saml2.settings import OneLogin_Saml2_Settings
+
             return OneLogin_Saml2_Auth, OneLogin_Saml2_Settings
         except ImportError as e:  # pragma: no cover (dépend de l'env)
             raise SamlNotInstalled(
@@ -99,12 +100,17 @@ def _first(attributes: dict, key: str) -> Optional[str]:
 _EMAIL_CLAIMS = (
     "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
     "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-    "emailaddress", "email", "mail", "upn",
+    "emailaddress",
+    "email",
+    "mail",
+    "upn",
 )
 _NAME_CLAIMS = (
     "http://schemas.microsoft.com/identity/claims/displayname",
     "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname",
-    "displayName", "name", "cn",
+    "displayName",
+    "name",
+    "cn",
 )
 
 
@@ -134,7 +140,9 @@ def extract_profile(raw: dict) -> dict:
             if name:
                 break
 
-    groups = attrs.get(settings.SAML_ATTR_GROUPS) or attrs.get("groups") or attrs.get("memberOf") or []
+    groups = (
+        attrs.get(settings.SAML_ATTR_GROUPS) or attrs.get("groups") or attrs.get("memberOf") or []
+    )
     if isinstance(groups, str):
         groups = [groups]
 

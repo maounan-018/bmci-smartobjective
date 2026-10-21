@@ -34,7 +34,7 @@ def test_hash_never_contains_plaintext():
 
 def test_legacy_sha256_verification_and_rehash():
     """Le format SHA-256 simple doit rester vérifiable et être marqué à migrer."""
-    legacy = hashlib.sha256("legacypass".encode("utf-8")).hexdigest()
+    legacy = hashlib.sha256(b"legacypass").hexdigest()
     assert security.needs_rehash(legacy) is True
     assert security.verify_password("legacypass", legacy) is True
     # Le nouveau format ne doit jamais être considéré comme legacy
@@ -101,6 +101,7 @@ def test_login_rate_limiting_by_ip(client, make_user):
     for i in range(5):
         client.post("/api/auth/login", json={"email": f"spray{i}@bmci.test", "password": "x"})
     # 6e tentative, même IP, avec des identifiants VALIDES : bloquée par l'IP.
-    resp = client.post("/api/auth/login",
-                       json={"email": "victim@bmci.test", "password": "GoodPass1!"})
+    resp = client.post(
+        "/api/auth/login", json={"email": "victim@bmci.test", "password": "GoodPass1!"}
+    )
     assert resp.status_code == 429

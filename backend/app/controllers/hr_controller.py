@@ -11,16 +11,15 @@ EMPLACEMENT MVC
     Couche "controllers" : routes FastAPI.
 """
 
-from typing import List, Optional
-
-from fastapi import APIRouter, Depends, UploadFile, File, Body
-from fastapi.responses import StreamingResponse
-from starlette.concurrency import run_in_threadpool
+from typing import Optional
 
 from app.controllers.auth_controller import get_current_user
 from app.controllers.dependencies import ai_rate_limited_user
 from app.schemas.hr_schema import HRPersonalAnalysisRequest
 from app.services import hr_service
+from fastapi import APIRouter, Body, Depends, File, UploadFile
+from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter(prefix="/api/hr", tags=["RH"])
 
@@ -61,12 +60,14 @@ async def import_objectives_excel(
     content = await file.read()
     # Travail bloquant (parsing + hachages PBKDF2 + DB) déporté dans un threadpool :
     # sinon la boucle asyncio est monopolisée et TOUT le serveur gèle pendant l'import.
-    return await run_in_threadpool(hr_service.import_objectives, file.filename, content, current_user)
+    return await run_in_threadpool(
+        hr_service.import_objectives, file.filename, content, current_user
+    )
 
 
 @router.post("/analyze-batch")
 def analyze_batch(
-    objective_ids: List[str] = Body(default=[]),
+    objective_ids: list[str] = Body(default=[]),
     force: bool = False,
     current_user: dict = Depends(ai_rate_limited_user),
 ):
@@ -99,8 +100,12 @@ def get_hr_objectives_details(
 ):
     """Liste détaillée des objectifs RH avec filtres."""
     return hr_service.get_objectives_details(
-        current_user, entity_filter, manager_filter, period_filter,
-        smart_filter, alignment_filter,
+        current_user,
+        entity_filter,
+        manager_filter,
+        period_filter,
+        smart_filter,
+        alignment_filter,
     )
 
 

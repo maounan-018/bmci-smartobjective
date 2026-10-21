@@ -8,12 +8,13 @@ Sans réseau (Ollama/RAG monkeypatchés) :
   F6 — current_step suit la progression réelle (S -> M -> A ...) ;
   F2 — l'objectif final est revalidé par le pipeline SMART (smart_validation).
 """
-from app.services import ai_service
-from app.schemas.chat_schema import ChatMessage
-from app.core.config import settings
 
+from app.core.config import settings
+from app.schemas.chat_schema import ChatMessage
+from app.services import ai_service
 
 # ---------- F1 : seuil de pertinence ----------
+
 
 def test_f1_coach_retrieve_uses_distance_threshold(monkeypatch):
     captured = {}
@@ -31,6 +32,7 @@ def test_f1_coach_retrieve_uses_distance_threshold(monkeypatch):
 
 
 # ---------- F3 : contexte fencé + anti-évasion ----------
+
 
 class _FakeResp:
     def raise_for_status(self):
@@ -52,7 +54,7 @@ def test_f3_rag_context_is_fenced_and_neutralized(monkeypatch):
     ai_service.call_ollama_chat([{"role": "user", "content": "salut"}], extra_context=poison)
 
     system = sent["payload"]["messages"][0]["content"]
-    assert "<contexte>" in system and "</contexte>" in system   # bloc fencé présent
+    assert "<contexte>" in system and "</contexte>" in system  # bloc fencé présent
     # La balise fermante injectée par le document est neutralisée -> une seule
     # vraie fermeture de bloc (celle qu'on ajoute), pas celle du document.
     assert system.count("</contexte>") == 1
@@ -61,9 +63,14 @@ def test_f3_rag_context_is_fenced_and_neutralized(monkeypatch):
 
 # ---------- F6 : étape réelle ----------
 
+
 def test_f6_coach_step_follows_progress():
-    u = lambda c: ChatMessage(role="user", content=c)
-    a = lambda c: ChatMessage(role="assistant", content=c)
+    def u(c):
+        return ChatMessage(role="user", content=c)
+
+    def a(c):
+        return ChatMessage(role="assistant", content=c)
+
     assert ai_service._coach_step([u("x")], ready=False) == "S"
     assert ai_service._coach_step([u("x"), a("q1"), u("y")], ready=False) == "M"
     assert ai_service._coach_step([u("x"), a("1"), u("y"), a("2"), u("z")], ready=False) == "A"
@@ -72,15 +79,27 @@ def test_f6_coach_step_follows_progress():
 
 # ---------- F2 : revalidation SMART de l'objectif final ----------
 
+
 def test_f2_final_objective_is_revalidated(monkeypatch):
-    monkeypatch.setattr(ai_service, "_retrieve_coach_context", lambda messages, uploaded_by=None: None)
     monkeypatch.setattr(
-        ai_service, "call_ollama_chat",
-        lambda messages, extra_context=None:
-            'Synthese finale. {"final_objective": "Augmenter le NPS de 10 pts d ici 2026", "ready": true}',
+        ai_service, "_retrieve_coach_context", lambda messages, uploaded_by=None: None
     )
-    sentinel = {"S": True, "M": True, "A": True, "R": True, "T": True,
-                "overall": True, "confidence": 0.88, "issues": []}
+    monkeypatch.setattr(
+        ai_service,
+        "call_ollama_chat",
+        lambda messages,
+        extra_context=None: 'Synthese finale. {"final_objective": "Augmenter le NPS de 10 pts d ici 2026", "ready": true}',
+    )
+    sentinel = {
+        "S": True,
+        "M": True,
+        "A": True,
+        "R": True,
+        "T": True,
+        "overall": True,
+        "confidence": 0.88,
+        "issues": [],
+    }
     seen = {}
 
     def fake_analyze(title, description=""):
@@ -90,5 +109,5 @@ def test_f2_final_objective_is_revalidated(monkeypatch):
     monkeypatch.setattr(ai_service, "analyze_smart_internal", fake_analyze)
     resp = ai_service.run_chat_coach([ChatMessage(role="user", content="termine")])
     assert resp.ready is True
-    assert resp.smart_validation == sentinel       # revalidé par le pipeline SMART
-    assert "NPS" in seen["title"]                  # c'est bien l'objectif final qui est validé
+    assert resp.smart_validation == sentinel  # revalidé par le pipeline SMART
+    assert "NPS" in seen["title"]  # c'est bien l'objectif final qui est validé

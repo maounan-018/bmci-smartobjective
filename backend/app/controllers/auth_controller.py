@@ -21,14 +21,13 @@ EMPLACEMENT MVC
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Request, Response, Header, Depends, HTTPException
-
 from app.core.config import settings
-from app.schemas.auth_schema import LoginRequest
-from app.services import auth_service
-from app.services import audit_service as audit
 from app.models.audit_log import AuditEventType
+from app.schemas.auth_schema import LoginRequest
+from app.services import audit_service as audit
+from app.services import auth_service
 from app.utils.helpers import request_meta
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 
 router = APIRouter(prefix="/api", tags=["Authentification"])
 
@@ -40,17 +39,28 @@ _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 # ==================== Cookies de session ====================
 
+
 def set_session_cookies(response: Response, token: str) -> None:
     """Pose le cookie de session HttpOnly + le cookie CSRF (lisible par le JS)."""
     max_age = settings.TOKEN_EXPIRY_HOURS * 3600
     secure = settings.is_production  # Secure exigé en prod (HTTPS) ; off en dev http
     response.set_cookie(
-        SESSION_COOKIE, token,
-        max_age=max_age, httponly=True, secure=secure, samesite="lax", path="/",
+        SESSION_COOKIE,
+        token,
+        max_age=max_age,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
     )
     response.set_cookie(
-        CSRF_COOKIE, secrets.token_urlsafe(24),
-        max_age=max_age, httponly=False, secure=secure, samesite="lax", path="/",
+        CSRF_COOKIE,
+        secrets.token_urlsafe(24),
+        max_age=max_age,
+        httponly=False,
+        secure=secure,
+        samesite="lax",
+        path="/",
     )
 
 
@@ -61,6 +71,7 @@ def clear_session_cookies(response: Response) -> None:
 
 
 # ==================== Dépendance d'authentification ====================
+
 
 def get_current_user(
     request: Request = None,
@@ -79,9 +90,13 @@ def get_current_user(
 
     if not token:
         audit.log_event(
-            AuditEventType.ACCESS_DENIED, "Accès sans token",
-            event_status="FAILED", ip_address=ip, user_agent=ua,
-            endpoint=endpoint, http_method=method,
+            AuditEventType.ACCESS_DENIED,
+            "Accès sans token",
+            event_status="FAILED",
+            ip_address=ip,
+            user_agent=ua,
+            endpoint=endpoint,
+            http_method=method,
         )
         raise HTTPException(status_code=401, detail="Token manquant. Veuillez vous connecter.")
 
@@ -89,26 +104,40 @@ def get_current_user(
     if via_cookie and request is not None and request.method in _MUTATING_METHODS:
         csrf_cookie = request.cookies.get(CSRF_COOKIE)
         csrf_header = request.headers.get(CSRF_HEADER)
-        if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
+        if (
+            not csrf_cookie
+            or not csrf_header
+            or not secrets.compare_digest(csrf_cookie, csrf_header)
+        ):
             audit.log_event(
-                AuditEventType.ACCESS_DENIED, "Jeton CSRF manquant ou invalide",
-                event_status="FAILED", ip_address=ip, user_agent=ua,
-                endpoint=endpoint, http_method=method,
+                AuditEventType.ACCESS_DENIED,
+                "Jeton CSRF manquant ou invalide",
+                event_status="FAILED",
+                ip_address=ip,
+                user_agent=ua,
+                endpoint=endpoint,
+                http_method=method,
             )
             raise HTTPException(status_code=403, detail="Jeton CSRF manquant ou invalide.")
 
     user = auth_service.resolve_session_user(token)
     if not user:
         audit.log_event(
-            AuditEventType.SESSION_EXPIRED, "Session expirée ou invalide",
-            event_status="FAILED", ip_address=ip, user_agent=ua,
-            endpoint=endpoint, http_method=method, token=token,
+            AuditEventType.SESSION_EXPIRED,
+            "Session expirée ou invalide",
+            event_status="FAILED",
+            ip_address=ip,
+            user_agent=ua,
+            endpoint=endpoint,
+            http_method=method,
+            token=token,
         )
         raise HTTPException(status_code=401, detail="Session expirée ou invalide.")
     return user
 
 
 # ==================== Routes ====================
+
 
 @router.post("/auth/login")
 def login(request: LoginRequest, response: Response, http_request: Request = None):
@@ -119,7 +148,9 @@ def login(request: LoginRequest, response: Response, http_request: Request = Non
 
 
 @router.post("/auth/logout")
-def logout(response: Response, http_request: Request = None, current_user: dict = Depends(get_current_user)):
+def logout(
+    response: Response, http_request: Request = None, current_user: dict = Depends(get_current_user)
+):
     """Déconnexion volontaire : invalide la session + supprime les cookies."""
     result = auth_service.logout(current_user, request_meta(http_request))
     clear_session_cookies(response)
@@ -129,4 +160,8 @@ def logout(response: Response, http_request: Request = None, current_user: dict 
 @router.get("/auth/me")
 def me(current_user: dict = Depends(get_current_user)):
     """Retourne l'utilisateur authentifié (réhydratation côté frontend)."""
-    return {"user": {k: current_user.get(k) for k in ("id", "email", "name", "role", "manager_id", "team")}}
+    return {
+        "user": {
+            k: current_user.get(k) for k in ("id", "email", "name", "role", "manager_id", "team")
+        }
+    }

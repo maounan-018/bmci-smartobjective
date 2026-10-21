@@ -12,6 +12,7 @@ EMPLACEMENT MVC
 
 import re
 from typing import Literal, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 _STATUS_VALUES = Literal["draft", "active", "completed", "archived"]
@@ -22,7 +23,7 @@ _DESC_MAX = 5000
 _SHORT_MAX = 100
 # Contrôle caractère : rejette les bytes de contrôle (hors \t\n\r) et les
 # magic bytes binaires (ex. PK\x03\x04 d'un fichier .xlsx envoyé par erreur).
-_CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def _validate_text(v: Optional[str]) -> Optional[str]:
@@ -33,6 +34,7 @@ def _validate_text(v: Optional[str]) -> Optional[str]:
 
 class ObjectiveCreate(BaseModel):
     """Création d'un objectif personnel."""
+
     title: str = Field(min_length=1, max_length=_TITLE_MAX)
     description: Optional[str] = Field(default="", max_length=_DESC_MAX)
     context: Optional[str] = Field(default="", max_length=_DESC_MAX)
@@ -42,6 +44,7 @@ class ObjectiveCreate(BaseModel):
 
 class ObjectiveUpdate(BaseModel):
     """Mise à jour partielle d'un objectif personnel."""
+
     title: Optional[str] = Field(default=None, max_length=_TITLE_MAX)
     description: Optional[str] = Field(default=None, max_length=_DESC_MAX)
     status: Optional[_STATUS_VALUES] = None
@@ -54,6 +57,7 @@ class ObjectiveUpdate(BaseModel):
 
 class CompanyObjectiveCreate(BaseModel):
     """Création d'un objectif stratégique d'entreprise."""
+
     id: Optional[str] = Field(default=None, max_length=_SHORT_MAX)
     title: str = Field(min_length=1, max_length=_TITLE_MAX)
     description: Optional[str] = Field(default="", max_length=_DESC_MAX)
@@ -64,6 +68,7 @@ class CompanyObjectiveCreate(BaseModel):
 
 class CompanyObjectiveUpdate(BaseModel):
     """Mise à jour partielle d'un objectif stratégique d'entreprise."""
+
     title: Optional[str] = Field(default=None, min_length=1, max_length=_TITLE_MAX)
     description: Optional[str] = Field(default=None, max_length=_DESC_MAX)
     department: Optional[str] = Field(default=None, max_length=_SHORT_MAX)

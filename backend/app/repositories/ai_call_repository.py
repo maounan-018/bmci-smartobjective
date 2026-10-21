@@ -11,10 +11,9 @@ EMPLACEMENT MVC
     Couche "repositories" : accès aux données.
 """
 
+from app.models.ai_call import AiCall
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
-
-from app.models.ai_call import AiCall
 
 
 def count_since(db: Session, user_id: str, since_iso: str) -> int:

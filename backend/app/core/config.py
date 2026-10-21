@@ -12,8 +12,8 @@ EMPLACEMENT MVC
     Couche "core" : configuration et paramètres transverses.
 """
 
-import os
 import logging
+import os
 
 
 def load_dotenv(path: str = ".env") -> None:
@@ -24,7 +24,7 @@ def load_dotenv(path: str = ".env") -> None:
     if not os.path.exists(path):
         return
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#") or "=" not in line:
@@ -83,9 +83,15 @@ class Settings:
         self.RAG_MAX_DISTANCE = float(os.getenv("RAG_MAX_DISTANCE", "32"))
 
         # KPI RH (seuils du tableau de bord, réglables sans toucher au code).
-        self.KPI_SMART_THRESHOLD = int(os.getenv("KPI_SMART_THRESHOLD", "80"))        # objectif "conforme"
-        self.KPI_ALIGNMENT_STRONG = int(os.getenv("KPI_ALIGNMENT_STRONG", "75"))      # alignement "fort"
-        self.KPI_AXIS_OVERCONCENTRATION = float(os.getenv("KPI_AXIS_OVERCONCENTRATION", "40"))  # % max sur un axe
+        self.KPI_SMART_THRESHOLD = int(
+            os.getenv("KPI_SMART_THRESHOLD", "80")
+        )  # objectif "conforme"
+        self.KPI_ALIGNMENT_STRONG = int(
+            os.getenv("KPI_ALIGNMENT_STRONG", "75")
+        )  # alignement "fort"
+        self.KPI_AXIS_OVERCONCENTRATION = float(
+            os.getenv("KPI_AXIS_OVERCONCENTRATION", "40")
+        )  # % max sur un axe
         # Confiance minimale de l'IA (0.0-1.0) en deçà de laquelle l'analyse est
         # signalée pour RELECTURE HUMAINE. L'IA reste une aide à la décision : quand
         # elle est elle-même incertaine (modèle indécis, défaut 0.5, ou échec 0.0),
@@ -111,7 +117,7 @@ class Settings:
             raise RuntimeError(
                 "ALLOWED_ORIGINS doit etre defini explicitement dans .env "
                 "(ex: ALLOWED_ORIGINS=http://localhost:5173,https://example.com). "
-                "Le wildcard \"*\" est interdit car combine a allow_credentials."
+                'Le wildcard "*" est interdit car combine a allow_credentials.'
             )
         self.ALLOWED_ORIGINS = [o.strip() for o in _origins_raw.split(",") if o.strip()]
 
@@ -129,13 +135,19 @@ class Settings:
         # Seeding des comptes de demonstration au demarrage (idempotent).
         # Active par defaut pour qu'une copie/clone fonctionne immediatement ;
         # mettre SEED_DEMO_ACCOUNTS=false en production.
-        self.SEED_DEMO_ACCOUNTS = os.getenv("SEED_DEMO_ACCOUNTS", "true").strip().lower() in ("1", "true", "yes")
+        self.SEED_DEMO_ACCOUNTS = os.getenv("SEED_DEMO_ACCOUNTS", "true").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         self.SEED_MANAGER_PASSWORD = os.getenv("SEED_MANAGER_PASSWORD", "")
         self.SEED_HR_PASSWORD = os.getenv("SEED_HR_PASSWORD", "")
         self.SEED_COLLAB_PASSWORD = os.getenv("SEED_COLLAB_PASSWORD", "")
         # Compte ADMIN dédié (administration des comptes). Créé au démarrage si un
         # mot de passe est fourni. Email au format entreprise par défaut.
-        self.SEED_ADMIN_EMAIL = os.getenv("SEED_ADMIN_EMAIL", "admin.system@bmci.local").strip().lower()
+        self.SEED_ADMIN_EMAIL = (
+            os.getenv("SEED_ADMIN_EMAIL", "admin.system@bmci.local").strip().lower()
+        )
         self.SEED_ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "")
 
         # --- Authentification : fournisseur d'identite ---
@@ -156,7 +168,9 @@ class Settings:
         self.SAML_IDP_X509_CERT = os.getenv("SAML_IDP_X509_CERT", "").strip()
         self.SAML_STRICT = os.getenv("SAML_STRICT", "true").strip().lower() in ("1", "true", "yes")
         # Apres login SSO, on renvoie le navigateur vers cette base d'URL frontend.
-        self.SAML_FRONTEND_REDIRECT = os.getenv("SAML_FRONTEND_REDIRECT", "http://localhost:3000").strip().rstrip("/")
+        self.SAML_FRONTEND_REDIRECT = (
+            os.getenv("SAML_FRONTEND_REDIRECT", "http://localhost:3000").strip().rstrip("/")
+        )
         # Noms de claims (valeurs Microsoft par defaut ; vide => fallback intelligent).
         self.SAML_ATTR_EMAIL = os.getenv("SAML_ATTR_EMAIL", "").strip()
         self.SAML_ATTR_NAME = os.getenv("SAML_ATTR_NAME", "").strip()
@@ -168,7 +182,11 @@ class Settings:
         # Mode SIMULATION (DEV UNIQUEMENT) : court-circuite l'IdP réel pour tester
         # le flux SSO de bout en bout sans Entra ID ni python3-saml. JAMAIS en prod.
         # Ignoré automatiquement dès que le SSO réel (SP+IdP) est configuré.
-        self.SAML_SIMULATION = os.getenv("SAML_SIMULATION", "false").strip().lower() in ("1", "true", "yes")
+        self.SAML_SIMULATION = os.getenv("SAML_SIMULATION", "false").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
         # Environnement de déploiement : development (defaut) | production.
         # En production, la simulation SSO est refusée (garde-fou anti-bypass).
