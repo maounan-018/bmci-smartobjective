@@ -1,4 +1,4 @@
-# Dependances Python pinnees aux versions exactes qui passent les 28 tests.
+# Dependances Python pinnees aux versions exactes qui passent les 103 tests.
 # Les mises a jour sont proposees par Dependabot (cf. .github/dependabot.yml)
 # et doivent etre revues explicitement plutot que d'etre adoptees silencieusement.
 
@@ -6,7 +6,7 @@ fastapi==0.146.0
 uvicorn==0.54.0
 # Prod : gunicorn orchestre plusieurs UvicornWorker (multi-process, resilience).
 # Dev : uvicorn --reload mono-process suffit (voir LANCER_APP.bat).
-gunicorn==23.0.0
+gunicorn==26.2.0
 requests==2.34.2
 pydantic==2.14.1
 SQLAlchemy==2.1.5
@@ -31,5 +31,5 @@ python-docx==1.2.0
 rapidocr-onnxruntime==1.2.3
 
 # --- Tests (securite / tracabilite) ---
-pytest==8.4.2
+pytest==9.1.1
 httpx==0.28.1
