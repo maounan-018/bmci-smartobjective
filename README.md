@@ -1,6 +1,6 @@
 # 🎯 ObjectifSMART-AI — Objectifs annuels assistés par IA locale
 
-[![CI](https://github.com/maounan-018/bmci-smartobjective_DMD_V1/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/maounan-018/bmci-smartobjective_DMD_V1/actions/workflows/ci.yml)
+[![CI](https://github.com/maounan-018/bmci-smartobjective/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/maounan-018/bmci-smartobjective/actions/workflows/ci.yml)
 
 Plateforme web d'**évaluation SMART** (Spécifique, Mesurable, Atteignable,
 Réaliste, Temporel) et d'**alignement stratégique** des objectifs annuels pour
