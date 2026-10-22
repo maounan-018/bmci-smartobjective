@@ -2,7 +2,7 @@
 # Les mises a jour sont proposees par Dependabot (cf. .github/dependabot.yml)
 # et doivent etre revues explicitement plutot que d'etre adoptees silencieusement.
 
-fastapi==0.146.0
+fastapi==0.148.0
 uvicorn==0.54.0
 # Prod : gunicorn orchestre plusieurs UvicornWorker (multi-process, resilience).
 # Dev : uvicorn --reload mono-process suffit (voir LANCER_APP.bat).
@@ -15,7 +15,7 @@ reportlab==4.5.1
 python-multipart==0.0.32
 # --- Rapport COMEX (graphiques du PDF Direction : treemap, donuts, heatmap...) ---
 matplotlib==3.11.2
-numpy==2.4.6
+numpy==2.5.4
 
 # --- RAG : recherche vectorielle locale dans SQLite (assistant base de connaissances) ---
 sqlite-vec==0.1.9
